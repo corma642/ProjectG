@@ -13,6 +13,7 @@ APGRunnerCharacter::APGRunnerCharacter()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
+	// 메시가 없어도 캡슐 기준 이동 테스트가 가능하도록 기본 크기를 먼저 잡는다.
 	GetCapsuleComponent()->InitCapsuleSize(42.0f, 96.0f);
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
@@ -25,6 +26,7 @@ APGRunnerCharacter::APGRunnerCharacter()
 	FollowCamera->bUsePawnControlRotation = false;
 
 	UCharacterMovementComponent* Movement = GetCharacterMovement();
+	// 러너는 항상 전방을 바라보므로 이동 방향에 따른 자동 회전은 끈다.
 	Movement->bOrientRotationToMovement = false;
 	Movement->bUseControllerDesiredRotation = false;
 	Movement->GravityScale = 1.0f;
@@ -42,6 +44,7 @@ void APGRunnerCharacter::BeginPlay()
 
 	ApplyGameSettings();
 
+	// 시작 위치를 중앙 라인으로 보고 이후 라인 오프셋을 상대값으로 계산한다.
 	CenterLaneY = GetActorLocation().Y;
 	LaneStartY = CenterLaneY;
 	LaneTargetY = CenterLaneY;
@@ -83,6 +86,7 @@ void APGRunnerCharacter::RequestLaneChange(int32 Direction)
 
 	if (bIsChangingLane)
 	{
+		// 이동 중 입력은 버퍼에 저장해 착지 직후 다음 라인 이동으로 이어지게 한다.
 		BufferedLaneDirection = NormalizedDirection;
 		BufferedLaneInputRemainingTime = Settings->Lane.LaneInputBufferTime;
 		return;
@@ -95,6 +99,8 @@ void APGRunnerCharacter::SetBalanceInput(float InBalanceInput)
 {
 	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
 	const float ClampedInput = FMath::Clamp(InBalanceInput, -Settings->Gyro.MaxTiltInput, Settings->Gyro.MaxTiltInput);
+
+	// 점프 중/착지 직후에는 조작 피로를 줄이기 위해 자이로 영향력을 완화한다.
 	const float DampingScale = bIsChangingLane ? Settings->Gyro.JumpTiltDampingScale : 1.0f;
 	const float LandingScale = LandingStabilizeRemainingTime > 0.0f ? 0.5f : 1.0f;
 
@@ -105,6 +111,7 @@ void APGRunnerCharacter::ApplyGameSettings()
 {
 	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
 
+	// Project Settings 값을 매 프레임 반영해 PIE 중 튜닝 변경을 빠르게 확인할 수 있게 한다.
 	UCharacterMovementComponent* Movement = GetCharacterMovement();
 	Movement->MaxWalkSpeed = Settings->Runner.ForwardSpeed;
 
@@ -140,6 +147,7 @@ void APGRunnerCharacter::UpdateLaneMovement(float DeltaSeconds)
 	const float Duration = FMath::Max(Settings->Lane.LaneChangeDuration, KINDA_SMALL_NUMBER);
 	LaneMoveElapsed += DeltaSeconds;
 
+	// 좌우 이동은 보간으로 부드럽게 처리하고, Z축은 사인 곡선으로 점프감을 만든다.
 	const float Alpha = FMath::Clamp(LaneMoveElapsed / Duration, 0.0f, 1.0f);
 	const float SmoothAlpha = FMath::InterpEaseInOut(0.0f, 1.0f, Alpha, 2.0f);
 	const float JumpOffset = FMath::Sin(Alpha * UE_PI) * Settings->Lane.LaneJumpHeight;
@@ -154,11 +162,13 @@ void APGRunnerCharacter::UpdateLaneMovement(float DeltaSeconds)
 		bIsChangingLane = false;
 		CurrentLaneIndex = TargetLaneIndex;
 
+		// 충돌 보정 등으로 생긴 오차를 제거해 다음 라인 계산의 기준을 안정화한다.
 		FVector FinalLocation = GetActorLocation();
 		FinalLocation.Y = LaneTargetY;
 		FinalLocation.Z = LaneStartZ;
 		SetActorLocation(FinalLocation, true);
 
+		// 착지 직후 짧은 안정화 시간을 부여해 자이로와 점프 입력이 충돌하지 않게 한다.
 		LandingStabilizeRemainingTime = Settings->Gyro.LandingStabilizeTime;
 		ConsumeBufferedLaneInput();
 	}
@@ -168,6 +178,8 @@ void APGRunnerCharacter::UpdateBodyLean(float DeltaSeconds)
 {
 	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
 	const float TargetRoll = BalanceInput * Settings->Runner.BodyLeanMaxRoll;
+
+	// 중심 입력이 즉시 꺾이지 않고 몸이 따라가는 느낌이 나도록 보간한다.
 	CurrentBodyRoll = FMath::FInterpTo(CurrentBodyRoll, TargetRoll, DeltaSeconds, Settings->Runner.BodyLeanInterpSpeed);
 
 	if (USkeletalMeshComponent* MeshComponent = GetMesh())
@@ -192,6 +204,7 @@ void APGRunnerCharacter::DrawDebugLanes() const
 
 	for (int32 LaneIndex = 0; LaneIndex < Settings->Lane.LaneCount; ++LaneIndex)
 	{
+		// 목표 라인은 초록색으로 표시해 이동 중 도착 라인을 쉽게 확인한다.
 		const float LaneY = CenterLaneY + GetLaneOffset(LaneIndex);
 		const FVector Start(ActorLocation.X - 200.0f, LaneY, ActorLocation.Z + DebugHeight);
 		const FVector End(ActorLocation.X + DebugForwardLength, LaneY, ActorLocation.Z + DebugHeight);
@@ -208,6 +221,7 @@ void APGRunnerCharacter::StartLaneChange(int32 NewLaneIndex)
 		return;
 	}
 
+	// 이동 시작/목표 위치를 고정해 이동 중 기준값이 흔들리지 않도록 한다.
 	TargetLaneIndex = ClampedLaneIndex;
 	LaneStartY = GetActorLocation().Y;
 	LaneTargetY = CenterLaneY + GetLaneOffset(TargetLaneIndex);
@@ -228,6 +242,8 @@ void APGRunnerCharacter::ConsumeBufferedLaneInput()
 	const int32 Direction = BufferedLaneDirection;
 	BufferedLaneDirection = 0;
 	BufferedLaneInputRemainingTime = 0.0f;
+
+	// 버퍼 입력은 현재 착지한 라인을 기준으로 다시 판정한다.
 	StartLaneChange(CurrentLaneIndex + Direction);
 }
 

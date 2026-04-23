@@ -25,13 +25,16 @@ void APGPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 
+	// 실제 모바일 조작 기준: 화면 좌/우 터치로 인접 라인 이동.
 	InputComponent->BindTouch(IE_Pressed, this, &APGPlayerController::HandleTouchPressed);
 
+	// 에디터 PIE에서 모바일 터치 없이 라인 이동을 확인하기 위한 폴백 입력.
 	InputComponent->BindKey(EKeys::A, IE_Pressed, this, &APGPlayerController::MoveLeft);
 	InputComponent->BindKey(EKeys::Left, IE_Pressed, this, &APGPlayerController::MoveLeft);
 	InputComponent->BindKey(EKeys::D, IE_Pressed, this, &APGPlayerController::MoveRight);
 	InputComponent->BindKey(EKeys::Right, IE_Pressed, this, &APGPlayerController::MoveRight);
 
+	// 에디터 PIE에서 자이로 없이 중심 기울기 반응을 확인하기 위한 폴백 입력.
 	InputComponent->BindKey(EKeys::Q, IE_Pressed, this, &APGPlayerController::StartKeyboardBalanceLeft);
 	InputComponent->BindKey(EKeys::Q, IE_Released, this, &APGPlayerController::StopKeyboardBalanceLeft);
 	InputComponent->BindKey(EKeys::E, IE_Pressed, this, &APGPlayerController::StartKeyboardBalanceRight);
@@ -50,6 +53,7 @@ void APGPlayerController::HandleTouchPressed(ETouchIndex::Type FingerIndex, FVec
 		return;
 	}
 
+	// 화면 중앙을 기준으로 왼쪽 터치는 -1, 오른쪽 터치는 +1 라인 이동으로 해석한다.
 	SendLaneChange(TouchLocation.X < static_cast<float>(ViewportSizeX) * 0.5f ? -1 : 1);
 }
 
@@ -93,6 +97,7 @@ void APGPlayerController::RequestGyroCalibration()
 {
 	if (!bHasCalibration)
 	{
+		// 첫 보정은 즉시 적용해 시작 순간 입력 튐을 막는다.
 		CalibrationTilt = LastRawTilt;
 		TargetCalibrationTilt = LastRawTilt;
 		bHasCalibration = true;
@@ -100,6 +105,7 @@ void APGPlayerController::RequestGyroCalibration()
 		return;
 	}
 
+	// 이미 기준값이 있으면 새 기준까지 부드럽게 보간해 플레이 중 급격한 입력 변화를 줄인다.
 	TargetCalibrationTilt = LastRawTilt;
 	bIsCalibrating = true;
 }
@@ -122,10 +128,12 @@ void APGPlayerController::UpdateGyroInput(float DeltaTime)
 	FVector Acceleration = FVector::ZeroVector;
 	GetInputMotionState(Tilt, RotationRate, Gravity, Acceleration);
 
+	// 현재는 기기를 좌우로 기울이는 값을 중심 제어 입력으로 사용한다.
 	LastRawTilt = Tilt.Y;
 
 	if (!bHasCalibration)
 	{
+		// 별도 보정 입력이 없어도 첫 프레임 자세를 기준값으로 삼아 중립 상태를 만든다.
 		CalibrationTilt = LastRawTilt;
 		TargetCalibrationTilt = LastRawTilt;
 		bHasCalibration = true;
@@ -133,6 +141,7 @@ void APGPlayerController::UpdateGyroInput(float DeltaTime)
 
 	if (bIsCalibrating)
 	{
+		// 플레이 중 재보정 시 입력이 갑자기 튀지 않도록 설정값 기반 보간을 사용한다.
 		CalibrationTilt = FMath::FInterpTo(CalibrationTilt, TargetCalibrationTilt, DeltaTime, Settings->Gyro.CalibrationBlendSpeed);
 		if (FMath::IsNearlyEqual(CalibrationTilt, TargetCalibrationTilt, 0.001f))
 		{
@@ -146,6 +155,7 @@ void APGPlayerController::UpdateGyroInput(float DeltaTime)
 #if WITH_EDITOR
 	if (Settings->Debug.bUseKeyboardFallbackInEditor && !FMath::IsNearlyZero(KeyboardBalanceInput))
 	{
+		// 에디터 테스트에서는 키보드 입력을 자이로보다 우선해 반복 검증을 쉽게 한다.
 		FinalBalanceInput = KeyboardBalanceInput;
 	}
 #endif
@@ -172,8 +182,10 @@ float APGPlayerController::NormalizeTiltInput(float RawTilt) const
 
 	if (FMath::Abs(CenteredTilt) <= Settings->Gyro.TiltDeadZone)
 	{
+		// 손 떨림이나 센서 미세 노이즈는 중심 입력으로 보지 않는다.
 		return 0.0f;
 	}
 
+	// 민감도 적용 후 설정된 최대 입력 범위 안으로 제한한다.
 	return FMath::Clamp(CenteredTilt * Settings->Gyro.TiltSensitivity, -Settings->Gyro.MaxTiltInput, Settings->Gyro.MaxTiltInput);
 }
