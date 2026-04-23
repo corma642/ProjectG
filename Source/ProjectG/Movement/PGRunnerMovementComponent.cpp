@@ -1,0 +1,207 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Movement/PGRunnerMovementComponent.h"
+
+UPGRunnerMovementComponent::UPGRunnerMovementComponent()
+{
+	PrimaryComponentTick.bCanEverTick = true;
+}
+
+void UPGRunnerMovementComponent::InitializeRunnerMovement(const FPGLaneSettings& InLaneSettings, const FPGGyroSettings& InGyroSettings, const FVector& InLaneOriginLocation, const FVector& InRunnerForwardVector, const FVector& InRunnerRightVector)
+{
+	CachedLaneSettings = InLaneSettings;
+	CachedGyroSettings = InGyroSettings;
+	LaneOriginLocation = InLaneOriginLocation;
+
+	RunnerForwardVector = InRunnerForwardVector;
+	RunnerForwardVector.Z = 0.0f;
+	RunnerForwardVector = RunnerForwardVector.GetSafeNormal(SMALL_NUMBER, FVector::ForwardVector);
+
+	RunnerRightVector = InRunnerRightVector;
+	RunnerRightVector.Z = 0.0f;
+	RunnerRightVector = RunnerRightVector.GetSafeNormal(SMALL_NUMBER, FVector::RightVector);
+
+	CurrentLaneIndex = GetCenterLaneIndex();
+	TargetLaneIndex = CurrentLaneIndex;
+	BufferedLaneDirection = 0;
+	LaneStartOffset = 0.0f;
+	LaneTargetOffset = 0.0f;
+	LaneMoveElapsed = 0.0f;
+	BufferedLaneInputRemainingTime = 0.0f;
+	LandingStabilizeRemainingTime = 0.0f;
+	VisualJumpOffset = 0.0f;
+	bIsChangingLane = false;
+}
+
+void UPGRunnerMovementComponent::RequestLaneChange(int32 Direction)
+{
+	if (Direction == 0)
+	{
+		return;
+	}
+
+	const int32 NormalizedDirection = Direction > 0 ? 1 : -1;
+	if (bIsChangingLane)
+	{
+		// 이동 중 입력은 버퍼에 저장해 착지 직후 다음 라인 이동으로 이어지게 한다.
+		BufferedLaneDirection = NormalizedDirection;
+		BufferedLaneInputRemainingTime = CachedLaneSettings.LaneInputBufferTime;
+		return;
+	}
+
+	StartLaneChange(CurrentLaneIndex + NormalizedDirection);
+}
+
+FVector UPGRunnerMovementComponent::GetLaneWorldLocation(int32 LaneIndex) const
+{
+	return GetLocationAtLaneOffset(GetLaneOffset(LaneIndex));
+}
+
+void UPGRunnerMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	UpdateLaneMovement(DeltaTime);
+
+	if (LandingStabilizeRemainingTime > 0.0f)
+	{
+		LandingStabilizeRemainingTime = FMath::Max(0.0f, LandingStabilizeRemainingTime - DeltaTime);
+	}
+}
+
+void UPGRunnerMovementComponent::UpdateLaneMovement(float DeltaSeconds)
+{
+	if (!UpdatedComponent)
+	{
+		return;
+	}
+
+	if (!bIsChangingLane)
+	{
+		VisualJumpOffset = 0.0f;
+
+		if (BufferedLaneInputRemainingTime > 0.0f)
+		{
+			BufferedLaneInputRemainingTime = FMath::Max(0.0f, BufferedLaneInputRemainingTime - DeltaSeconds);
+			if (BufferedLaneInputRemainingTime <= 0.0f)
+			{
+				BufferedLaneDirection = 0;
+			}
+		}
+		return;
+	}
+
+	const float Duration = FMath::Max(CachedLaneSettings.LaneChangeDuration, KINDA_SMALL_NUMBER);
+	LaneMoveElapsed += DeltaSeconds;
+
+	// 캡슐은 수평 라인 이동만 수행하고, 점프 높이는 메시 연출용 값으로만 제공한다.
+	const float Alpha = FMath::Clamp(LaneMoveElapsed / Duration, 0.0f, 1.0f);
+	const float SmoothAlpha = FMath::InterpEaseInOut(0.0f, 1.0f, Alpha, 2.0f);
+	const float CurrentLaneOffset = FMath::Lerp(LaneStartOffset, LaneTargetOffset, SmoothAlpha);
+	VisualJumpOffset = FMath::Sin(Alpha * UE_PI) * CachedLaneSettings.LaneJumpHeight;
+
+	const FVector CurrentLocation = UpdatedComponent->GetComponentLocation();
+	FVector TargetLocation = GetLocationAtLaneOffset(CurrentLaneOffset);
+	TargetLocation.Z = CurrentLocation.Z;
+
+	const FVector Delta = TargetLocation - CurrentLocation;
+	if (!Delta.IsNearlyZero())
+	{
+		FHitResult Hit;
+		SafeMoveUpdatedComponent(Delta, UpdatedComponent->GetComponentQuat(), true, Hit);
+	}
+
+	if (Alpha >= 1.0f)
+	{
+		CurrentLaneIndex = TargetLaneIndex;
+
+		// 충돌 보정 등으로 생긴 좌우 오차를 Movement 계층에서 한 번 더 줄인다.
+		const FVector FinishLocation = UpdatedComponent->GetComponentLocation();
+		FVector FinalLaneLocation = GetLocationAtLaneOffset(LaneTargetOffset);
+		FinalLaneLocation.Z = FinishLocation.Z;
+
+		const FVector FinalDelta = FinalLaneLocation - FinishLocation;
+		if (!FinalDelta.IsNearlyZero())
+		{
+			FHitResult Hit;
+			SafeMoveUpdatedComponent(FinalDelta, UpdatedComponent->GetComponentQuat(), true, Hit);
+		}
+
+		bIsChangingLane = false;
+		VisualJumpOffset = 0.0f;
+		LandingStabilizeRemainingTime = CachedGyroSettings.LandingStabilizeTime;
+		ConsumeBufferedLaneInput();
+	}
+}
+
+void UPGRunnerMovementComponent::StartLaneChange(int32 NewLaneIndex)
+{
+	const int32 ClampedLaneIndex = ClampLaneIndex(NewLaneIndex);
+	if (ClampedLaneIndex == CurrentLaneIndex)
+	{
+		return;
+	}
+
+	// 이동 시작/목표 오프셋을 고정해 이동 중 기준값이 흔들리지 않도록 한다.
+	TargetLaneIndex = ClampedLaneIndex;
+	LaneStartOffset = GetCurrentLaneOffset();
+	LaneTargetOffset = GetLaneOffset(TargetLaneIndex);
+	LaneMoveElapsed = 0.0f;
+	bIsChangingLane = true;
+}
+
+void UPGRunnerMovementComponent::ConsumeBufferedLaneInput()
+{
+	if (BufferedLaneDirection == 0 || BufferedLaneInputRemainingTime <= 0.0f)
+	{
+		BufferedLaneDirection = 0;
+		BufferedLaneInputRemainingTime = 0.0f;
+		return;
+	}
+
+	const int32 Direction = BufferedLaneDirection;
+	BufferedLaneDirection = 0;
+	BufferedLaneInputRemainingTime = 0.0f;
+
+	// 버퍼 입력은 현재 착지한 라인을 기준으로 다시 판정한다.
+	StartLaneChange(CurrentLaneIndex + Direction);
+}
+
+int32 UPGRunnerMovementComponent::GetCenterLaneIndex() const
+{
+	return FMath::Clamp(CachedLaneSettings.LaneCount / 2, 0, FMath::Max(0, CachedLaneSettings.LaneCount - 1));
+}
+
+int32 UPGRunnerMovementComponent::ClampLaneIndex(int32 LaneIndex) const
+{
+	return FMath::Clamp(LaneIndex, 0, FMath::Max(0, CachedLaneSettings.LaneCount - 1));
+}
+
+float UPGRunnerMovementComponent::GetLaneOffset(int32 LaneIndex) const
+{
+	return static_cast<float>(LaneIndex - GetCenterLaneIndex()) * CachedLaneSettings.LaneWidth;
+}
+
+float UPGRunnerMovementComponent::GetCurrentLaneOffset() const
+{
+	if (!UpdatedComponent)
+	{
+		return 0.0f;
+	}
+
+	// 시작 중앙 라인에서 현재 캡슐까지의 벡터를 러너 오른쪽 축에 투영한다.
+	return FVector::DotProduct(UpdatedComponent->GetComponentLocation() - LaneOriginLocation, RunnerRightVector);
+}
+
+FVector UPGRunnerMovementComponent::GetLocationAtLaneOffset(float LaneOffset) const
+{
+	if (!UpdatedComponent)
+	{
+		return LaneOriginLocation + RunnerRightVector * LaneOffset;
+	}
+
+	// 전방 진행 거리는 현재 위치에서 유지하고 좌우 오프셋만 라인 기준값으로 교체한다.
+	const FVector OriginToActor = UpdatedComponent->GetComponentLocation() - LaneOriginLocation;
+	const float ForwardDistance = FVector::DotProduct(OriginToActor, RunnerForwardVector);
+	return LaneOriginLocation + RunnerForwardVector * ForwardDistance + RunnerRightVector * LaneOffset;
+}
