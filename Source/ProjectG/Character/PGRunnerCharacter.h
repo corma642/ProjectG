@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Cargo/PGCargoStackComponent.h"
 #include "GameFramework/Character.h"
 #include "Movement/PGRunnerMovementComponent.h"
 #include "Settings/PGGameSettings.h"
@@ -51,6 +52,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement")
 	TObjectPtr<UPGRunnerMovementComponent> RunnerMovementComponent;
 
+	// 머리 위 적재물 개수와 시각 흔들림을 관리하는 컴포넌트
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cargo")
+	TObjectPtr<UPGCargoStackComponent> CargoStackComponent;
+
 	// 캐릭터를 약간 위에서 따라가는 추적 카메라 암
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<USpringArmComponent> CameraBoom;
@@ -89,6 +94,9 @@ private:
 
 	// BeginPlay에서 캐시한 에디터 디버그 설정
 	FPGDebugSettings CachedDebugSettings;
+
+	// BeginPlay에서 캐시한 적재물 스택 설정
+	FPGCargoSettings CachedCargoSettings;
 
 	// 현재 좌우 중심 입력값
 	float BalanceInput = 0.0f;

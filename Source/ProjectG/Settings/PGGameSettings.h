@@ -140,6 +140,47 @@ struct FPGDebugSettings
 };
 
 /**
+ * 머리 위 적재물 스택과 시각 흔들림 설정
+ */
+USTRUCT(BlueprintType)
+struct FPGCargoSettings
+{
+	GENERATED_BODY()
+
+	// 게임 시작 시 머리 위에 올릴 적재물 개수
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "0", UIMin = "0", UIMax = "5"))
+	int32 InitialCargoCount = 1;
+
+	// 동시에 유지할 수 있는 최대 적재물 개수
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "1", UIMin = "1", UIMax = "5"))
+	int32 MaxCargoCount = 3;
+
+	// 적재물 사이의 세로 간격
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "80.0"))
+	float CargoSlotSpacing = 18.0f;
+
+	// 캐릭터 기준 첫 적재물 위치 오프셋
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")
+	FVector CargoBaseOffset = FVector(0.0f, 0.0f, 120.0f);
+
+	// 중심 입력이 적재물 흔들림으로 표현되는 최대 롤 각도
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "0.0", ClampMax = "45.0", UIMin = "0.0", UIMax = "30.0"))
+	float SwayMaxRoll = 10.0f;
+
+	// 적재물 흔들림이 목표 각도로 따라가는 보간 속도
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "20.0"))
+	float SwayInterpSpeed = 8.0f;
+
+	// 라인 점프 높이가 적재물 시각 상승에 반영되는 비율
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0"))
+	float JumpLiftScale = 0.35f;
+
+	// 메시가 없을 때 적재 위치를 디버그 구체로 표시할지 여부
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")
+	bool bDrawCargoDebug = false;
+};
+
+/**
  * 프로젝트 전역 설정을 에디터(Project Settings)에서 관리하기 위한 클래스
  */
 UCLASS(Config = Game, DefaultConfig, meta = (DisplayName = "Go Deliver! Settings"))
@@ -169,4 +210,8 @@ public:
 	// 에디터 테스트와 디버그 보조 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Debug")
 	FPGDebugSettings Debug;
+
+	// 머리 위 적재물 스택과 시각 흔들림 설정
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")
+	FPGCargoSettings Cargo;
 };

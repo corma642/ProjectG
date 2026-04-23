@@ -26,6 +26,9 @@ APGRunnerCharacter::APGRunnerCharacter(const FObjectInitializer& ObjectInitializ
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
 
+	CargoStackComponent = CreateDefaultSubobject<UPGCargoStackComponent>(TEXT("CargoStack"));
+	CargoStackComponent->SetupAttachment(RootComponent);
+
 	RunnerMovementComponent = CastChecked<UPGRunnerMovementComponent>(GetCharacterMovement());
 	UCharacterMovementComponent* Movement = RunnerMovementComponent;
 	// 러너는 항상 전방을 바라보므로 이동 방향에 따른 자동 회전은 끈다.
@@ -57,6 +60,12 @@ void APGRunnerCharacter::BeginPlay()
 		RunnerMovementComponent->InitializeRunnerMovement(CachedLaneSettings, CachedGyroSettings, GetActorLocation(), GetActorForwardVector(), GetActorRightVector());
 	}
 
+	if (CargoStackComponent)
+	{
+		// 실제 계란 메시가 없어도 설정 기반 적재 슬롯을 먼저 구성해 Sprint 2 핵심 반응을 검증한다.
+		CargoStackComponent->InitializeCargoStack(CachedCargoSettings);
+	}
+
 	if (USkeletalMeshComponent* MeshComponent = GetMesh())
 	{
 		InitialMeshRelativeRotation = MeshComponent->GetRelativeRotation();
@@ -69,7 +78,13 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 
 	UpdateForwardMovement();
-	SetMeshJumpOffset(RunnerMovementComponent ? RunnerMovementComponent->GetVisualJumpOffset() : 0.0f);
+	const float VisualJumpOffset = RunnerMovementComponent ? RunnerMovementComponent->GetVisualJumpOffset() : 0.0f;
+	SetMeshJumpOffset(VisualJumpOffset);
+	if (CargoStackComponent)
+	{
+		const bool bIsChangingLane = RunnerMovementComponent && RunnerMovementComponent->IsChangingLane();
+		CargoStackComponent->UpdateCargoReaction(DeltaSeconds, BalanceInput, VisualJumpOffset, bIsChangingLane);
+	}
 	UpdateBodyLean(DeltaSeconds);
 	DrawDebugLanes();
 }
@@ -118,6 +133,7 @@ void APGRunnerCharacter::ApplyGameSettings()
 	CachedGyroSettings = Settings->Gyro;
 	CachedCameraSettings = Settings->Camera;
 	CachedDebugSettings = Settings->Debug;
+	CachedCargoSettings = Settings->Cargo;
 
 	// Project Settings 값은 BeginPlay에서 1회 적용한다. PIE 중 변경한 값은 재시작 후 반영한다.
 	UCharacterMovementComponent* Movement = GetCharacterMovement();
