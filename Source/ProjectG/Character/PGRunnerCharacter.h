@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Settings/PGGameSettings.h"
 #include "PGRunnerCharacter.generated.h"
 
 class UCameraComponent;
@@ -23,7 +24,7 @@ public:
 	// 매 프레임 자동 전진, 라인 이동, 몸 기울기, 디버그 표시를 갱신한다.
 	virtual void Tick(float DeltaSeconds) override;
 
-	// 시작 위치를 기준으로 중앙 라인과 초기 메시 회전을 저장한다.
+	// 시작 위치를 기준으로 러너 진행 축, 중앙 라인, 초기 메시 상태를 저장한다.
 	virtual void BeginPlay() override;
 
 	// 입력 방향(-1: 왼쪽, 1: 오른쪽)에 따라 인접 라인 이동을 요청한다.
@@ -54,19 +55,19 @@ protected:
 	TObjectPtr<UCameraComponent> FollowCamera;
 
 private:
-	// Project Settings의 Go Deliver 설정값을 런타임 컴포넌트에 반영한다.
+	// Project Settings의 Go Deliver 설정값을 시작 시 캐시하고 런타임 컴포넌트에 반영한다.
 	void ApplyGameSettings();
 
-	// 러너가 매 프레임 전방으로 계속 이동하도록 입력을 넣는다.
+	// 러너 기준 전방 축으로 매 프레임 자동 전진 입력을 넣는다.
 	void UpdateForwardMovement();
 
-	// 라인 변경 진행도와 점프 포물선을 갱신한다.
+	// 러너 기준 오른쪽 축으로 라인 변경을 보간하고 메시 점프 연출을 갱신한다.
 	void UpdateLaneMovement(float DeltaSeconds);
 
 	// 중심 입력값을 캐릭터 메시의 좌우 기울기 연출로 변환한다.
 	void UpdateBodyLean(float DeltaSeconds);
 
-	// 디버그 옵션이 켜져 있을 때 현재 3라인 위치를 월드에 표시한다.
+	// 디버그 옵션이 켜져 있을 때 러너 기준 3라인 위치를 월드에 표시한다.
 	void DrawDebugLanes() const;
 
 	// 지정한 라인 인덱스로 이동을 시작한다.
@@ -81,8 +82,32 @@ private:
 	// 라인 인덱스가 유효 범위를 벗어나지 않도록 제한한다.
 	int32 ClampLaneIndex(int32 LaneIndex) const;
 
-	// 중앙 라인을 기준으로 특정 라인의 Y축 오프셋을 계산한다.
+	// 중앙 라인을 기준으로 특정 라인의 좌우 오프셋을 계산한다.
 	float GetLaneOffset(int32 LaneIndex) const;
+
+	// 현재 캡슐 위치가 중앙 라인 기준으로 얼마나 오른쪽에 있는지 계산한다.
+	float GetCurrentLaneOffset() const;
+
+	// 현재 전방 진행 거리를 유지한 채 지정한 좌우 오프셋의 월드 위치를 계산한다.
+	FVector GetLocationAtLaneOffset(float LaneOffset) const;
+
+	// 캡슐 Z 이동 없이 메시 상대 위치만 올려 라인 점프감을 만든다.
+	void SetMeshJumpOffset(float JumpOffset);
+
+	// BeginPlay에서 캐시한 자동 전진/몸 기울기 설정
+	FPGRunnerSettings CachedRunnerSettings;
+
+	// BeginPlay에서 캐시한 3라인 이동 설정
+	FPGLaneSettings CachedLaneSettings;
+
+	// BeginPlay에서 캐시한 자이로 중심 제어 설정
+	FPGGyroSettings CachedGyroSettings;
+
+	// BeginPlay에서 캐시한 카메라 설정
+	FPGCameraSettings CachedCameraSettings;
+
+	// BeginPlay에서 캐시한 에디터 디버그 설정
+	FPGDebugSettings CachedDebugSettings;
 
 	// 현재 실제 위치한 라인 인덱스
 	int32 CurrentLaneIndex = 0;
@@ -93,17 +118,20 @@ private:
 	// 라인 이동 중 미리 입력된 다음 이동 방향
 	int32 BufferedLaneDirection = 0;
 
-	// 시작 위치 기준 중앙 라인의 Y 좌표
-	float CenterLaneY = 0.0f;
+	// 시작 시 중앙 라인으로 잡은 월드 위치
+	FVector LaneOriginLocation = FVector::ZeroVector;
 
-	// 라인 이동 시작 시점의 Y 좌표
-	float LaneStartY = 0.0f;
+	// 시작 시 러너가 바라보던 수평 전방 축
+	FVector RunnerForwardVector = FVector::ForwardVector;
 
-	// 라인 이동 목표 Y 좌표
-	float LaneTargetY = 0.0f;
+	// 시작 시 러너의 수평 오른쪽 축
+	FVector RunnerRightVector = FVector::RightVector;
 
-	// 라인 점프 시작 시점의 Z 좌표
-	float LaneStartZ = 0.0f;
+	// 라인 이동 시작 시점의 중앙 라인 기준 좌우 오프셋
+	float LaneStartOffset = 0.0f;
+
+	// 라인 이동 목표 지점의 중앙 라인 기준 좌우 오프셋
+	float LaneTargetOffset = 0.0f;
 
 	// 현재 라인 이동이 진행된 시간
 	float LaneMoveElapsed = 0.0f;
@@ -125,4 +153,7 @@ private:
 
 	// 몸 기울기 연출을 더하기 전 Skeletal Mesh의 초기 상대 회전
 	FRotator InitialMeshRelativeRotation = FRotator::ZeroRotator;
+
+	// 점프 연출을 더하기 전 Skeletal Mesh의 초기 상대 위치
+	FVector InitialMeshRelativeLocation = FVector::ZeroVector;
 };

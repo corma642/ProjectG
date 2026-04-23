@@ -3,8 +3,12 @@
 #include "Player/PGPlayerController.h"
 
 #include "Character/PGRunnerCharacter.h"
-#include "Components/InputComponent.h"
+#include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
 #include "Engine/Engine.h"
+#include "InputAction.h"
+#include "InputActionValue.h"
+#include "InputMappingContext.h"
 #include "InputCoreTypes.h"
 #include "Settings/PGGameSettings.h"
 
@@ -12,6 +16,40 @@ APGPlayerController::APGPlayerController()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	bShowMouseCursor = false;
+}
+
+void APGPlayerController::BeginPlay()
+{
+	Super::BeginPlay();
+
+	EnsureInputAssets();
+
+	if ((DefaultMappingContext || TouchLaneAction || LaneLeftAction || LaneRightAction || BalanceLeftAction || BalanceRightAction || GyroCalibrationAction) && !HasCompleteConfiguredInputAssets())
+	{
+		// 입력 에셋은 일부만 지정하면 액션/매핑 불일치가 생기므로 안전한 C++ 기본 매핑으로 되돌린다.
+		UE_LOG(LogTemp, Warning, TEXT("PGPlayerController input assets are incomplete. Falling back to native Sprint 1 input mapping."));
+	}
+
+	if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
+	{
+		if (UEnhancedInputLocalPlayerSubsystem* InputSubsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+		{
+			InputSubsystem->AddMappingContext(GetResolvedMappingContext(), DefaultMappingPriority);
+		}
+	}
+}
+
+void APGPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
+	{
+		if (UEnhancedInputLocalPlayerSubsystem* InputSubsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+		{
+			InputSubsystem->RemoveMappingContext(GetResolvedMappingContext());
+		}
+	}
+
+	Super::EndPlay(EndPlayReason);
 }
 
 void APGPlayerController::PlayerTick(float DeltaTime)
@@ -25,54 +63,158 @@ void APGPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 
-	// 실제 모바일 조작 기준: 화면 좌/우 터치로 인접 라인 이동.
-	InputComponent->BindTouch(IE_Pressed, this, &APGPlayerController::HandleTouchPressed);
+	EnsureInputAssets();
 
-	// 에디터 PIE에서 모바일 터치 없이 라인 이동을 확인하기 위한 폴백 입력.
-	InputComponent->BindKey(EKeys::A, IE_Pressed, this, &APGPlayerController::MoveLeft);
-	InputComponent->BindKey(EKeys::Left, IE_Pressed, this, &APGPlayerController::MoveLeft);
-	InputComponent->BindKey(EKeys::D, IE_Pressed, this, &APGPlayerController::MoveRight);
-	InputComponent->BindKey(EKeys::Right, IE_Pressed, this, &APGPlayerController::MoveRight);
+	UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent);
+	if (!EnhancedInputComponent)
+	{
+		UE_LOG(LogTemp, Error, TEXT("PGPlayerController requires EnhancedInputComponent. Check DefaultInput.ini."));
+		return;
+	}
 
-	// 에디터 PIE에서 자이로 없이 중심 기울기 반응을 확인하기 위한 폴백 입력.
-	InputComponent->BindKey(EKeys::Q, IE_Pressed, this, &APGPlayerController::StartKeyboardBalanceLeft);
-	InputComponent->BindKey(EKeys::Q, IE_Released, this, &APGPlayerController::StopKeyboardBalanceLeft);
-	InputComponent->BindKey(EKeys::E, IE_Pressed, this, &APGPlayerController::StartKeyboardBalanceRight);
-	InputComponent->BindKey(EKeys::E, IE_Released, this, &APGPlayerController::StopKeyboardBalanceRight);
-	InputComponent->BindKey(EKeys::C, IE_Pressed, this, &APGPlayerController::RequestGyroCalibration);
+	// Sprint 1 입력은 Enhanced Input 액션을 기준으로 통일한다.
+	EnhancedInputComponent->BindAction(GetResolvedTouchLaneAction(), ETriggerEvent::Started, this, &APGPlayerController::HandleTouchLaneStarted);
+	EnhancedInputComponent->BindAction(GetResolvedLaneLeftAction(), ETriggerEvent::Started, this, &APGPlayerController::HandleLaneLeftStarted);
+	EnhancedInputComponent->BindAction(GetResolvedLaneRightAction(), ETriggerEvent::Started, this, &APGPlayerController::HandleLaneRightStarted);
+	EnhancedInputComponent->BindAction(GetResolvedBalanceLeftAction(), ETriggerEvent::Started, this, &APGPlayerController::HandleBalanceLeftStarted);
+	EnhancedInputComponent->BindAction(GetResolvedBalanceLeftAction(), ETriggerEvent::Completed, this, &APGPlayerController::HandleBalanceLeftCompleted);
+	EnhancedInputComponent->BindAction(GetResolvedBalanceLeftAction(), ETriggerEvent::Canceled, this, &APGPlayerController::HandleBalanceLeftCompleted);
+	EnhancedInputComponent->BindAction(GetResolvedBalanceRightAction(), ETriggerEvent::Started, this, &APGPlayerController::HandleBalanceRightStarted);
+	EnhancedInputComponent->BindAction(GetResolvedBalanceRightAction(), ETriggerEvent::Completed, this, &APGPlayerController::HandleBalanceRightCompleted);
+	EnhancedInputComponent->BindAction(GetResolvedBalanceRightAction(), ETriggerEvent::Canceled, this, &APGPlayerController::HandleBalanceRightCompleted);
+	EnhancedInputComponent->BindAction(GetResolvedGyroCalibrationAction(), ETriggerEvent::Started, this, &APGPlayerController::HandleGyroCalibrationStarted);
 }
 
-void APGPlayerController::HandleTouchPressed(ETouchIndex::Type FingerIndex, FVector TouchLocation)
+void APGPlayerController::EnsureInputAssets()
+{
+	if (!NativeTouchLaneAction)
+	{
+		NativeTouchLaneAction = NewObject<UInputAction>(this, TEXT("IA_PG_NativeTouchLane"));
+		NativeTouchLaneAction->ValueType = EInputActionValueType::Boolean;
+	}
+
+	if (!NativeLaneLeftAction)
+	{
+		NativeLaneLeftAction = NewObject<UInputAction>(this, TEXT("IA_PG_NativeLaneLeft"));
+		NativeLaneLeftAction->ValueType = EInputActionValueType::Boolean;
+	}
+
+	if (!NativeLaneRightAction)
+	{
+		NativeLaneRightAction = NewObject<UInputAction>(this, TEXT("IA_PG_NativeLaneRight"));
+		NativeLaneRightAction->ValueType = EInputActionValueType::Boolean;
+	}
+
+	if (!NativeBalanceLeftAction)
+	{
+		NativeBalanceLeftAction = NewObject<UInputAction>(this, TEXT("IA_PG_NativeBalanceLeft"));
+		NativeBalanceLeftAction->ValueType = EInputActionValueType::Boolean;
+	}
+
+	if (!NativeBalanceRightAction)
+	{
+		NativeBalanceRightAction = NewObject<UInputAction>(this, TEXT("IA_PG_NativeBalanceRight"));
+		NativeBalanceRightAction->ValueType = EInputActionValueType::Boolean;
+	}
+
+	if (!NativeGyroCalibrationAction)
+	{
+		NativeGyroCalibrationAction = NewObject<UInputAction>(this, TEXT("IA_PG_NativeGyroCalibration"));
+		NativeGyroCalibrationAction->ValueType = EInputActionValueType::Boolean;
+	}
+
+	if (!NativeMappingContext)
+	{
+		NativeMappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_PG_NativeDefault"));
+
+		// 에셋이 없어도 Sprint 1 검증이 가능하도록 C++ 기본 키 매핑을 제공한다.
+		NativeMappingContext->MapKey(NativeTouchLaneAction.Get(), EKeys::TouchKeys[static_cast<int32>(ETouchIndex::Touch1)]);
+		NativeMappingContext->MapKey(NativeLaneLeftAction.Get(), EKeys::A);
+		NativeMappingContext->MapKey(NativeLaneLeftAction.Get(), EKeys::Left);
+		NativeMappingContext->MapKey(NativeLaneRightAction.Get(), EKeys::D);
+		NativeMappingContext->MapKey(NativeLaneRightAction.Get(), EKeys::Right);
+		NativeMappingContext->MapKey(NativeBalanceLeftAction.Get(), EKeys::Q);
+		NativeMappingContext->MapKey(NativeBalanceRightAction.Get(), EKeys::E);
+		NativeMappingContext->MapKey(NativeGyroCalibrationAction.Get(), EKeys::C);
+	}
+}
+
+UInputMappingContext* APGPlayerController::GetResolvedMappingContext() const
+{
+	return HasCompleteConfiguredInputAssets() ? DefaultMappingContext.Get() : NativeMappingContext.Get();
+}
+
+bool APGPlayerController::HasCompleteConfiguredInputAssets() const
+{
+	return DefaultMappingContext && TouchLaneAction && LaneLeftAction && LaneRightAction && BalanceLeftAction && BalanceRightAction && GyroCalibrationAction;
+}
+
+UInputAction* APGPlayerController::GetResolvedTouchLaneAction() const
+{
+	return HasCompleteConfiguredInputAssets() ? TouchLaneAction.Get() : NativeTouchLaneAction.Get();
+}
+
+UInputAction* APGPlayerController::GetResolvedLaneLeftAction() const
+{
+	return HasCompleteConfiguredInputAssets() ? LaneLeftAction.Get() : NativeLaneLeftAction.Get();
+}
+
+UInputAction* APGPlayerController::GetResolvedLaneRightAction() const
+{
+	return HasCompleteConfiguredInputAssets() ? LaneRightAction.Get() : NativeLaneRightAction.Get();
+}
+
+UInputAction* APGPlayerController::GetResolvedBalanceLeftAction() const
+{
+	return HasCompleteConfiguredInputAssets() ? BalanceLeftAction.Get() : NativeBalanceLeftAction.Get();
+}
+
+UInputAction* APGPlayerController::GetResolvedBalanceRightAction() const
+{
+	return HasCompleteConfiguredInputAssets() ? BalanceRightAction.Get() : NativeBalanceRightAction.Get();
+}
+
+UInputAction* APGPlayerController::GetResolvedGyroCalibrationAction() const
+{
+	return HasCompleteConfiguredInputAssets() ? GyroCalibrationAction.Get() : NativeGyroCalibrationAction.Get();
+}
+
+void APGPlayerController::HandleTouchLaneStarted(const FInputActionValue& ActionValue)
 {
 	int32 ViewportSizeX = 0;
 	int32 ViewportSizeY = 0;
 	GetViewportSize(ViewportSizeX, ViewportSizeY);
 
-	if (ViewportSizeX <= 0)
+	float TouchX = 0.0f;
+	float TouchY = 0.0f;
+	bool bIsTouchPressed = false;
+	GetInputTouchState(ETouchIndex::Touch1, TouchX, TouchY, bIsTouchPressed);
+
+	if (ViewportSizeX <= 0 || !bIsTouchPressed)
 	{
 		return;
 	}
 
 	// 화면 중앙을 기준으로 왼쪽 터치는 -1, 오른쪽 터치는 +1 라인 이동으로 해석한다.
-	SendLaneChange(TouchLocation.X < static_cast<float>(ViewportSizeX) * 0.5f ? -1 : 1);
+	SendLaneChange(TouchX < static_cast<float>(ViewportSizeX) * 0.5f ? -1 : 1);
 }
 
-void APGPlayerController::MoveLeft()
+void APGPlayerController::HandleLaneLeftStarted(const FInputActionValue& ActionValue)
 {
 	SendLaneChange(-1);
 }
 
-void APGPlayerController::MoveRight()
+void APGPlayerController::HandleLaneRightStarted(const FInputActionValue& ActionValue)
 {
 	SendLaneChange(1);
 }
 
-void APGPlayerController::StartKeyboardBalanceLeft()
+void APGPlayerController::HandleBalanceLeftStarted(const FInputActionValue& ActionValue)
 {
 	KeyboardBalanceInput = -1.0f;
 }
 
-void APGPlayerController::StopKeyboardBalanceLeft()
+void APGPlayerController::HandleBalanceLeftCompleted(const FInputActionValue& ActionValue)
 {
 	if (KeyboardBalanceInput < 0.0f)
 	{
@@ -80,12 +222,12 @@ void APGPlayerController::StopKeyboardBalanceLeft()
 	}
 }
 
-void APGPlayerController::StartKeyboardBalanceRight()
+void APGPlayerController::HandleBalanceRightStarted(const FInputActionValue& ActionValue)
 {
 	KeyboardBalanceInput = 1.0f;
 }
 
-void APGPlayerController::StopKeyboardBalanceRight()
+void APGPlayerController::HandleBalanceRightCompleted(const FInputActionValue& ActionValue)
 {
 	if (KeyboardBalanceInput > 0.0f)
 	{
@@ -93,7 +235,7 @@ void APGPlayerController::StopKeyboardBalanceRight()
 	}
 }
 
-void APGPlayerController::RequestGyroCalibration()
+void APGPlayerController::HandleGyroCalibrationStarted(const FInputActionValue& ActionValue)
 {
 	if (!bHasCalibration)
 	{

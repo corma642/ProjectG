@@ -6,8 +6,12 @@
 #include "GameFramework/PlayerController.h"
 #include "PGPlayerController.generated.h"
 
+class UInputAction;
+class UInputMappingContext;
+struct FInputActionValue;
+
 /**
- * 모바일 터치/자이로 입력을 러너 캐릭터로 전달하는 컨트롤러
+ * Enhanced Input 기반 모바일 터치/자이로 입력을 러너 캐릭터로 전달하는 컨트롤러
  */
 UCLASS()
 class PROJECTG_API APGPlayerController : public APlayerController
@@ -17,36 +21,69 @@ class PROJECTG_API APGPlayerController : public APlayerController
 public:
 	APGPlayerController();
 
+	// 로컬 플레이어에 Sprint 1 기본 입력 매핑 컨텍스트를 등록한다.
+	virtual void BeginPlay() override;
+
+	// 등록한 입력 매핑 컨텍스트를 정리한다.
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 	// 매 프레임 자이로 입력을 읽어 러너 캐릭터의 중심 입력으로 전달한다.
 	virtual void PlayerTick(float DeltaTime) override;
 
-	// 모바일 터치와 에디터 테스트용 키보드 입력을 바인딩한다.
+	// Enhanced Input 액션을 모바일 터치/에디터 키보드 검증 입력에 바인딩한다.
 	virtual void SetupInputComponent() override;
 
 private:
+	// 입력 에셋이 지정되지 않은 경우 C++ 기본 액션과 매핑 컨텍스트를 생성한다.
+	void EnsureInputAssets();
+
+	// 실제 등록에 사용할 입력 매핑 컨텍스트를 반환한다.
+	UInputMappingContext* GetResolvedMappingContext() const;
+
+	// 블루프린트에서 지정한 Enhanced Input 에셋 세트가 모두 준비됐는지 확인한다.
+	bool HasCompleteConfiguredInputAssets() const;
+
+	// 실제 바인딩에 사용할 터치 라인 이동 액션을 반환한다.
+	UInputAction* GetResolvedTouchLaneAction() const;
+
+	// 실제 바인딩에 사용할 왼쪽 라인 이동 액션을 반환한다.
+	UInputAction* GetResolvedLaneLeftAction() const;
+
+	// 실제 바인딩에 사용할 오른쪽 라인 이동 액션을 반환한다.
+	UInputAction* GetResolvedLaneRightAction() const;
+
+	// 실제 바인딩에 사용할 왼쪽 중심 입력 액션을 반환한다.
+	UInputAction* GetResolvedBalanceLeftAction() const;
+
+	// 실제 바인딩에 사용할 오른쪽 중심 입력 액션을 반환한다.
+	UInputAction* GetResolvedBalanceRightAction() const;
+
+	// 실제 바인딩에 사용할 자이로 캘리브레이션 액션을 반환한다.
+	UInputAction* GetResolvedGyroCalibrationAction() const;
+
 	// 화면 좌/우 터치 위치를 라인 이동 방향으로 변환한다.
-	void HandleTouchPressed(ETouchIndex::Type FingerIndex, FVector TouchLocation);
+	void HandleTouchLaneStarted(const FInputActionValue& ActionValue);
 
 	// 왼쪽 인접 라인으로 이동을 요청한다.
-	void MoveLeft();
+	void HandleLaneLeftStarted(const FInputActionValue& ActionValue);
 
 	// 오른쪽 인접 라인으로 이동을 요청한다.
-	void MoveRight();
+	void HandleLaneRightStarted(const FInputActionValue& ActionValue);
 
 	// 에디터 테스트용 왼쪽 중심 입력을 시작한다.
-	void StartKeyboardBalanceLeft();
+	void HandleBalanceLeftStarted(const FInputActionValue& ActionValue);
 
 	// 에디터 테스트용 왼쪽 중심 입력을 종료한다.
-	void StopKeyboardBalanceLeft();
+	void HandleBalanceLeftCompleted(const FInputActionValue& ActionValue);
 
 	// 에디터 테스트용 오른쪽 중심 입력을 시작한다.
-	void StartKeyboardBalanceRight();
+	void HandleBalanceRightStarted(const FInputActionValue& ActionValue);
 
 	// 에디터 테스트용 오른쪽 중심 입력을 종료한다.
-	void StopKeyboardBalanceRight();
+	void HandleBalanceRightCompleted(const FInputActionValue& ActionValue);
 
 	// 현재 기기 기울기를 새로운 자이로 기준값으로 보정한다.
-	void RequestGyroCalibration();
+	void HandleGyroCalibrationStarted(const FInputActionValue& ActionValue);
 
 	// 현재 Pawn이 러너 캐릭터일 때 라인 이동 요청을 전달한다.
 	void SendLaneChange(int32 Direction);
@@ -56,6 +93,66 @@ private:
 
 	// 원본 자이로 기울기 값을 -1~1 범위의 중심 입력으로 변환한다.
 	float NormalizeTiltInput(float RawTilt) const;
+
+	// 기본으로 등록할 입력 매핑 컨텍스트. 비워두면 C++ 기본 매핑을 사용한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputMappingContext> DefaultMappingContext;
+
+	// 화면 터치 시작을 감지해 좌/우 라인 이동으로 변환하는 액션
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> TouchLaneAction;
+
+	// 왼쪽 라인 이동 액션
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> LaneLeftAction;
+
+	// 오른쪽 라인 이동 액션
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> LaneRightAction;
+
+	// 에디터 검증용 왼쪽 중심 입력 액션
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> BalanceLeftAction;
+
+	// 에디터 검증용 오른쪽 중심 입력 액션
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> BalanceRightAction;
+
+	// 자이로 캘리브레이션 액션
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> GyroCalibrationAction;
+
+	// 입력 매핑 컨텍스트 등록 우선순위
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	int32 DefaultMappingPriority = 0;
+
+	// 에셋이 없을 때 사용하는 C++ 기본 입력 매핑 컨텍스트
+	UPROPERTY(Transient)
+	TObjectPtr<UInputMappingContext> NativeMappingContext;
+
+	// 에셋이 없을 때 사용하는 C++ 기본 터치 액션
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> NativeTouchLaneAction;
+
+	// 에셋이 없을 때 사용하는 C++ 기본 왼쪽 라인 이동 액션
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> NativeLaneLeftAction;
+
+	// 에셋이 없을 때 사용하는 C++ 기본 오른쪽 라인 이동 액션
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> NativeLaneRightAction;
+
+	// 에셋이 없을 때 사용하는 C++ 기본 왼쪽 중심 입력 액션
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> NativeBalanceLeftAction;
+
+	// 에셋이 없을 때 사용하는 C++ 기본 오른쪽 중심 입력 액션
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> NativeBalanceRightAction;
+
+	// 에셋이 없을 때 사용하는 C++ 기본 캘리브레이션 액션
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> NativeGyroCalibrationAction;
 
 	// 마지막으로 읽은 보정 전 자이로 좌우 기울기 값
 	float LastRawTilt = 0.0f;

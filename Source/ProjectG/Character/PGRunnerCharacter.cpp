@@ -44,17 +44,23 @@ void APGRunnerCharacter::BeginPlay()
 
 	ApplyGameSettings();
 
-	// 시작 위치를 중앙 라인으로 보고 이후 라인 오프셋을 상대값으로 계산한다.
-	CenterLaneY = GetActorLocation().Y;
-	LaneStartY = CenterLaneY;
-	LaneTargetY = CenterLaneY;
-	LaneStartZ = GetActorLocation().Z;
+	// 시작 위치와 방향을 러너 기준 트랙 좌표계로 고정해 월드 X/Y축 의존을 제거한다.
+	LaneOriginLocation = GetActorLocation();
+	RunnerForwardVector = GetActorForwardVector();
+	RunnerForwardVector.Z = 0.0f;
+	RunnerForwardVector = RunnerForwardVector.GetSafeNormal(SMALL_NUMBER, FVector::ForwardVector);
+	RunnerRightVector = GetActorRightVector();
+	RunnerRightVector.Z = 0.0f;
+	RunnerRightVector = RunnerRightVector.GetSafeNormal(SMALL_NUMBER, FVector::RightVector);
+	LaneStartOffset = 0.0f;
+	LaneTargetOffset = 0.0f;
 	CurrentLaneIndex = GetCenterLaneIndex();
 	TargetLaneIndex = CurrentLaneIndex;
 
 	if (USkeletalMeshComponent* MeshComponent = GetMesh())
 	{
 		InitialMeshRelativeRotation = MeshComponent->GetRelativeRotation();
+		InitialMeshRelativeLocation = MeshComponent->GetRelativeLocation();
 	}
 }
 
@@ -62,7 +68,6 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	ApplyGameSettings();
 	UpdateForwardMovement();
 	UpdateLaneMovement(DeltaSeconds);
 	UpdateBodyLean(DeltaSeconds);
@@ -82,13 +87,11 @@ void APGRunnerCharacter::RequestLaneChange(int32 Direction)
 	}
 
 	const int32 NormalizedDirection = Direction > 0 ? 1 : -1;
-	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
-
 	if (bIsChangingLane)
 	{
 		// 이동 중 입력은 버퍼에 저장해 착지 직후 다음 라인 이동으로 이어지게 한다.
 		BufferedLaneDirection = NormalizedDirection;
-		BufferedLaneInputRemainingTime = Settings->Lane.LaneInputBufferTime;
+		BufferedLaneInputRemainingTime = CachedLaneSettings.LaneInputBufferTime;
 		return;
 	}
 
@@ -97,11 +100,10 @@ void APGRunnerCharacter::RequestLaneChange(int32 Direction)
 
 void APGRunnerCharacter::SetBalanceInput(float InBalanceInput)
 {
-	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
-	const float ClampedInput = FMath::Clamp(InBalanceInput, -Settings->Gyro.MaxTiltInput, Settings->Gyro.MaxTiltInput);
+	const float ClampedInput = FMath::Clamp(InBalanceInput, -CachedGyroSettings.MaxTiltInput, CachedGyroSettings.MaxTiltInput);
 
 	// 점프 중/착지 직후에는 조작 피로를 줄이기 위해 자이로 영향력을 완화한다.
-	const float DampingScale = bIsChangingLane ? Settings->Gyro.JumpTiltDampingScale : 1.0f;
+	const float DampingScale = bIsChangingLane ? CachedGyroSettings.JumpTiltDampingScale : 1.0f;
 	const float LandingScale = LandingStabilizeRemainingTime > 0.0f ? 0.5f : 1.0f;
 
 	BalanceInput = ClampedInput * DampingScale * LandingScale;
@@ -110,27 +112,30 @@ void APGRunnerCharacter::SetBalanceInput(float InBalanceInput)
 void APGRunnerCharacter::ApplyGameSettings()
 {
 	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
+	CachedRunnerSettings = Settings->Runner;
+	CachedLaneSettings = Settings->Lane;
+	CachedGyroSettings = Settings->Gyro;
+	CachedCameraSettings = Settings->Camera;
+	CachedDebugSettings = Settings->Debug;
 
-	// Project Settings 값을 매 프레임 반영해 PIE 중 튜닝 변경을 빠르게 확인할 수 있게 한다.
+	// Project Settings 값은 BeginPlay에서 1회 적용한다. PIE 중 변경한 값은 재시작 후 반영한다.
 	UCharacterMovementComponent* Movement = GetCharacterMovement();
-	Movement->MaxWalkSpeed = Settings->Runner.ForwardSpeed;
+	Movement->MaxWalkSpeed = CachedRunnerSettings.ForwardSpeed;
 
-	CameraBoom->TargetArmLength = Settings->Camera.DefaultArmLength;
-	CameraBoom->SetRelativeRotation(FRotator(Settings->Camera.InitialPitch, 0.0f, 0.0f));
-	CameraBoom->SocketOffset = Settings->Camera.SocketOffset;
-	CameraBoom->CameraLagSpeed = Settings->Camera.LagSpeed;
-	FollowCamera->SetFieldOfView(Settings->Camera.DefaultFOV);
+	CameraBoom->TargetArmLength = CachedCameraSettings.DefaultArmLength;
+	CameraBoom->SetRelativeRotation(FRotator(CachedCameraSettings.InitialPitch, 0.0f, 0.0f));
+	CameraBoom->SocketOffset = CachedCameraSettings.SocketOffset;
+	CameraBoom->CameraLagSpeed = CachedCameraSettings.LagSpeed;
+	FollowCamera->SetFieldOfView(CachedCameraSettings.DefaultFOV);
 }
 
 void APGRunnerCharacter::UpdateForwardMovement()
 {
-	AddMovementInput(FVector::ForwardVector, 1.0f);
+	AddMovementInput(RunnerForwardVector, 1.0f);
 }
 
 void APGRunnerCharacter::UpdateLaneMovement(float DeltaSeconds)
 {
-	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
-
 	if (!bIsChangingLane)
 	{
 		if (BufferedLaneInputRemainingTime > 0.0f)
@@ -144,43 +149,43 @@ void APGRunnerCharacter::UpdateLaneMovement(float DeltaSeconds)
 		return;
 	}
 
-	const float Duration = FMath::Max(Settings->Lane.LaneChangeDuration, KINDA_SMALL_NUMBER);
+	const float Duration = FMath::Max(CachedLaneSettings.LaneChangeDuration, KINDA_SMALL_NUMBER);
 	LaneMoveElapsed += DeltaSeconds;
 
-	// 좌우 이동은 보간으로 부드럽게 처리하고, Z축은 사인 곡선으로 점프감을 만든다.
+	// 캡슐은 수평 라인 이동만 담당하고, 점프 높이는 메시 상대 위치로만 표현한다.
 	const float Alpha = FMath::Clamp(LaneMoveElapsed / Duration, 0.0f, 1.0f);
 	const float SmoothAlpha = FMath::InterpEaseInOut(0.0f, 1.0f, Alpha, 2.0f);
-	const float JumpOffset = FMath::Sin(Alpha * UE_PI) * Settings->Lane.LaneJumpHeight;
+	const float JumpOffset = FMath::Sin(Alpha * UE_PI) * CachedLaneSettings.LaneJumpHeight;
+	const float CurrentLaneOffset = FMath::Lerp(LaneStartOffset, LaneTargetOffset, SmoothAlpha);
 
-	FVector NewLocation = GetActorLocation();
-	NewLocation.Y = FMath::Lerp(LaneStartY, LaneTargetY, SmoothAlpha);
-	NewLocation.Z = LaneStartZ + JumpOffset;
+	FVector NewLocation = GetLocationAtLaneOffset(CurrentLaneOffset);
+	NewLocation.Z = GetActorLocation().Z;
 	SetActorLocation(NewLocation, true);
+	SetMeshJumpOffset(JumpOffset);
 
 	if (Alpha >= 1.0f)
 	{
 		bIsChangingLane = false;
 		CurrentLaneIndex = TargetLaneIndex;
 
-		// 충돌 보정 등으로 생긴 오차를 제거해 다음 라인 계산의 기준을 안정화한다.
-		FVector FinalLocation = GetActorLocation();
-		FinalLocation.Y = LaneTargetY;
-		FinalLocation.Z = LaneStartZ;
+		// 충돌 보정 등으로 생긴 좌우 오차를 제거해 다음 라인 계산의 기준을 안정화한다.
+		FVector FinalLocation = GetLocationAtLaneOffset(LaneTargetOffset);
+		FinalLocation.Z = GetActorLocation().Z;
 		SetActorLocation(FinalLocation, true);
+		SetMeshJumpOffset(0.0f);
 
 		// 착지 직후 짧은 안정화 시간을 부여해 자이로와 점프 입력이 충돌하지 않게 한다.
-		LandingStabilizeRemainingTime = Settings->Gyro.LandingStabilizeTime;
+		LandingStabilizeRemainingTime = CachedGyroSettings.LandingStabilizeTime;
 		ConsumeBufferedLaneInput();
 	}
 }
 
 void APGRunnerCharacter::UpdateBodyLean(float DeltaSeconds)
 {
-	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
-	const float TargetRoll = BalanceInput * Settings->Runner.BodyLeanMaxRoll;
+	const float TargetRoll = BalanceInput * CachedRunnerSettings.BodyLeanMaxRoll;
 
 	// 중심 입력이 즉시 꺾이지 않고 몸이 따라가는 느낌이 나도록 보간한다.
-	CurrentBodyRoll = FMath::FInterpTo(CurrentBodyRoll, TargetRoll, DeltaSeconds, Settings->Runner.BodyLeanInterpSpeed);
+	CurrentBodyRoll = FMath::FInterpTo(CurrentBodyRoll, TargetRoll, DeltaSeconds, CachedRunnerSettings.BodyLeanInterpSpeed);
 
 	if (USkeletalMeshComponent* MeshComponent = GetMesh())
 	{
@@ -192,22 +197,22 @@ void APGRunnerCharacter::UpdateBodyLean(float DeltaSeconds)
 
 void APGRunnerCharacter::DrawDebugLanes() const
 {
-	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
-	if (!Settings->Debug.bDrawLaneDebug)
+	if (!CachedDebugSettings.bDrawLaneDebug)
 	{
 		return;
 	}
 
 	constexpr float DebugForwardLength = 1000.0f;
+	constexpr float DebugBackLength = 200.0f;
 	constexpr float DebugHeight = 8.0f;
-	const FVector ActorLocation = GetActorLocation();
+	const FVector DebugUpOffset = FVector::UpVector * DebugHeight;
 
-	for (int32 LaneIndex = 0; LaneIndex < Settings->Lane.LaneCount; ++LaneIndex)
+	for (int32 LaneIndex = 0; LaneIndex < CachedLaneSettings.LaneCount; ++LaneIndex)
 	{
 		// 목표 라인은 초록색으로 표시해 이동 중 도착 라인을 쉽게 확인한다.
-		const float LaneY = CenterLaneY + GetLaneOffset(LaneIndex);
-		const FVector Start(ActorLocation.X - 200.0f, LaneY, ActorLocation.Z + DebugHeight);
-		const FVector End(ActorLocation.X + DebugForwardLength, LaneY, ActorLocation.Z + DebugHeight);
+		const FVector LaneLocation = GetLocationAtLaneOffset(GetLaneOffset(LaneIndex));
+		const FVector Start = LaneLocation - RunnerForwardVector * DebugBackLength + DebugUpOffset;
+		const FVector End = LaneLocation + RunnerForwardVector * DebugForwardLength + DebugUpOffset;
 		const FColor LaneColor = LaneIndex == TargetLaneIndex ? FColor::Green : FColor::Silver;
 		DrawDebugLine(GetWorld(), Start, End, LaneColor, false, 0.0f, 0, 2.0f);
 	}
@@ -221,11 +226,10 @@ void APGRunnerCharacter::StartLaneChange(int32 NewLaneIndex)
 		return;
 	}
 
-	// 이동 시작/목표 위치를 고정해 이동 중 기준값이 흔들리지 않도록 한다.
+	// 이동 시작/목표 오프셋을 고정해 이동 중 기준값이 흔들리지 않도록 한다.
 	TargetLaneIndex = ClampedLaneIndex;
-	LaneStartY = GetActorLocation().Y;
-	LaneTargetY = CenterLaneY + GetLaneOffset(TargetLaneIndex);
-	LaneStartZ = GetActorLocation().Z;
+	LaneStartOffset = GetCurrentLaneOffset();
+	LaneTargetOffset = GetLaneOffset(TargetLaneIndex);
 	LaneMoveElapsed = 0.0f;
 	bIsChangingLane = true;
 }
@@ -249,18 +253,39 @@ void APGRunnerCharacter::ConsumeBufferedLaneInput()
 
 int32 APGRunnerCharacter::GetCenterLaneIndex() const
 {
-	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
-	return FMath::Clamp(Settings->Lane.LaneCount / 2, 0, FMath::Max(0, Settings->Lane.LaneCount - 1));
+	return FMath::Clamp(CachedLaneSettings.LaneCount / 2, 0, FMath::Max(0, CachedLaneSettings.LaneCount - 1));
 }
 
 int32 APGRunnerCharacter::ClampLaneIndex(int32 LaneIndex) const
 {
-	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
-	return FMath::Clamp(LaneIndex, 0, FMath::Max(0, Settings->Lane.LaneCount - 1));
+	return FMath::Clamp(LaneIndex, 0, FMath::Max(0, CachedLaneSettings.LaneCount - 1));
 }
 
 float APGRunnerCharacter::GetLaneOffset(int32 LaneIndex) const
 {
-	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
-	return static_cast<float>(LaneIndex - GetCenterLaneIndex()) * Settings->Lane.LaneWidth;
+	return static_cast<float>(LaneIndex - GetCenterLaneIndex()) * CachedLaneSettings.LaneWidth;
+}
+
+float APGRunnerCharacter::GetCurrentLaneOffset() const
+{
+	// 시작 중앙 라인에서 현재 캡슐까지의 벡터를 러너 오른쪽 축에 투영한다.
+	return FVector::DotProduct(GetActorLocation() - LaneOriginLocation, RunnerRightVector);
+}
+
+FVector APGRunnerCharacter::GetLocationAtLaneOffset(float LaneOffset) const
+{
+	// 전방 진행 거리는 현재 위치에서 유지하고 좌우 오프셋만 라인 기준값으로 교체한다.
+	const FVector OriginToActor = GetActorLocation() - LaneOriginLocation;
+	const float ForwardDistance = FVector::DotProduct(OriginToActor, RunnerForwardVector);
+	return LaneOriginLocation + RunnerForwardVector * ForwardDistance + RunnerRightVector * LaneOffset;
+}
+
+void APGRunnerCharacter::SetMeshJumpOffset(float JumpOffset)
+{
+	if (USkeletalMeshComponent* MeshComponent = GetMesh())
+	{
+		FVector MeshLocation = InitialMeshRelativeLocation;
+		MeshLocation.Z += JumpOffset;
+		MeshComponent->SetRelativeLocation(MeshLocation);
+	}
 }
