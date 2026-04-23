@@ -11,7 +11,7 @@ public class ProjectG : ModuleRules
         // 프로젝트 공개 폴더 경로 추가
         PublicIncludePaths.Add("ProjectG");
 
-        PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput" });
+        PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "DeveloperSettings" });
 
         PrivateDependencyModuleNames.AddRange(new string[] { });
 
@@ -25,8 +25,6 @@ public class ProjectG : ModuleRules
             "Niagara",
             "LevelSequence",
             "Paper2D",
-            "OnlineSubsystem",
-            "OnlineSubsystemSteam"
         });
 
         // Uncomment if you are using Slate UI
