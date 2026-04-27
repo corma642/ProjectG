@@ -49,6 +49,8 @@ void APGRunnerCharacter::BeginPlay()
 	Super::BeginPlay();
 
 	ApplyGameSettings();
+	StartLocationZ = GetActorLocation().Z;
+	bIsRunActive = true;
 
 	if (!RunnerMovementComponent)
 	{
@@ -68,6 +70,15 @@ void APGRunnerCharacter::BeginPlay()
 		CargoStackComponent->OnCargoLost.AddDynamic(this, &APGRunnerCharacter::HandleCargoLost);
 	}
 
+	if (UWorld* World = GetWorld())
+	{
+		if (APGGameModeBase* GameMode = World->GetAuthGameMode<APGGameModeBase>())
+		{
+			// 실패 원인이 추락이든 핵심 적재물 손실이든 러너 정지는 같은 이벤트에서 처리한다.
+			GameMode->OnRunFailed.AddDynamic(this, &APGRunnerCharacter::HandleRunFailed);
+		}
+	}
+
 	if (USkeletalMeshComponent* MeshComponent = GetMesh())
 	{
 		InitialMeshRelativeRotation = MeshComponent->GetRelativeRotation();
@@ -78,6 +89,17 @@ void APGRunnerCharacter::BeginPlay()
 void APGRunnerCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+
+	if (!bIsRunActive)
+	{
+		return;
+	}
+
+	CheckFallFailure();
+	if (!bIsRunActive)
+	{
+		return;
+	}
 
 	UpdateForwardMovement();
 	const float VisualJumpOffset = RunnerMovementComponent ? RunnerMovementComponent->GetVisualJumpOffset() : 0.0f;
@@ -93,6 +115,11 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 
 void APGRunnerCharacter::RequestLaneChange(int32 Direction)
 {
+	if (!bIsRunActive)
+	{
+		return;
+	}
+
 	if (Direction == 0)
 	{
 		return;
@@ -106,6 +133,12 @@ void APGRunnerCharacter::RequestLaneChange(int32 Direction)
 
 void APGRunnerCharacter::SetBalanceInput(float InBalanceInput)
 {
+	if (!bIsRunActive)
+	{
+		BalanceInput = 0.0f;
+		return;
+	}
+
 	const float ClampedInput = FMath::Clamp(InBalanceInput, -CachedGyroSettings.MaxTiltInput, CachedGyroSettings.MaxTiltInput);
 
 	// 점프 중/착지 직후에는 조작 피로를 줄이기 위해 자이로 영향력을 완화한다.
@@ -144,6 +177,27 @@ void APGRunnerCharacter::HandleCargoLost(int32 SlotIndex, bool bWasCoreCargo)
 	}
 }
 
+void APGRunnerCharacter::HandleRunFailed(FName FailureReason)
+{
+	if (!bIsRunActive)
+	{
+		return;
+	}
+
+	// 실패가 확정되면 추가 입력/전진/적재 반응이 누적되지 않도록 러너 상태를 즉시 고정한다.
+	bIsRunActive = false;
+	BalanceInput = 0.0f;
+	CurrentBodyRoll = 0.0f;
+
+	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+	{
+		Movement->StopMovementImmediately();
+	}
+
+	SetMeshJumpOffset(0.0f);
+	UpdateBodyLean(0.0f);
+}
+
 void APGRunnerCharacter::ApplyGameSettings()
 {
 	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
@@ -169,6 +223,24 @@ void APGRunnerCharacter::UpdateForwardMovement()
 {
 	const FVector ForwardVector = RunnerMovementComponent ? RunnerMovementComponent->GetRunnerForwardVector() : GetActorForwardVector();
 	AddMovementInput(ForwardVector, 1.0f);
+}
+
+void APGRunnerCharacter::CheckFallFailure()
+{
+	const float FallFailZ = StartLocationZ - CachedRunnerSettings.FallFailZOffset;
+	if (GetActorLocation().Z >= FallFailZ)
+	{
+		return;
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		if (APGGameModeBase* GameMode = World->GetAuthGameMode<APGGameModeBase>())
+		{
+			// 추락 실패도 GameMode의 단일 실패 흐름으로 전달해 UI/정산 확장 지점을 하나로 유지한다.
+			GameMode->RequestRunFailed(TEXT("Fall"));
+		}
+	}
 }
 
 void APGRunnerCharacter::UpdateBodyLean(float DeltaSeconds)

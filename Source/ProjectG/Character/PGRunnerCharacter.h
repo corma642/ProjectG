@@ -51,6 +51,10 @@ public:
 	UFUNCTION()
 	void HandleCargoLost(int32 SlotIndex, bool bWasCoreCargo);
 
+	// 런 실패 이벤트를 받으면 러너의 입력 반응과 자동 전진을 정지한다.
+	UFUNCTION()
+	void HandleRunFailed(FName FailureReason);
+
 protected:
 	// 3라인 이동 상태와 캡슐 lateral 이동을 담당하는 러너 전용 이동 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement")
@@ -74,6 +78,9 @@ private:
 
 	// 러너 기준 전방 축으로 매 프레임 자동 전진 입력을 넣는다.
 	void UpdateForwardMovement();
+
+	// 시작 높이 기준 추락 실패 조건을 확인하고 GameMode 실패 흐름으로 전달한다.
+	void CheckFallFailure();
 
 	// 중심 입력값을 캐릭터 메시의 좌우 기울기 연출로 변환한다.
 	void UpdateBodyLean(float DeltaSeconds);
@@ -104,6 +111,12 @@ private:
 
 	// 현재 좌우 중심 입력값
 	float BalanceInput = 0.0f;
+
+	// 현재 러너가 조작 가능한 런 진행 상태인지 여부
+	bool bIsRunActive = true;
+
+	// 추락 실패 판정의 기준이 되는 시작 월드 Z 위치
+	float StartLocationZ = 0.0f;
 
 	// 메시 연출에 적용 중인 현재 롤 각도
 	float CurrentBodyRoll = 0.0f;

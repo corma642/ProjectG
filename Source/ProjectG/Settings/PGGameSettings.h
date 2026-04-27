@@ -27,6 +27,10 @@ struct FPGRunnerSettings
 	// 몸 기울기 보간 속도
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Runner", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "20.0"))
 	float BodyLeanInterpSpeed = 8.0f;
+
+	// 시작 높이보다 이 값 이상 아래로 떨어지면 추락 실패로 처리한다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Runner", meta = (ClampMin = "100.0", UIMin = "200.0", UIMax = "2000.0"))
+	float FallFailZOffset = 600.0f;
 };
 
 /**
