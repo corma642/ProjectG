@@ -27,6 +27,12 @@ void UPGCargoStackComponent::InitializeCargoStack(const FPGCargoSettings& InCarg
 	}
 
 	EnsureCargoMeshPool();
+	if (CachedCargoSettings.bDebugStartWithBonusCargo)
+	{
+		// 에디터에서 핵심/보너스 손실 흐름을 바로 비교할 수 있도록 선택적으로 보너스 적재물을 추가한다.
+		AddBonusCargo();
+	}
+
 	RefreshCargoSlotVisibility();
 	UpdateSlotTransforms();
 }
@@ -79,6 +85,39 @@ bool UPGCargoStackComponent::AddCargo()
 	return true;
 }
 
+bool UPGCargoStackComponent::AddCargoByType(UPGCargoTypeDefinition* CargoType)
+{
+	if (!CargoType || CargoInstances.Num() >= CachedCargoSettings.MaxCargoCount)
+	{
+		return false;
+	}
+
+	CargoInstances.Add(MakeCargoInstance(CargoType, true));
+	EnsureCargoMeshPool();
+	RefreshCargoSlotVisibility();
+	UpdateSlotTransforms();
+	return true;
+}
+
+bool UPGCargoStackComponent::AddBonusCargo()
+{
+	if (CargoInstances.Num() >= CachedCargoSettings.MaxCargoCount)
+	{
+		return false;
+	}
+
+	UPGCargoTypeDefinition* BonusCargoType = CachedCargoSettings.BonusCargoType.LoadSynchronous();
+	FPGCargoInstance BonusCargoInstance = MakeCargoInstance(BonusCargoType, false);
+	// 보너스 적재물은 DataAsset 설정 실수와 관계없이 페널티 검증 흐름을 보장해야 한다.
+	BonusCargoInstance.bIsCoreCargoInstance = false;
+
+	CargoInstances.Add(BonusCargoInstance);
+	EnsureCargoMeshPool();
+	RefreshCargoSlotVisibility();
+	UpdateSlotTransforms();
+	return true;
+}
+
 bool UPGCargoStackComponent::RemoveCargo()
 {
 	if (CargoInstances.IsEmpty())
@@ -102,8 +141,14 @@ EPGCargoStabilityState UPGCargoStackComponent::GetCargoStabilityState(int32 Slot
 
 FPGCargoInstance UPGCargoStackComponent::MakeDefaultCargoInstance() const
 {
+	return MakeCargoInstance(CachedCargoSettings.DefaultCargoType.LoadSynchronous(), true);
+}
+
+FPGCargoInstance UPGCargoStackComponent::MakeCargoInstance(UPGCargoTypeDefinition* CargoType, bool bFallbackCoreCargo) const
+{
 	FPGCargoInstance NewCargoInstance;
-	NewCargoInstance.CargoType = CachedCargoSettings.DefaultCargoType.LoadSynchronous();
+	NewCargoInstance.CargoType = CargoType;
+	NewCargoInstance.bIsCoreCargoInstance = CargoType ? CargoType->bIsCoreCargo : bFallbackCoreCargo;
 	NewCargoInstance.StabilityValue = 0.0f;
 	NewCargoInstance.StabilityState = EPGCargoStabilityState::Stable;
 	return NewCargoInstance;
@@ -236,7 +281,7 @@ float UPGCargoStackComponent::GetCargoSwayMultiplier(const FPGCargoInstance& Car
 
 bool UPGCargoStackComponent::IsCoreCargo(const FPGCargoInstance& CargoInstance) const
 {
-	return CargoInstance.CargoType ? CargoInstance.CargoType->bIsCoreCargo : true;
+	return CargoInstance.bIsCoreCargoInstance;
 }
 
 UStaticMesh* UPGCargoStackComponent::GetCargoMesh(const FPGCargoInstance& CargoInstance) const

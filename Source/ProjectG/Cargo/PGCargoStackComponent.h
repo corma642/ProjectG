@@ -34,6 +34,10 @@ struct FPGCargoInstance
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Cargo")
 	TObjectPtr<UPGCargoTypeDefinition> CargoType;
 
+	// 이 슬롯 적재물이 손실됐을 때 즉시 게임오버로 이어지는 핵심 적재물인지 여부
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Cargo")
+	bool bIsCoreCargoInstance = true;
+
 	// 손실 임계값에 가까워지는 현재 불안정도 값
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Cargo")
 	float StabilityValue = 0.0f;
@@ -75,6 +79,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Cargo")
 	bool AddCargo();
 
+	// 지정한 적재물 타입으로 1개를 추가한다. 타입이 비어 있으면 추가하지 않는다.
+	UFUNCTION(BlueprintCallable, Category = "ProjectG | Cargo")
+	bool AddCargoByType(UPGCargoTypeDefinition* CargoType);
+
+	// 설정된 보너스 적재물 타입 또는 Mesh 없는 비핵심 fallback 적재물을 1개 추가한다.
+	UFUNCTION(BlueprintCallable, Category = "ProjectG | Cargo")
+	bool AddBonusCargo();
+
 	// 가장 위의 적재물을 1개 제거하고 더 제거할 수 없으면 실패를 반환한다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Cargo")
 	bool RemoveCargo();
@@ -98,6 +110,9 @@ public:
 private:
 	// 기본 타입을 사용해 새 적재물 슬롯 인스턴스를 만든다.
 	FPGCargoInstance MakeDefaultCargoInstance() const;
+
+	// 타입과 fallback 핵심 여부를 기준으로 슬롯 인스턴스를 생성한다.
+	FPGCargoInstance MakeCargoInstance(UPGCargoTypeDefinition* CargoType, bool bFallbackCoreCargo) const;
 
 	// 최대 적재 개수만큼 표시용 메시 슬롯 풀을 준비한다.
 	void EnsureCargoMeshPool();

@@ -157,9 +157,17 @@ struct FPGCargoSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")
 	TSoftObjectPtr<UPGCargoTypeDefinition> DefaultCargoType;
 
+	// 적재 증가 이벤트에서 사용할 보너스 적재물 타입. 비어 있으면 Mesh 없는 비핵심 적재물로 테스트한다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")
+	TSoftObjectPtr<UPGCargoTypeDefinition> BonusCargoType;
+
 	// 게임 시작 시 머리 위에 올릴 적재물 개수
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "0", UIMin = "0", UIMax = "5"))
 	int32 InitialCargoCount = 1;
+
+	// 에디터 검증용으로 시작 시 보너스 적재물 1개를 추가할지 여부
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")
+	bool bDebugStartWithBonusCargo = false;
 
 	// 동시에 유지할 수 있는 최대 적재물 개수
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "1", UIMin = "1", UIMax = "5"))
@@ -212,6 +220,18 @@ struct FPGCargoSettings
 	// 중심 입력이 안정됐을 때 초당 안정도가 회복되는 비율
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Stability", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2.0"))
 	float StabilityRecoveryRate = 0.25f;
+
+	// 보너스 적재물을 잃었을 때 감속/흔들림 페널티가 유지되는 시간
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Penalty", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3.0"))
+	float BonusCargoPenaltyDuration = 0.75f;
+
+	// 보너스 적재물 손실 페널티 중 자동 전진 속도에 곱하는 비율
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Penalty", meta = (ClampMin = "0.1", ClampMax = "1.0", UIMin = "0.3", UIMax = "1.0"))
+	float BonusCargoPenaltySpeedScale = 0.65f;
+
+	// 보너스 적재물 손실 직후 중심 입력에 더해지는 순간 흔들림 강도
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Penalty", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float BonusCargoPenaltyBalanceKick = 0.35f;
 };
 
 /**

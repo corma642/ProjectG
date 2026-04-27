@@ -101,13 +101,14 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 		return;
 	}
 
+	UpdateCargoPenalty(DeltaSeconds);
 	UpdateForwardMovement();
 	const float VisualJumpOffset = RunnerMovementComponent ? RunnerMovementComponent->GetVisualJumpOffset() : 0.0f;
 	SetMeshJumpOffset(0.0f);
 	if (CargoStackComponent)
 	{
 		const bool bIsChangingLane = RunnerMovementComponent && RunnerMovementComponent->IsChangingLane();
-		CargoStackComponent->UpdateCargoReaction(DeltaSeconds, BalanceInput, VisualJumpOffset, bIsChangingLane);
+		CargoStackComponent->UpdateCargoReaction(DeltaSeconds, GetEffectiveBalanceInput(), VisualJumpOffset, bIsChangingLane);
 	}
 	UpdateBodyLean(DeltaSeconds);
 	DrawDebugLanes();
@@ -164,6 +165,7 @@ void APGRunnerCharacter::HandleCargoLost(int32 SlotIndex, bool bWasCoreCargo)
 {
 	if (!bWasCoreCargo)
 	{
+		StartBonusCargoPenalty(SlotIndex);
 		return;
 	}
 
@@ -187,6 +189,7 @@ void APGRunnerCharacter::HandleRunFailed(FName FailureReason)
 	// 실패가 확정되면 추가 입력/전진/적재 반응이 누적되지 않도록 러너 상태를 즉시 고정한다.
 	bIsRunActive = false;
 	BalanceInput = 0.0f;
+	CargoPenaltyRemainingTime = 0.0f;
 	CurrentBodyRoll = 0.0f;
 
 	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
@@ -243,9 +246,64 @@ void APGRunnerCharacter::CheckFallFailure()
 	}
 }
 
+void APGRunnerCharacter::StartBonusCargoPenalty(int32 LostSlotIndex)
+{
+	const float PenaltyDuration = FMath::Max(0.0f, CachedCargoSettings.BonusCargoPenaltyDuration);
+	CargoPenaltyRemainingTime = PenaltyDuration;
+	CargoPenaltyKickDirection = LostSlotIndex % 2 == 0 ? 1.0f : -1.0f;
+
+	if (PenaltyDuration > 0.0f)
+	{
+		if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+		{
+			// 보너스 화물 손실은 즉사 대신 짧은 감속으로 체감시키고, 종료 시 원래 속도로 복구한다.
+			const float SpeedScale = FMath::Clamp(CachedCargoSettings.BonusCargoPenaltySpeedScale, 0.1f, 1.0f);
+			Movement->MaxWalkSpeed = CachedRunnerSettings.ForwardSpeed * SpeedScale;
+		}
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		if (APGGameModeBase* GameMode = World->GetAuthGameMode<APGGameModeBase>())
+		{
+			GameMode->RequestCargoPenalty(LostSlotIndex);
+		}
+	}
+}
+
+void APGRunnerCharacter::UpdateCargoPenalty(float DeltaSeconds)
+{
+	if (CargoPenaltyRemainingTime <= 0.0f)
+	{
+		return;
+	}
+
+	CargoPenaltyRemainingTime = FMath::Max(0.0f, CargoPenaltyRemainingTime - DeltaSeconds);
+	if (CargoPenaltyRemainingTime <= 0.0f)
+	{
+		if (UCharacterMovementComponent* Movement = GetCharacterMovement())
+		{
+			Movement->MaxWalkSpeed = CachedRunnerSettings.ForwardSpeed;
+		}
+	}
+}
+
+float APGRunnerCharacter::GetEffectiveBalanceInput() const
+{
+	if (CargoPenaltyRemainingTime <= 0.0f)
+	{
+		return BalanceInput;
+	}
+
+	const float Duration = FMath::Max(KINDA_SMALL_NUMBER, CachedCargoSettings.BonusCargoPenaltyDuration);
+	const float PenaltyAlpha = CargoPenaltyRemainingTime / Duration;
+	const float PenaltyKick = CargoPenaltyKickDirection * CachedCargoSettings.BonusCargoPenaltyBalanceKick * PenaltyAlpha;
+	return FMath::Clamp(BalanceInput + PenaltyKick, -CachedGyroSettings.MaxTiltInput, CachedGyroSettings.MaxTiltInput);
+}
+
 void APGRunnerCharacter::UpdateBodyLean(float DeltaSeconds)
 {
-	const float TargetRoll = BalanceInput * CachedRunnerSettings.BodyLeanMaxRoll;
+	const float TargetRoll = GetEffectiveBalanceInput() * CachedRunnerSettings.BodyLeanMaxRoll;
 
 	// 중심 입력이 즉시 꺾이지 않고 몸이 따라가는 느낌이 나도록 보간한다.
 	CurrentBodyRoll = FMath::FInterpTo(CurrentBodyRoll, TargetRoll, DeltaSeconds, CachedRunnerSettings.BodyLeanInterpSpeed);

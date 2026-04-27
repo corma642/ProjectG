@@ -82,6 +82,15 @@ private:
 	// 시작 높이 기준 추락 실패 조건을 확인하고 GameMode 실패 흐름으로 전달한다.
 	void CheckFallFailure();
 
+	// 보너스 적재물 손실 시 짧은 감속과 중심 흔들림 페널티를 시작한다.
+	void StartBonusCargoPenalty(int32 LostSlotIndex);
+
+	// 보너스 적재물 손실 페널티 시간을 갱신하고 종료 시 이동 속도를 복구한다.
+	void UpdateCargoPenalty(float DeltaSeconds);
+
+	// 플레이어 중심 입력에 손실 페널티 흔들림을 합산한 최종 입력값을 반환한다.
+	float GetEffectiveBalanceInput() const;
+
 	// 중심 입력값을 캐릭터 메시의 좌우 기울기 연출로 변환한다.
 	void UpdateBodyLean(float DeltaSeconds);
 
@@ -117,6 +126,12 @@ private:
 
 	// 추락 실패 판정의 기준이 되는 시작 월드 Z 위치
 	float StartLocationZ = 0.0f;
+
+	// 보너스 적재물 손실 페널티가 남아 있는 시간
+	float CargoPenaltyRemainingTime = 0.0f;
+
+	// 보너스 적재물 손실 직후 어느 방향으로 중심을 흔들지 결정하는 부호
+	float CargoPenaltyKickDirection = 1.0f;
 
 	// 메시 연출에 적용 중인 현재 롤 각도
 	float CurrentBodyRoll = 0.0f;
