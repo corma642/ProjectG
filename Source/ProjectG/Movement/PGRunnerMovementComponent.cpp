@@ -31,6 +31,7 @@ void UPGRunnerMovementComponent::InitializeRunnerMovement(const FPGLaneSettings&
 	LandingStabilizeRemainingTime = 0.0f;
 	VisualJumpOffset = 0.0f;
 	bIsChangingLane = false;
+	bIsWaitingForLaneJumpLanding = false;
 }
 
 void UPGRunnerMovementComponent::RequestLaneChange(int32 Direction)
@@ -41,7 +42,7 @@ void UPGRunnerMovementComponent::RequestLaneChange(int32 Direction)
 	}
 
 	const int32 NormalizedDirection = Direction > 0 ? 1 : -1;
-	if (bIsChangingLane)
+	if (bIsChangingLane || bIsWaitingForLaneJumpLanding)
 	{
 		// 이동 중 입력은 버퍼에 저장해 착지 직후 다음 라인 이동으로 이어지게 한다.
 		BufferedLaneDirection = NormalizedDirection;
@@ -62,6 +63,11 @@ void UPGRunnerMovementComponent::TickComponent(float DeltaTime, ELevelTick TickT
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	UpdateLaneMovement(DeltaTime);
+
+	if (bIsWaitingForLaneJumpLanding && IsMovingOnGround())
+	{
+		CompleteLaneJumpLanding();
+	}
 
 	if (LandingStabilizeRemainingTime > 0.0f)
 	{
@@ -94,7 +100,7 @@ void UPGRunnerMovementComponent::UpdateLaneMovement(float DeltaSeconds)
 	const float Duration = FMath::Max(CachedLaneSettings.LaneChangeDuration, KINDA_SMALL_NUMBER);
 	LaneMoveElapsed += DeltaSeconds;
 
-	// 캡슐은 수평 라인 이동만 수행하고, 점프 높이는 메시 연출용 값으로만 제공한다.
+	// Z 이동은 CharacterMovement의 Falling/Walking 흐름에 맡기고, 여기서는 러너 기준 수평 라인 보간만 처리한다.
 	const float Alpha = FMath::Clamp(LaneMoveElapsed / Duration, 0.0f, 1.0f);
 	const float SmoothAlpha = FMath::InterpEaseInOut(0.0f, 1.0f, Alpha, 2.0f);
 	const float CurrentLaneOffset = FMath::Lerp(LaneStartOffset, LaneTargetOffset, SmoothAlpha);
@@ -129,15 +135,22 @@ void UPGRunnerMovementComponent::UpdateLaneMovement(float DeltaSeconds)
 
 		bIsChangingLane = false;
 		VisualJumpOffset = 0.0f;
-		LandingStabilizeRemainingTime = CachedGyroSettings.LandingStabilizeTime;
-		ConsumeBufferedLaneInput();
+
+		if (IsMovingOnGround())
+		{
+			CompleteLaneJumpLanding();
+		}
+		else
+		{
+			bIsWaitingForLaneJumpLanding = true;
+		}
 	}
 }
 
 void UPGRunnerMovementComponent::StartLaneChange(int32 NewLaneIndex)
 {
 	const int32 ClampedLaneIndex = ClampLaneIndex(NewLaneIndex);
-	if (ClampedLaneIndex == CurrentLaneIndex)
+	if (ClampedLaneIndex == CurrentLaneIndex || IsFalling())
 	{
 		return;
 	}
@@ -148,6 +161,39 @@ void UPGRunnerMovementComponent::StartLaneChange(int32 NewLaneIndex)
 	LaneTargetOffset = GetLaneOffset(TargetLaneIndex);
 	LaneMoveElapsed = 0.0f;
 	bIsChangingLane = true;
+	bIsWaitingForLaneJumpLanding = false;
+
+	const float JumpVelocity = CalculateLaneJumpVelocity();
+	if (JumpVelocity > 0.0f)
+	{
+		// 실제 캡슐을 띄워 끊긴 길/낙하 판정이 CharacterMovement의 기본 바닥 판정과 일관되게 동작하도록 한다.
+		Velocity.Z = FMath::Max(Velocity.Z, JumpVelocity);
+		SetMovementMode(MOVE_Falling);
+	}
+}
+
+void UPGRunnerMovementComponent::CompleteLaneJumpLanding()
+{
+	bIsWaitingForLaneJumpLanding = false;
+	LandingStabilizeRemainingTime = CachedGyroSettings.LandingStabilizeTime;
+	ConsumeBufferedLaneInput();
+}
+
+float UPGRunnerMovementComponent::CalculateLaneJumpVelocity() const
+{
+	const float JumpHeight = FMath::Max(0.0f, CachedLaneSettings.LaneJumpHeight);
+	if (JumpHeight <= KINDA_SMALL_NUMBER)
+	{
+		return 0.0f;
+	}
+
+	const float Gravity = FMath::Abs(GetGravityZ());
+	if (Gravity <= KINDA_SMALL_NUMBER)
+	{
+		return 0.0f;
+	}
+
+	return FMath::Sqrt(2.0f * Gravity * JumpHeight);
 }
 
 void UPGRunnerMovementComponent::ConsumeBufferedLaneInput()

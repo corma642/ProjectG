@@ -34,9 +34,9 @@ public:
 
 	// 라인 이동이 진행 중인지 여부
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner Movement")
-	bool IsChangingLane() const { return bIsChangingLane; }
+	bool IsChangingLane() const { return bIsChangingLane || bIsWaitingForLaneJumpLanding; }
 
-	// 메시 연출에만 사용할 현재 라인 점프 높이
+	// 적재물 등 보조 연출에 사용할 라인 점프 높이
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner Movement")
 	float GetVisualJumpOffset() const { return VisualJumpOffset; }
 
@@ -58,11 +58,17 @@ protected:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 private:
-	// 라인 변경 진행도와 시각 점프 높이를 갱신한다.
+	// 라인 변경 진행도와 수평 캡슐 이동을 갱신한다.
 	void UpdateLaneMovement(float DeltaSeconds);
 
 	// 지정한 라인 인덱스로 이동을 시작한다.
 	void StartLaneChange(int32 NewLaneIndex);
+
+	// 라인 점프가 실제 바닥에 착지했을 때 안정화 시간과 버퍼 입력을 처리한다.
+	void CompleteLaneJumpLanding();
+
+	// 설정된 라인 점프 높이에 도달하기 위한 초기 Z 속도를 계산한다.
+	float CalculateLaneJumpVelocity() const;
 
 	// 라인 이동 중 입력된 다음 이동 요청을 처리한다.
 	void ConsumeBufferedLaneInput();
@@ -126,4 +132,7 @@ private:
 
 	// 라인 이동 점프가 진행 중인지 여부
 	bool bIsChangingLane = false;
+
+	// 수평 라인 이동은 끝났지만 실제 캡슐 착지를 기다리는 중인지 여부
+	bool bIsWaitingForLaneJumpLanding = false;
 };

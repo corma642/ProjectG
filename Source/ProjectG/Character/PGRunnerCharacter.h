@@ -77,7 +77,7 @@ private:
 	// 디버그 옵션이 켜져 있을 때 러너 기준 3라인 위치를 월드에 표시한다.
 	void DrawDebugLanes() const;
 
-	// 캡슐 Z 이동 없이 메시 상대 위치만 올려 라인 점프감을 만든다.
+	// Skeletal Mesh 상대 높이를 보정한다. 현재 라인 점프는 캡슐이 직접 수행하므로 기본적으로 0을 적용한다.
 	void SetMeshJumpOffset(float JumpOffset);
 
 	// BeginPlay에서 캐시한 자동 전진/몸 기울기 설정

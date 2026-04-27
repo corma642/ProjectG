@@ -79,7 +79,7 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 
 	UpdateForwardMovement();
 	const float VisualJumpOffset = RunnerMovementComponent ? RunnerMovementComponent->GetVisualJumpOffset() : 0.0f;
-	SetMeshJumpOffset(VisualJumpOffset);
+	SetMeshJumpOffset(0.0f);
 	if (CargoStackComponent)
 	{
 		const bool bIsChangingLane = RunnerMovementComponent && RunnerMovementComponent->IsChangingLane();
@@ -169,6 +169,7 @@ void APGRunnerCharacter::UpdateBodyLean(float DeltaSeconds)
 
 void APGRunnerCharacter::DrawDebugLanes() const
 {
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	if (!CachedDebugSettings.bDrawLaneDebug)
 	{
 		return;
@@ -194,6 +195,7 @@ void APGRunnerCharacter::DrawDebugLanes() const
 		const FColor LaneColor = LaneIndex == RunnerMovementComponent->GetTargetLaneIndex() ? FColor::Green : FColor::Silver;
 		DrawDebugLine(GetWorld(), Start, End, LaneColor, false, 0.0f, 0, 2.0f);
 	}
+#endif
 }
 
 void APGRunnerCharacter::SetMeshJumpOffset(float JumpOffset)
