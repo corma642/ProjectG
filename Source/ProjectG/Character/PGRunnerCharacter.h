@@ -47,6 +47,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner")
 	float GetBalanceInput() const { return BalanceInput; }
 
+	// 적재물이 손실됐을 때 핵심 적재물 여부에 따라 실패 흐름을 요청한다.
+	UFUNCTION()
+	void HandleCargoLost(int32 SlotIndex, bool bWasCoreCargo);
+
 protected:
 	// 3라인 이동 상태와 캡슐 lateral 이동을 담당하는 러너 전용 이동 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement")

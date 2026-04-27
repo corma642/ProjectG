@@ -7,6 +7,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "DrawDebugHelpers.h"
+#include "GameModes/PGGameModeBase.h"
 #include "Settings/PGGameSettings.h"
 
 APGRunnerCharacter::APGRunnerCharacter(const FObjectInitializer& ObjectInitializer)
@@ -64,6 +65,7 @@ void APGRunnerCharacter::BeginPlay()
 	{
 		// 실제 계란 메시가 없어도 설정 기반 적재 슬롯을 먼저 구성해 Sprint 2 핵심 반응을 검증한다.
 		CargoStackComponent->InitializeCargoStack(CachedCargoSettings);
+		CargoStackComponent->OnCargoLost.AddDynamic(this, &APGRunnerCharacter::HandleCargoLost);
 	}
 
 	if (USkeletalMeshComponent* MeshComponent = GetMesh())
@@ -123,6 +125,23 @@ int32 APGRunnerCharacter::GetCurrentLaneIndex() const
 int32 APGRunnerCharacter::GetTargetLaneIndex() const
 {
 	return RunnerMovementComponent ? RunnerMovementComponent->GetTargetLaneIndex() : 0;
+}
+
+void APGRunnerCharacter::HandleCargoLost(int32 SlotIndex, bool bWasCoreCargo)
+{
+	if (!bWasCoreCargo)
+	{
+		return;
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		if (APGGameModeBase* GameMode = World->GetAuthGameMode<APGGameModeBase>())
+		{
+			// 기본 시작 계란은 핵심 적재물로 취급하므로 손실 시 즉시 실패 흐름으로 넘긴다.
+			GameMode->RequestRunFailed(TEXT("CoreCargoLost"));
+		}
+	}
 }
 
 void APGRunnerCharacter::ApplyGameSettings()
