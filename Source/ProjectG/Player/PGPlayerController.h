@@ -4,8 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "Settings/PGGameSettings.h"
 #include "PGPlayerController.generated.h"
 
+class APGRunnerCharacter;
 class UInputAction;
 class UInputMappingContext;
 struct FInputActionValue;
@@ -27,6 +29,12 @@ public:
 	// 등록한 입력 매핑 컨텍스트를 정리한다.
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	// 새 Pawn을 소유할 때 러너 캐릭터 참조를 캐시한다.
+	virtual void OnPossess(APawn* InPawn) override;
+
+	// Pawn 소유가 해제되면 캐시된 러너 캐릭터 참조를 비운다.
+	virtual void OnUnPossess() override;
+
 	// 매 프레임 자이로 입력을 읽어 러너 캐릭터의 중심 입력으로 전달한다.
 	virtual void PlayerTick(float DeltaTime) override;
 
@@ -36,6 +44,12 @@ public:
 private:
 	// 입력 에셋이 지정되지 않은 경우 C++ 기본 액션과 매핑 컨텍스트를 생성한다.
 	void EnsureInputAssets();
+
+	// Project Settings의 입력/디버그 관련 설정을 시작 시 한 번 캐시한다.
+	void ApplyGameSettings();
+
+	// 현재 Pawn이 러너 캐릭터라면 약한 참조로 캐시한다.
+	void CacheRunnerPawn(APawn* InPawn);
 
 	// 실제 등록에 사용할 입력 매핑 컨텍스트를 반환한다.
 	UInputMappingContext* GetResolvedMappingContext() const;
@@ -166,9 +180,24 @@ private:
 	// 에디터에서 자이로 없이 중심 입력을 테스트하기 위한 키보드 값
 	float KeyboardBalanceInput = 0.0f;
 
+	// BeginPlay에서 캐시한 자이로 중심 제어 설정
+	FPGGyroSettings CachedGyroSettings;
+
+	// BeginPlay에서 캐시한 에디터 디버그 설정
+	FPGDebugSettings CachedDebugSettings;
+
+	// 매 프레임 Pawn Cast를 반복하지 않기 위한 러너 캐릭터 참조
+	TWeakObjectPtr<APGRunnerCharacter> CachedRunnerCharacter;
+
 	// 최초 자이로 기준값이 설정됐는지 여부
 	bool bHasCalibration = false;
 
 	// 캘리브레이션 기준값을 부드럽게 보간 중인지 여부
 	bool bIsCalibrating = false;
+
+	// 에디터 왼쪽 중심 입력 키가 눌려 있는지 여부
+	bool bIsKeyboardBalanceLeftHeld = false;
+
+	// 에디터 오른쪽 중심 입력 키가 눌려 있는지 여부
+	bool bIsKeyboardBalanceRightHeld = false;
 };

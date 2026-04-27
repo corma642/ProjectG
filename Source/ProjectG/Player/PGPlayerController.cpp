@@ -22,7 +22,9 @@ void APGPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
+	ApplyGameSettings();
 	EnsureInputAssets();
+	CacheRunnerPawn(GetPawn());
 
 	if ((DefaultMappingContext || TouchLaneAction || LaneLeftAction || LaneRightAction || BalanceLeftAction || BalanceRightAction || GyroCalibrationAction) && !HasCompleteConfiguredInputAssets())
 	{
@@ -50,6 +52,18 @@ void APGPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 
 	Super::EndPlay(EndPlayReason);
+}
+
+void APGPlayerController::OnPossess(APawn* InPawn)
+{
+	Super::OnPossess(InPawn);
+	CacheRunnerPawn(InPawn);
+}
+
+void APGPlayerController::OnUnPossess()
+{
+	CachedRunnerCharacter.Reset();
+	Super::OnUnPossess();
 }
 
 void APGPlayerController::PlayerTick(float DeltaTime)
@@ -83,6 +97,18 @@ void APGPlayerController::SetupInputComponent()
 	EnhancedInputComponent->BindAction(GetResolvedBalanceRightAction(), ETriggerEvent::Completed, this, &APGPlayerController::HandleBalanceRightCompleted);
 	EnhancedInputComponent->BindAction(GetResolvedBalanceRightAction(), ETriggerEvent::Canceled, this, &APGPlayerController::HandleBalanceRightCompleted);
 	EnhancedInputComponent->BindAction(GetResolvedGyroCalibrationAction(), ETriggerEvent::Started, this, &APGPlayerController::HandleGyroCalibrationStarted);
+}
+
+void APGPlayerController::ApplyGameSettings()
+{
+	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
+	CachedGyroSettings = Settings->Gyro;
+	CachedDebugSettings = Settings->Debug;
+}
+
+void APGPlayerController::CacheRunnerPawn(APawn* InPawn)
+{
+	CachedRunnerCharacter = Cast<APGRunnerCharacter>(InPawn);
 }
 
 void APGPlayerController::EnsureInputAssets()
@@ -211,28 +237,26 @@ void APGPlayerController::HandleLaneRightStarted(const FInputActionValue& Action
 
 void APGPlayerController::HandleBalanceLeftStarted(const FInputActionValue& ActionValue)
 {
-	KeyboardBalanceInput = -1.0f;
+	bIsKeyboardBalanceLeftHeld = true;
+	KeyboardBalanceInput = static_cast<float>(static_cast<int32>(bIsKeyboardBalanceRightHeld) - static_cast<int32>(bIsKeyboardBalanceLeftHeld));
 }
 
 void APGPlayerController::HandleBalanceLeftCompleted(const FInputActionValue& ActionValue)
 {
-	if (KeyboardBalanceInput < 0.0f)
-	{
-		KeyboardBalanceInput = 0.0f;
-	}
+	bIsKeyboardBalanceLeftHeld = false;
+	KeyboardBalanceInput = static_cast<float>(static_cast<int32>(bIsKeyboardBalanceRightHeld) - static_cast<int32>(bIsKeyboardBalanceLeftHeld));
 }
 
 void APGPlayerController::HandleBalanceRightStarted(const FInputActionValue& ActionValue)
 {
-	KeyboardBalanceInput = 1.0f;
+	bIsKeyboardBalanceRightHeld = true;
+	KeyboardBalanceInput = static_cast<float>(static_cast<int32>(bIsKeyboardBalanceRightHeld) - static_cast<int32>(bIsKeyboardBalanceLeftHeld));
 }
 
 void APGPlayerController::HandleBalanceRightCompleted(const FInputActionValue& ActionValue)
 {
-	if (KeyboardBalanceInput > 0.0f)
-	{
-		KeyboardBalanceInput = 0.0f;
-	}
+	bIsKeyboardBalanceRightHeld = false;
+	KeyboardBalanceInput = static_cast<float>(static_cast<int32>(bIsKeyboardBalanceRightHeld) - static_cast<int32>(bIsKeyboardBalanceLeftHeld));
 }
 
 void APGPlayerController::HandleGyroCalibrationStarted(const FInputActionValue& ActionValue)
@@ -254,7 +278,7 @@ void APGPlayerController::HandleGyroCalibrationStarted(const FInputActionValue& 
 
 void APGPlayerController::SendLaneChange(int32 Direction)
 {
-	if (APGRunnerCharacter* RunnerCharacter = Cast<APGRunnerCharacter>(GetPawn()))
+	if (APGRunnerCharacter* RunnerCharacter = CachedRunnerCharacter.Get())
 	{
 		RunnerCharacter->RequestLaneChange(Direction);
 	}
@@ -262,8 +286,6 @@ void APGPlayerController::SendLaneChange(int32 Direction)
 
 void APGPlayerController::UpdateGyroInput(float DeltaTime)
 {
-	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
-
 	FVector Tilt = FVector::ZeroVector;
 	FVector RotationRate = FVector::ZeroVector;
 	FVector Gravity = FVector::ZeroVector;
@@ -284,7 +306,7 @@ void APGPlayerController::UpdateGyroInput(float DeltaTime)
 	if (bIsCalibrating)
 	{
 		// 플레이 중 재보정 시 입력이 갑자기 튀지 않도록 설정값 기반 보간을 사용한다.
-		CalibrationTilt = FMath::FInterpTo(CalibrationTilt, TargetCalibrationTilt, DeltaTime, Settings->Gyro.CalibrationBlendSpeed);
+		CalibrationTilt = FMath::FInterpTo(CalibrationTilt, TargetCalibrationTilt, DeltaTime, CachedGyroSettings.CalibrationBlendSpeed);
 		if (FMath::IsNearlyEqual(CalibrationTilt, TargetCalibrationTilt, 0.001f))
 		{
 			CalibrationTilt = TargetCalibrationTilt;
@@ -295,19 +317,20 @@ void APGPlayerController::UpdateGyroInput(float DeltaTime)
 	float FinalBalanceInput = NormalizeTiltInput(LastRawTilt);
 
 #if WITH_EDITOR
-	if (Settings->Debug.bUseKeyboardFallbackInEditor && !FMath::IsNearlyZero(KeyboardBalanceInput))
+	if (CachedDebugSettings.bUseKeyboardFallbackInEditor && !FMath::IsNearlyZero(KeyboardBalanceInput))
 	{
 		// 에디터 테스트에서는 키보드 입력을 자이로보다 우선해 반복 검증을 쉽게 한다.
 		FinalBalanceInput = KeyboardBalanceInput;
 	}
 #endif
 
-	if (APGRunnerCharacter* RunnerCharacter = Cast<APGRunnerCharacter>(GetPawn()))
+	if (APGRunnerCharacter* RunnerCharacter = CachedRunnerCharacter.Get())
 	{
 		RunnerCharacter->SetBalanceInput(FinalBalanceInput);
 	}
 
-	if (Settings->Debug.bDrawGyroDebug && GEngine)
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+	if (CachedDebugSettings.bDrawGyroDebug && GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(
 			reinterpret_cast<uint64>(this),
@@ -315,19 +338,19 @@ void APGPlayerController::UpdateGyroInput(float DeltaTime)
 			FColor::Cyan,
 			FString::Printf(TEXT("Tilt Raw: %.3f | Balance: %.3f | Calibration: %.3f"), LastRawTilt, FinalBalanceInput, CalibrationTilt));
 	}
+#endif
 }
 
 float APGPlayerController::NormalizeTiltInput(float RawTilt) const
 {
-	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
 	const float CenteredTilt = RawTilt - CalibrationTilt;
 
-	if (FMath::Abs(CenteredTilt) <= Settings->Gyro.TiltDeadZone)
+	if (FMath::Abs(CenteredTilt) <= CachedGyroSettings.TiltDeadZone)
 	{
 		// 손 떨림이나 센서 미세 노이즈는 중심 입력으로 보지 않는다.
 		return 0.0f;
 	}
 
 	// 민감도 적용 후 설정된 최대 입력 범위 안으로 제한한다.
-	return FMath::Clamp(CenteredTilt * Settings->Gyro.TiltSensitivity, -Settings->Gyro.MaxTiltInput, Settings->Gyro.MaxTiltInput);
+	return FMath::Clamp(CenteredTilt * CachedGyroSettings.TiltSensitivity, -CachedGyroSettings.MaxTiltInput, CachedGyroSettings.MaxTiltInput);
 }
