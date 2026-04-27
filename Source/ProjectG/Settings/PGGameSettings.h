@@ -6,6 +6,8 @@
 #include "Engine/DeveloperSettings.h"
 #include "PGGameSettings.generated.h"
 
+class UPGCargoTypeDefinition;
+
 /**
  * 자동 전진 캐릭터의 기본 이동/기울기 반응 설정
  */
@@ -147,6 +149,10 @@ struct FPGCargoSettings
 {
 	GENERATED_BODY()
 
+	// 에셋이 지정된 경우 시작/추가 적재물에 사용할 기본 적재물 타입
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")
+	TSoftObjectPtr<UPGCargoTypeDefinition> DefaultCargoType;
+
 	// 게임 시작 시 머리 위에 올릴 적재물 개수
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "0", UIMin = "0", UIMax = "5"))
 	int32 InitialCargoCount = 1;
@@ -178,6 +184,30 @@ struct FPGCargoSettings
 	// 메시가 없을 때 적재 위치를 디버그 구체로 표시할지 여부
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")
 	bool bDrawCargoDebug = false;
+
+	// 안정도 값이 이 값 이상이면 경고 상태로 표시한다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Stability", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float WarningThreshold = 0.45f;
+
+	// 안정도 값이 이 값 이상이면 위험 상태로 표시한다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Stability", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float CriticalThreshold = 0.8f;
+
+	// 안정도 값이 이 값 이상이면 적재물이 손실된다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Stability", meta = (ClampMin = "0.01", UIMin = "0.1", UIMax = "2.0"))
+	float LossThreshold = 1.0f;
+
+	// 중심 입력 절댓값이 초당 안정도 손상으로 누적되는 비율
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Stability", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3.0"))
+	float BalanceDamageRate = 0.65f;
+
+	// 라인 점프를 시작할 때 한 번 추가되는 안정도 손상량
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Stability", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0"))
+	float JumpDamageAmount = 0.12f;
+
+	// 중심 입력이 안정됐을 때 초당 안정도가 회복되는 비율
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Stability", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2.0"))
+	float StabilityRecoveryRate = 0.25f;
 };
 
 /**
