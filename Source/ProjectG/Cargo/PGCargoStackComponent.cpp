@@ -18,7 +18,8 @@ void UPGCargoStackComponent::InitializeCargoStack(const FPGCargoSettings& InCarg
 	CurrentSwayRoll = 0.0f;
 	CurrentJumpLift = 0.0f;
 
-	RebuildCargoSlots();
+	EnsureCargoMeshPool();
+	RefreshCargoSlotVisibility();
 	UpdateSlotTransforms();
 }
 
@@ -47,7 +48,7 @@ bool UPGCargoStackComponent::AddCargo()
 	}
 
 	++CurrentCargoCount;
-	RebuildCargoSlots();
+	RefreshCargoSlotVisibility();
 	UpdateSlotTransforms();
 	return true;
 }
@@ -60,28 +61,20 @@ bool UPGCargoStackComponent::RemoveCargo()
 	}
 
 	--CurrentCargoCount;
-	RebuildCargoSlots();
+	RefreshCargoSlotVisibility();
 	UpdateSlotTransforms();
 	return true;
 }
 
-void UPGCargoStackComponent::RebuildCargoSlots()
+void UPGCargoStackComponent::EnsureCargoMeshPool()
 {
-	for (UStaticMeshComponent* MeshComponent : CargoMeshComponents)
-	{
-		if (MeshComponent)
-		{
-			MeshComponent->DestroyComponent();
-		}
-	}
-	CargoMeshComponents.Reset();
-
 	if (!CargoMesh)
 	{
 		return;
 	}
 
-	for (int32 SlotIndex = 0; SlotIndex < CurrentCargoCount; ++SlotIndex)
+	const int32 RequiredPoolSize = FMath::Max(0, CachedCargoSettings.MaxCargoCount);
+	for (int32 SlotIndex = CargoMeshComponents.Num(); SlotIndex < RequiredPoolSize; ++SlotIndex)
 	{
 		UStaticMeshComponent* MeshComponent = NewObject<UStaticMeshComponent>(GetOwner());
 		if (!MeshComponent)
@@ -96,7 +89,26 @@ void UPGCargoStackComponent::RebuildCargoSlots()
 		MeshComponent->SetGenerateOverlapEvents(false);
 		MeshComponent->SetupAttachment(this);
 		MeshComponent->RegisterComponent();
+		MeshComponent->SetVisibility(false, true);
+		MeshComponent->SetHiddenInGame(true, true);
 		CargoMeshComponents.Add(MeshComponent);
+	}
+}
+
+void UPGCargoStackComponent::RefreshCargoSlotVisibility()
+{
+	for (int32 SlotIndex = 0; SlotIndex < CargoMeshComponents.Num(); ++SlotIndex)
+	{
+		UStaticMeshComponent* MeshComponent = CargoMeshComponents[SlotIndex];
+		if (!MeshComponent)
+		{
+			continue;
+		}
+
+		const bool bShouldShowSlot = CargoMesh && SlotIndex < CurrentCargoCount;
+		MeshComponent->SetStaticMesh(CargoMesh);
+		MeshComponent->SetVisibility(bShouldShowSlot, true);
+		MeshComponent->SetHiddenInGame(!bShouldShowSlot, true);
 	}
 }
 
@@ -104,7 +116,7 @@ void UPGCargoStackComponent::UpdateSlotTransforms()
 {
 	const FRotator SwayRotation(0.0f, 0.0f, CurrentSwayRoll);
 
-	for (int32 SlotIndex = 0; SlotIndex < CargoMeshComponents.Num(); ++SlotIndex)
+	for (int32 SlotIndex = 0; SlotIndex < CurrentCargoCount && SlotIndex < CargoMeshComponents.Num(); ++SlotIndex)
 	{
 		UStaticMeshComponent* MeshComponent = CargoMeshComponents[SlotIndex];
 		if (!MeshComponent)
@@ -119,6 +131,7 @@ void UPGCargoStackComponent::UpdateSlotTransforms()
 
 void UPGCargoStackComponent::DrawCargoDebug() const
 {
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	UWorld* World = GetWorld();
 	if (!World)
 	{
@@ -134,6 +147,7 @@ void UPGCargoStackComponent::DrawCargoDebug() const
 		DrawDebugSphere(World, SlotWorldLocation, 10.0f, 12, SlotColor, false, 0.0f, 0, 1.5f);
 		DrawDebugLine(World, SlotWorldLocation, SlotWorldLocation + GetUpVector() * 18.0f, SlotColor, false, 0.0f, 0, 1.0f);
 	}
+#endif
 }
 
 FVector UPGCargoStackComponent::GetSlotRelativeLocation(int32 SlotIndex) const

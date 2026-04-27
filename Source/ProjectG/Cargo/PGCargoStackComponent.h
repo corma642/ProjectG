@@ -44,8 +44,11 @@ public:
 	float GetCurrentSwayRoll() const { return CurrentSwayRoll; }
 
 private:
-	// 현재 적재 개수에 맞게 표시용 메시 슬롯을 다시 구성한다.
-	void RebuildCargoSlots();
+	// 최대 적재 개수만큼 표시용 메시 슬롯 풀을 준비한다.
+	void EnsureCargoMeshPool();
+
+	// 현재 적재 개수에 맞게 메시 슬롯 표시 상태를 갱신한다.
+	void RefreshCargoSlotVisibility();
 
 	// 각 적재 슬롯의 위치와 회전을 현재 흔들림/점프 상태에 맞게 갱신한다.
 	void UpdateSlotTransforms();
