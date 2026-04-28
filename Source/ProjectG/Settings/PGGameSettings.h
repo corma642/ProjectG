@@ -235,6 +235,27 @@ struct FPGCargoSettings
 };
 
 /**
+ * 바람, 얼음 길, 적재 증가 같은 환경 이벤트의 기본 반응 설정
+ */
+USTRUCT(BlueprintType)
+struct FPGEnvironmentSettings
+{
+	GENERATED_BODY()
+
+	// 바람 강도가 중심 입력 편향으로 변환될 때 곱하는 기본 비율
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Environment | Wind", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0"))
+	float WindBalanceBiasScale = 0.35f;
+
+	// 얼음 길에서 중심 입력이 목표값을 따라가는 속도 비율. 낮을수록 더 늦게 반응한다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Environment | Ice", meta = (ClampMin = "0.05", ClampMax = "1.0", UIMin = "0.1", UIMax = "1.0"))
+	float IceInputLagScale = 0.35f;
+
+	// 개발 빌드에서 현재 환경 효과 상태를 디버그 텍스트로 표시할지 여부
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Environment | Debug")
+	bool bDrawEnvironmentDebug = false;
+};
+
+/**
  * 프로젝트 전역 설정을 에디터(Project Settings)에서 관리하기 위한 클래스
  */
 UCLASS(Config = Game, DefaultConfig, meta = (DisplayName = "Go Deliver! Settings"))
@@ -268,4 +289,8 @@ public:
 	// 머리 위 적재물 스택과 시각 흔들림 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")
 	FPGCargoSettings Cargo;
+
+	// 바람, 얼음 길, 적재 증가 같은 환경 이벤트 설정
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Environment")
+	FPGEnvironmentSettings Environment;
 };

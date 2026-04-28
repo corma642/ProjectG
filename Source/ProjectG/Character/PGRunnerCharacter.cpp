@@ -30,6 +30,9 @@ APGRunnerCharacter::APGRunnerCharacter(const FObjectInitializer& ObjectInitializ
 	CargoStackComponent = CreateDefaultSubobject<UPGCargoStackComponent>(TEXT("CargoStack"));
 	CargoStackComponent->SetupAttachment(RootComponent);
 
+	RunnerEnvironmentComponent = CreateDefaultSubobject<UPGRunnerEnvironmentComponent>(TEXT("RunnerEnvironment"));
+	RunnerEnvironmentComponent->SetupAttachment(RootComponent);
+
 	RunnerMovementComponent = CastChecked<UPGRunnerMovementComponent>(GetCharacterMovement());
 	UCharacterMovementComponent* Movement = RunnerMovementComponent;
 	// 러너는 항상 전방을 바라보므로 이동 방향에 따른 자동 회전은 끈다.
@@ -70,6 +73,12 @@ void APGRunnerCharacter::BeginPlay()
 		CargoStackComponent->OnCargoLost.AddDynamic(this, &APGRunnerCharacter::HandleCargoLost);
 	}
 
+	if (RunnerEnvironmentComponent)
+	{
+		RunnerEnvironmentComponent->InitializeEnvironment(CachedEnvironmentSettings, CargoStackComponent);
+		RunnerEnvironmentComponent->SetRunActive(true);
+	}
+
 	if (UWorld* World = GetWorld())
 	{
 		if (APGGameModeBase* GameMode = World->GetAuthGameMode<APGGameModeBase>())
@@ -102,6 +111,11 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 	}
 
 	UpdateCargoPenalty(DeltaSeconds);
+	if (RunnerEnvironmentComponent)
+	{
+		RunnerEnvironmentComponent->UpdateEnvironment(DeltaSeconds, BalanceInput);
+	}
+
 	UpdateForwardMovement();
 	const float VisualJumpOffset = RunnerMovementComponent ? RunnerMovementComponent->GetVisualJumpOffset() : 0.0f;
 	SetMeshJumpOffset(0.0f);
@@ -192,6 +206,11 @@ void APGRunnerCharacter::HandleRunFailed(FName FailureReason)
 	CargoPenaltyRemainingTime = 0.0f;
 	CurrentBodyRoll = 0.0f;
 
+	if (RunnerEnvironmentComponent)
+	{
+		RunnerEnvironmentComponent->SetRunActive(false);
+	}
+
 	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
 	{
 		Movement->StopMovementImmediately();
@@ -210,6 +229,7 @@ void APGRunnerCharacter::ApplyGameSettings()
 	CachedCameraSettings = Settings->Camera;
 	CachedDebugSettings = Settings->Debug;
 	CachedCargoSettings = Settings->Cargo;
+	CachedEnvironmentSettings = Settings->Environment;
 
 	// Project Settings 값은 BeginPlay에서 1회 적용한다. PIE 중 변경한 값은 재시작 후 반영한다.
 	UCharacterMovementComponent* Movement = GetCharacterMovement();
@@ -290,15 +310,17 @@ void APGRunnerCharacter::UpdateCargoPenalty(float DeltaSeconds)
 
 float APGRunnerCharacter::GetEffectiveBalanceInput() const
 {
+	const float EnvironmentBalanceInput = RunnerEnvironmentComponent ? RunnerEnvironmentComponent->GetProcessedBalanceInput() : BalanceInput;
+
 	if (CargoPenaltyRemainingTime <= 0.0f)
 	{
-		return BalanceInput;
+		return EnvironmentBalanceInput;
 	}
 
 	const float Duration = FMath::Max(KINDA_SMALL_NUMBER, CachedCargoSettings.BonusCargoPenaltyDuration);
 	const float PenaltyAlpha = CargoPenaltyRemainingTime / Duration;
 	const float PenaltyKick = CargoPenaltyKickDirection * CachedCargoSettings.BonusCargoPenaltyBalanceKick * PenaltyAlpha;
-	return FMath::Clamp(BalanceInput + PenaltyKick, -CachedGyroSettings.MaxTiltInput, CachedGyroSettings.MaxTiltInput);
+	return FMath::Clamp(EnvironmentBalanceInput + PenaltyKick, -CachedGyroSettings.MaxTiltInput, CachedGyroSettings.MaxTiltInput);
 }
 
 void APGRunnerCharacter::UpdateBodyLean(float DeltaSeconds)

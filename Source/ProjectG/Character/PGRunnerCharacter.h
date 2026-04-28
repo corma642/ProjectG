@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Cargo/PGCargoStackComponent.h"
+#include "Environment/PGRunnerEnvironmentComponent.h"
 #include "GameFramework/Character.h"
 #include "Movement/PGRunnerMovementComponent.h"
 #include "Settings/PGGameSettings.h"
@@ -64,6 +65,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cargo")
 	TObjectPtr<UPGCargoStackComponent> CargoStackComponent;
 
+	// 바람, 얼음 길, 보너스 적재 요청 같은 환경 이벤트 상태를 관리하는 컴포넌트
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Environment")
+	TObjectPtr<UPGRunnerEnvironmentComponent> RunnerEnvironmentComponent;
+
 	// 캐릭터를 약간 위에서 따라가는 추적 카메라 암
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<USpringArmComponent> CameraBoom;
@@ -117,6 +122,9 @@ private:
 
 	// BeginPlay에서 캐시한 적재물 스택 설정
 	FPGCargoSettings CachedCargoSettings;
+
+	// BeginPlay에서 캐시한 바람/얼음 길/적재 증가 환경 이벤트 설정
+	FPGEnvironmentSettings CachedEnvironmentSettings;
 
 	// 현재 좌우 중심 입력값
 	float BalanceInput = 0.0f;
