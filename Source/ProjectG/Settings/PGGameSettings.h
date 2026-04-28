@@ -34,6 +34,35 @@ struct FPGRunnerSettings
 };
 
 /**
+ * 직선 주행 중에도 줄타기처럼 중심이 흔들리는 기본 밸런스 설정
+ */
+USTRUCT(BlueprintType)
+struct FPGBalanceSettings
+{
+	GENERATED_BODY()
+
+	// 직선 주행 중 기본 좌우 흔들림을 사용할지 여부
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance")
+	bool bEnableBaseInstability = true;
+
+	// 기본 흔들림이 최종 중심 입력에 더해지는 최대 크기
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float BaseInstabilityAmplitude = 0.25f;
+
+	// 기본 흔들림이 1초에 반복되는 횟수
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3.0"))
+	float BaseInstabilityFrequency = 0.75f;
+
+	// 플레이어 보정 입력이 기본 흔들림을 상쇄하는 영향 비율
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2.0"))
+	float PlayerCorrectionScale = 1.0f;
+
+	// 개발 빌드에서 기본 흔들림/플레이어 보정/최종 중심 입력을 화면에 표시할지 여부
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance | Debug")
+	bool bDrawBalanceDebug = false;
+};
+
+/**
  * 3라인 점프 이동 설정
  */
 USTRUCT(BlueprintType)
@@ -269,6 +298,10 @@ public:
 	// 자동 전진 캐릭터 기본 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Runner")
 	FPGRunnerSettings Runner;
+
+	// 직선 주행 중 기본 중심 불안정성 설정
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance")
+	FPGBalanceSettings Balance;
 
 	// 3라인 점프 이동 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Lane")

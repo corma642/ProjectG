@@ -4,6 +4,7 @@
 
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Engine/Engine.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "DrawDebugHelpers.h"
@@ -111,6 +112,7 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 	}
 
 	UpdateCargoPenalty(DeltaSeconds);
+	UpdateBaseInstability(DeltaSeconds);
 	if (RunnerEnvironmentComponent)
 	{
 		RunnerEnvironmentComponent->UpdateEnvironment(DeltaSeconds, BalanceInput);
@@ -203,6 +205,8 @@ void APGRunnerCharacter::HandleRunFailed(FName FailureReason)
 	// 실패가 확정되면 추가 입력/전진/적재 반응이 누적되지 않도록 러너 상태를 즉시 고정한다.
 	bIsRunActive = false;
 	BalanceInput = 0.0f;
+	BaseInstabilityInput = 0.0f;
+	BalanceElapsedTime = 0.0f;
 	CargoPenaltyRemainingTime = 0.0f;
 	CurrentBodyRoll = 0.0f;
 
@@ -224,6 +228,7 @@ void APGRunnerCharacter::ApplyGameSettings()
 {
 	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
 	CachedRunnerSettings = Settings->Runner;
+	CachedBalanceSettings = Settings->Balance;
 	CachedLaneSettings = Settings->Lane;
 	CachedGyroSettings = Settings->Gyro;
 	CachedCameraSettings = Settings->Camera;
@@ -308,10 +313,26 @@ void APGRunnerCharacter::UpdateCargoPenalty(float DeltaSeconds)
 	}
 }
 
+void APGRunnerCharacter::UpdateBaseInstability(float DeltaSeconds)
+{
+	if (!CachedBalanceSettings.bEnableBaseInstability)
+	{
+		BaseInstabilityInput = 0.0f;
+		return;
+	}
+
+	BalanceElapsedTime += DeltaSeconds;
+
+	// 기본 불안정성은 결정적인 사인파로 시작해 같은 조건에서 반복 검증 가능한 줄타기 흔들림을 만든다.
+	const float Frequency = FMath::Max(0.0f, CachedBalanceSettings.BaseInstabilityFrequency);
+	const float Amplitude = FMath::Max(0.0f, CachedBalanceSettings.BaseInstabilityAmplitude);
+	BaseInstabilityInput = FMath::Sin(BalanceElapsedTime * Frequency * UE_TWO_PI) * Amplitude;
+}
+
 float APGRunnerCharacter::GetEffectiveBalanceInput() const
 {
 	const float EnvironmentBalanceInput = RunnerEnvironmentComponent ? RunnerEnvironmentComponent->GetProcessedBalanceInput() : BalanceInput;
-	float FinalBalanceInput = EnvironmentBalanceInput;
+	float FinalBalanceInput = BaseInstabilityInput + EnvironmentBalanceInput * CachedBalanceSettings.PlayerCorrectionScale;
 
 	if (CargoPenaltyRemainingTime > 0.0f)
 	{
@@ -327,17 +348,38 @@ float APGRunnerCharacter::GetEffectiveBalanceInput() const
 
 void APGRunnerCharacter::UpdateBodyLean(float DeltaSeconds)
 {
-	const float TargetRoll = GetEffectiveBalanceInput() * CachedRunnerSettings.BodyLeanMaxRoll;
+	const float EffectiveBalanceInput = GetEffectiveBalanceInput();
+	const float TargetRoll = EffectiveBalanceInput * CachedRunnerSettings.BodyLeanMaxRoll;
 
 	// 중심 입력이 즉시 꺾이지 않고 몸이 따라가는 느낌이 나도록 보간한다.
 	CurrentBodyRoll = FMath::FInterpTo(CurrentBodyRoll, TargetRoll, DeltaSeconds, CachedRunnerSettings.BodyLeanInterpSpeed);
 
 	if (USkeletalMeshComponent* MeshComponent = GetMesh())
 	{
-		FRotator LeanRotation = InitialMeshRelativeRotation;
-		LeanRotation.Roll += CurrentBodyRoll;
-		MeshComponent->SetRelativeRotation(LeanRotation);
+		// 메시가 BP에서 Z축 회전되어 있어도 러너 캡슐의 전방축 기준으로 좌우 기울기가 보이도록 parent-space 축 회전을 적용한다.
+		const FQuat InitialMeshQuat = InitialMeshRelativeRotation.Quaternion();
+		const FQuat LeanQuat(FVector::ForwardVector, FMath::DegreesToRadians(CurrentBodyRoll));
+		MeshComponent->SetRelativeRotation((LeanQuat * InitialMeshQuat).Rotator());
 	}
+
+	DrawBalanceDebug();
+}
+
+void APGRunnerCharacter::DrawBalanceDebug() const
+{
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+	if (!CachedBalanceSettings.bDrawBalanceDebug || !GEngine)
+	{
+		return;
+	}
+
+	const float EnvironmentBalanceInput = RunnerEnvironmentComponent ? RunnerEnvironmentComponent->GetProcessedBalanceInput() : BalanceInput;
+	GEngine->AddOnScreenDebugMessage(
+		reinterpret_cast<uint64>(this) + 1,
+		0.0f,
+		FColor::Yellow,
+		FString::Printf(TEXT("Balance Base: %.2f | Player: %.2f | Final: %.2f"), BaseInstabilityInput, EnvironmentBalanceInput, GetEffectiveBalanceInput()));
+#endif
 }
 
 void APGRunnerCharacter::DrawDebugLanes() const

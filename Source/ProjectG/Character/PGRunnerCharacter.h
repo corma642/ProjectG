@@ -93,11 +93,17 @@ private:
 	// 보너스 적재물 손실 페널티 시간을 갱신하고 종료 시 이동 속도를 복구한다.
 	void UpdateCargoPenalty(float DeltaSeconds);
 
+	// 직선 주행 중에도 발생하는 기본 좌우 중심 흔들림을 갱신한다.
+	void UpdateBaseInstability(float DeltaSeconds);
+
 	// 플레이어 중심 입력에 손실 페널티 흔들림을 합산한 최종 입력값을 반환한다.
 	float GetEffectiveBalanceInput() const;
 
 	// 중심 입력값을 캐릭터 메시의 좌우 기울기 연출로 변환한다.
 	void UpdateBodyLean(float DeltaSeconds);
+
+	// 디버그 옵션이 켜져 있을 때 현재 중심 입력 구성을 화면에 표시한다.
+	void DrawBalanceDebug() const;
 
 	// 디버그 옵션이 켜져 있을 때 러너 기준 3라인 위치를 월드에 표시한다.
 	void DrawDebugLanes() const;
@@ -107,6 +113,9 @@ private:
 
 	// BeginPlay에서 캐시한 자동 전진/몸 기울기 설정
 	FPGRunnerSettings CachedRunnerSettings;
+
+	// BeginPlay에서 캐시한 기본 중심 불안정성 설정
+	FPGBalanceSettings CachedBalanceSettings;
 
 	// BeginPlay에서 캐시한 3라인 이동 설정
 	FPGLaneSettings CachedLaneSettings;
@@ -128,6 +137,12 @@ private:
 
 	// 현재 좌우 중심 입력값
 	float BalanceInput = 0.0f;
+
+	// 직선 주행 중 자동으로 발생하는 기본 좌우 중심 흔들림 입력값
+	float BaseInstabilityInput = 0.0f;
+
+	// 기본 흔들림 위상 계산에 사용하는 런 진행 시간
+	float BalanceElapsedTime = 0.0f;
 
 	// 현재 러너가 조작 가능한 런 진행 상태인지 여부
 	bool bIsRunActive = true;
