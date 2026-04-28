@@ -311,16 +311,18 @@ void APGRunnerCharacter::UpdateCargoPenalty(float DeltaSeconds)
 float APGRunnerCharacter::GetEffectiveBalanceInput() const
 {
 	const float EnvironmentBalanceInput = RunnerEnvironmentComponent ? RunnerEnvironmentComponent->GetProcessedBalanceInput() : BalanceInput;
+	float FinalBalanceInput = EnvironmentBalanceInput;
 
-	if (CargoPenaltyRemainingTime <= 0.0f)
+	if (CargoPenaltyRemainingTime > 0.0f)
 	{
-		return EnvironmentBalanceInput;
+		const float Duration = FMath::Max(KINDA_SMALL_NUMBER, CachedCargoSettings.BonusCargoPenaltyDuration);
+		const float PenaltyAlpha = CargoPenaltyRemainingTime / Duration;
+		const float PenaltyKick = CargoPenaltyKickDirection * CachedCargoSettings.BonusCargoPenaltyBalanceKick * PenaltyAlpha;
+		FinalBalanceInput += PenaltyKick;
 	}
 
-	const float Duration = FMath::Max(KINDA_SMALL_NUMBER, CachedCargoSettings.BonusCargoPenaltyDuration);
-	const float PenaltyAlpha = CargoPenaltyRemainingTime / Duration;
-	const float PenaltyKick = CargoPenaltyKickDirection * CachedCargoSettings.BonusCargoPenaltyBalanceKick * PenaltyAlpha;
-	return FMath::Clamp(EnvironmentBalanceInput + PenaltyKick, -CachedGyroSettings.MaxTiltInput, CachedGyroSettings.MaxTiltInput);
+	// 환경 효과와 보너스 적재물 페널티를 모두 합산한 뒤 자이로 최대 입력 설정을 최종 제한으로 적용한다.
+	return FMath::Clamp(FinalBalanceInput, -CachedGyroSettings.MaxTiltInput, CachedGyroSettings.MaxTiltInput);
 }
 
 void APGRunnerCharacter::UpdateBodyLean(float DeltaSeconds)

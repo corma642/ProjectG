@@ -80,9 +80,18 @@ void UPGRunnerEnvironmentComponent::ApplyWind(float Direction, float Strength, f
 		return;
 	}
 
-	WindDirection = Direction >= 0.0f ? 1.0f : -1.0f;
-	WindStrength = FMath::Max(0.0f, Strength);
-	WindRemainingTime = FMath::Max(0.0f, Duration);
+	if (FMath::IsNearlyZero(Direction) || Strength <= 0.0f || Duration <= 0.0f)
+	{
+		// 방향/강도/시간이 유효하지 않은 바람 요청은 이전 바람이 남지 않도록 명시적으로 정리한다.
+		WindDirection = 0.0f;
+		WindStrength = 0.0f;
+		WindRemainingTime = 0.0f;
+		return;
+	}
+
+	WindDirection = Direction > 0.0f ? 1.0f : -1.0f;
+	WindStrength = Strength;
+	WindRemainingTime = Duration;
 }
 
 void UPGRunnerEnvironmentComponent::ApplyIce(float Duration, float InputLagScale)
