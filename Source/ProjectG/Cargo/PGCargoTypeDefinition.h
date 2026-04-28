@@ -9,7 +9,8 @@
 class UStaticMesh;
 
 /**
- * Go Deliver!에서 적재물 한 종류의 표시 메시, 핵심 여부, 흔들림/손상 계수를 정의하는 데이터 에셋
+ * 물리 적재물 1종의 표시 메시와 물리 반응값을 정의하는 데이터 에셋입니다.
+ * 현재 기획에서는 모든 적재물이 핵심 계란으로 취급되며, 하나라도 손실되면 런 실패로 이어집니다.
  */
 UCLASS(BlueprintType)
 class PROJECTG_API UPGCargoTypeDefinition : public UPrimaryDataAsset
@@ -17,23 +18,31 @@ class PROJECTG_API UPGCargoTypeDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	// 에디터와 디버그 표시에서 읽을 적재물 이름
+	// 에디터와 디버그 표시에서 읽기 쉬운 적재물 이름
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo")
 	FText DisplayName;
 
-	// 적재물 슬롯에 표시할 Static Mesh. 비워두면 디버그 구체로 표시한다.
+	// 실제 월드에 물리 오브젝트로 스폰할 적재물 Static Mesh
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo")
 	TObjectPtr<UStaticMesh> CargoMesh;
 
-	// 잃으면 즉시 실패 흐름으로 이어지는 핵심 적재물인지 여부
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo")
-	bool bIsCoreCargo = true;
+	// 메시 피벗이나 모델 크기가 맞지 않을 때 적용할 시각 스케일
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo | Visual")
+	FVector MeshScale = FVector(1.0f);
 
-	// 중심 입력이 이 적재물의 시각 흔들림에 반영되는 배율
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3.0"))
-	float SwayMultiplier = 1.0f;
+	// 메시 피벗 방향이 월드 기준과 맞지 않을 때 적용할 초기 회전
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo | Visual")
+	FRotator MeshRotation = FRotator::ZeroRotator;
 
-	// 중심 입력과 라인 점프가 안정도 손상으로 누적되는 배율
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3.0"))
-	float StabilityDamageMultiplier = 1.0f;
+	// 계란 물리 질량. 0보다 크면 Static Mesh 기본 질량 대신 이 값을 사용한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
+	float MassInKg = 0.05f;
+
+	// 계란의 선형 속도 감쇠. 값이 높을수록 바구니 안에서 덜 미끄러진다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "10.0"))
+	float LinearDamping = 0.15f;
+
+	// 계란의 회전 속도 감쇠. 값이 높을수록 굴러다니는 속도가 빨리 줄어든다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "10.0"))
+	float AngularDamping = 0.4f;
 };

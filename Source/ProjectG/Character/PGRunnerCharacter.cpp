@@ -4,10 +4,10 @@
 
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "DrawDebugHelpers.h"
 #include "Engine/Engine.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
-#include "DrawDebugHelpers.h"
 #include "GameModes/PGGameModeBase.h"
 #include "Settings/PGGameSettings.h"
 
@@ -36,7 +36,7 @@ APGRunnerCharacter::APGRunnerCharacter(const FObjectInitializer& ObjectInitializ
 
 	RunnerMovementComponent = CastChecked<UPGRunnerMovementComponent>(GetCharacterMovement());
 	UCharacterMovementComponent* Movement = RunnerMovementComponent;
-	// 러너는 항상 전방을 바라보므로 이동 방향에 따른 자동 회전은 끈다.
+	// 러너는 항상 전방을 바라보며 이동하므로 입력 방향 회전을 사용하지 않는다.
 	Movement->bOrientRotationToMovement = false;
 	Movement->bUseControllerDesiredRotation = false;
 	Movement->GravityScale = 1.0f;
@@ -63,14 +63,14 @@ void APGRunnerCharacter::BeginPlay()
 
 	if (RunnerMovementComponent)
 	{
-		// 시작 위치와 방향을 러너 기준 트랙 좌표계로 고정해 월드 X/Y축 의존을 제거한다.
+		// 시작 위치와 방향을 러너 기준 트랙 좌표계로 고정해 월드 X/Y축 의존성을 제거한다.
 		RunnerMovementComponent->InitializeRunnerMovement(CachedLaneSettings, CachedGyroSettings, GetActorLocation(), GetActorForwardVector(), GetActorRightVector());
 	}
 
 	if (CargoStackComponent)
 	{
-		// 실제 계란 메시가 없어도 설정 기반 적재 슬롯을 먼저 구성해 Sprint 2 핵심 반응을 검증한다.
-		CargoStackComponent->InitializeCargoStack(CachedCargoSettings);
+		// 바구니는 머리 소켓에 붙이고, 계란은 별도 물리 Actor로 스폰한다.
+		CargoStackComponent->InitializeCargoStack(CachedCargoSettings, GetMesh());
 		CargoStackComponent->OnCargoLost.AddDynamic(this, &APGRunnerCharacter::HandleCargoLost);
 	}
 
@@ -84,7 +84,7 @@ void APGRunnerCharacter::BeginPlay()
 	{
 		if (APGGameModeBase* GameMode = World->GetAuthGameMode<APGGameModeBase>())
 		{
-			// 실패 원인이 추락이든 핵심 적재물 손실이든 러너 정지는 같은 이벤트에서 처리한다.
+			// 추락, 계란 손실 등 모든 실패 사유는 동일한 런 실패 이벤트로 수렴한다.
 			GameMode->OnRunFailed.AddDynamic(this, &APGRunnerCharacter::HandleRunFailed);
 		}
 	}
@@ -111,7 +111,6 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 		return;
 	}
 
-	UpdateCargoPenalty(DeltaSeconds);
 	UpdateBaseInstability(DeltaSeconds);
 	if (RunnerEnvironmentComponent)
 	{
@@ -132,12 +131,7 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 
 void APGRunnerCharacter::RequestLaneChange(int32 Direction)
 {
-	if (!bIsRunActive)
-	{
-		return;
-	}
-
-	if (Direction == 0)
+	if (!bIsRunActive || Direction == 0)
 	{
 		return;
 	}
@@ -158,7 +152,7 @@ void APGRunnerCharacter::SetBalanceInput(float InBalanceInput)
 
 	const float ClampedInput = FMath::Clamp(InBalanceInput, -CachedGyroSettings.MaxTiltInput, CachedGyroSettings.MaxTiltInput);
 
-	// 점프 중/착지 직후에는 조작 피로를 줄이기 위해 자이로 영향력을 완화한다.
+	// 점프 중이나 착지 직후에는 조작 영향력을 줄여 급격한 흔들림을 완화한다.
 	const bool bIsChangingLane = RunnerMovementComponent && RunnerMovementComponent->IsChangingLane();
 	const bool bIsLandingStabilizing = RunnerMovementComponent && RunnerMovementComponent->GetLandingStabilizeRemainingTime() > 0.0f;
 	const float DampingScale = bIsChangingLane ? CachedGyroSettings.JumpTiltDampingScale : 1.0f;
@@ -177,20 +171,14 @@ int32 APGRunnerCharacter::GetTargetLaneIndex() const
 	return RunnerMovementComponent ? RunnerMovementComponent->GetTargetLaneIndex() : 0;
 }
 
-void APGRunnerCharacter::HandleCargoLost(int32 SlotIndex, bool bWasCoreCargo)
+void APGRunnerCharacter::HandleCargoLost(int32 CargoIndex)
 {
-	if (!bWasCoreCargo)
-	{
-		StartBonusCargoPenalty(SlotIndex);
-		return;
-	}
-
 	if (UWorld* World = GetWorld())
 	{
 		if (APGGameModeBase* GameMode = World->GetAuthGameMode<APGGameModeBase>())
 		{
-			// 기본 시작 계란은 핵심 적재물로 취급하므로 손실 시 즉시 실패 흐름으로 넘긴다.
-			GameMode->RequestRunFailed(TEXT("CoreCargoLost"));
+			// 모든 계란은 핵심 적재물이므로 하나라도 손실되면 즉시 실패한다.
+			GameMode->RequestRunFailed(TEXT("CargoLost"));
 		}
 	}
 }
@@ -202,12 +190,11 @@ void APGRunnerCharacter::HandleRunFailed(FName FailureReason)
 		return;
 	}
 
-	// 실패가 확정되면 추가 입력/전진/적재 반응이 누적되지 않도록 러너 상태를 즉시 고정한다.
+	// 실패가 확정되면 추가 입력/전진/환경 효과가 누적되지 않도록 러너 상태를 즉시 고정한다.
 	bIsRunActive = false;
 	BalanceInput = 0.0f;
 	BaseInstabilityInput = 0.0f;
 	BalanceElapsedTime = 0.0f;
-	CargoPenaltyRemainingTime = 0.0f;
 	CurrentBodyRoll = 0.0f;
 
 	if (RunnerEnvironmentComponent)
@@ -236,7 +223,7 @@ void APGRunnerCharacter::ApplyGameSettings()
 	CachedCargoSettings = Settings->Cargo;
 	CachedEnvironmentSettings = Settings->Environment;
 
-	// Project Settings 값은 BeginPlay에서 1회 적용한다. PIE 중 변경한 값은 재시작 후 반영한다.
+	// Project Settings 값은 BeginPlay에서 1회 적용한다. PIE 중 변경한 값은 재시작 후 반영된다.
 	UCharacterMovementComponent* Movement = GetCharacterMovement();
 	Movement->MaxWalkSpeed = CachedRunnerSettings.ForwardSpeed;
 
@@ -271,48 +258,6 @@ void APGRunnerCharacter::CheckFallFailure()
 	}
 }
 
-void APGRunnerCharacter::StartBonusCargoPenalty(int32 LostSlotIndex)
-{
-	const float PenaltyDuration = FMath::Max(0.0f, CachedCargoSettings.BonusCargoPenaltyDuration);
-	CargoPenaltyRemainingTime = PenaltyDuration;
-	CargoPenaltyKickDirection = LostSlotIndex % 2 == 0 ? 1.0f : -1.0f;
-
-	if (PenaltyDuration > 0.0f)
-	{
-		if (UCharacterMovementComponent* Movement = GetCharacterMovement())
-		{
-			// 보너스 화물 손실은 즉사 대신 짧은 감속으로 체감시키고, 종료 시 원래 속도로 복구한다.
-			const float SpeedScale = FMath::Clamp(CachedCargoSettings.BonusCargoPenaltySpeedScale, 0.1f, 1.0f);
-			Movement->MaxWalkSpeed = CachedRunnerSettings.ForwardSpeed * SpeedScale;
-		}
-	}
-
-	if (UWorld* World = GetWorld())
-	{
-		if (APGGameModeBase* GameMode = World->GetAuthGameMode<APGGameModeBase>())
-		{
-			GameMode->RequestCargoPenalty(LostSlotIndex);
-		}
-	}
-}
-
-void APGRunnerCharacter::UpdateCargoPenalty(float DeltaSeconds)
-{
-	if (CargoPenaltyRemainingTime <= 0.0f)
-	{
-		return;
-	}
-
-	CargoPenaltyRemainingTime = FMath::Max(0.0f, CargoPenaltyRemainingTime - DeltaSeconds);
-	if (CargoPenaltyRemainingTime <= 0.0f)
-	{
-		if (UCharacterMovementComponent* Movement = GetCharacterMovement())
-		{
-			Movement->MaxWalkSpeed = CachedRunnerSettings.ForwardSpeed;
-		}
-	}
-}
-
 void APGRunnerCharacter::UpdateBaseInstability(float DeltaSeconds)
 {
 	if (!CachedBalanceSettings.bEnableBaseInstability)
@@ -323,7 +268,7 @@ void APGRunnerCharacter::UpdateBaseInstability(float DeltaSeconds)
 
 	BalanceElapsedTime += DeltaSeconds;
 
-	// 기본 불안정성은 결정적인 사인파로 시작해 같은 조건에서 반복 검증 가능한 줄타기 흔들림을 만든다.
+	// 결정론적 사인파를 사용해 같은 조건에서 반복 검증 가능한 기본 줄타기 흔들림을 만든다.
 	const float Frequency = FMath::Max(0.0f, CachedBalanceSettings.BaseInstabilityFrequency);
 	const float Amplitude = FMath::Max(0.0f, CachedBalanceSettings.BaseInstabilityAmplitude);
 	BaseInstabilityInput = FMath::Sin(BalanceElapsedTime * Frequency * UE_TWO_PI) * Amplitude;
@@ -332,17 +277,9 @@ void APGRunnerCharacter::UpdateBaseInstability(float DeltaSeconds)
 float APGRunnerCharacter::GetEffectiveBalanceInput() const
 {
 	const float EnvironmentBalanceInput = RunnerEnvironmentComponent ? RunnerEnvironmentComponent->GetProcessedBalanceInput() : BalanceInput;
-	float FinalBalanceInput = BaseInstabilityInput + EnvironmentBalanceInput * CachedBalanceSettings.PlayerCorrectionScale;
+	const float FinalBalanceInput = BaseInstabilityInput + EnvironmentBalanceInput * CachedBalanceSettings.PlayerCorrectionScale;
 
-	if (CargoPenaltyRemainingTime > 0.0f)
-	{
-		const float Duration = FMath::Max(KINDA_SMALL_NUMBER, CachedCargoSettings.BonusCargoPenaltyDuration);
-		const float PenaltyAlpha = CargoPenaltyRemainingTime / Duration;
-		const float PenaltyKick = CargoPenaltyKickDirection * CachedCargoSettings.BonusCargoPenaltyBalanceKick * PenaltyAlpha;
-		FinalBalanceInput += PenaltyKick;
-	}
-
-	// 환경 효과와 보너스 적재물 페널티를 모두 합산한 뒤 자이로 최대 입력 설정을 최종 제한으로 적용한다.
+	// 환경 효과와 기본 불안정성을 모두 합산한 뒤 자이로 최대 입력 설정으로 최종 제한한다.
 	return FMath::Clamp(FinalBalanceInput, -CachedGyroSettings.MaxTiltInput, CachedGyroSettings.MaxTiltInput);
 }
 
@@ -356,7 +293,7 @@ void APGRunnerCharacter::UpdateBodyLean(float DeltaSeconds)
 
 	if (USkeletalMeshComponent* MeshComponent = GetMesh())
 	{
-		// 메시가 BP에서 Z축 회전되어 있어도 러너 캡슐의 전방축 기준으로 좌우 기울기가 보이도록 parent-space 축 회전을 적용한다.
+		// BP에서 메시가 Z축 회전되어 있어도 캡슐 전방축 기준으로 좌우 기울기가 보이게 한다.
 		const FQuat InitialMeshQuat = InitialMeshRelativeRotation.Quaternion();
 		const FQuat LeanQuat(FVector::ForwardVector, FMath::DegreesToRadians(CurrentBodyRoll));
 		MeshComponent->SetRelativeRotation((LeanQuat * InitialMeshQuat).Rotator());
@@ -385,7 +322,7 @@ void APGRunnerCharacter::DrawBalanceDebug() const
 void APGRunnerCharacter::DrawDebugLanes() const
 {
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	if (!CachedDebugSettings.bDrawLaneDebug)
+	if (!CachedDebugSettings.bDrawLaneDebug || !RunnerMovementComponent)
 	{
 		return;
 	}
@@ -395,14 +332,9 @@ void APGRunnerCharacter::DrawDebugLanes() const
 	constexpr float DebugHeight = 8.0f;
 	const FVector DebugUpOffset = FVector::UpVector * DebugHeight;
 
-	if (!RunnerMovementComponent)
-	{
-		return;
-	}
-
 	for (int32 LaneIndex = 0; LaneIndex < CachedLaneSettings.LaneCount; ++LaneIndex)
 	{
-		// 목표 라인은 초록색으로 표시해 이동 중 도착 라인을 쉽게 확인한다.
+		// 목표 라인은 초록색으로 표시해 라인 보간 상태를 빠르게 확인한다.
 		const FVector LaneLocation = RunnerMovementComponent->GetLaneWorldLocation(LaneIndex);
 		const FVector ForwardVector = RunnerMovementComponent->GetRunnerForwardVector();
 		const FVector Start = LaneLocation - ForwardVector * DebugBackLength + DebugUpOffset;

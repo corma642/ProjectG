@@ -14,7 +14,8 @@ class UCameraComponent;
 class USpringArmComponent;
 
 /**
- * Go Deliver!의 자동 전진 러너 캐릭터
+ * 자동 전진, 3라인 이동, 중심 보정, 바구니 적재 반응을 연결하는 러너 캐릭터입니다.
+ * 실제 라인 이동은 전용 MovementComponent가 담당하고, 계란 물리는 CargoStackComponent가 담당합니다.
  */
 UCLASS()
 class PROJECTG_API APGRunnerCharacter : public ACharacter
@@ -24,35 +25,35 @@ class PROJECTG_API APGRunnerCharacter : public ACharacter
 public:
 	APGRunnerCharacter(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	// 매 프레임 자동 전진, 라인 이동, 몸 기울기, 디버그 표시를 갱신한다.
+	// 매 프레임 자동 전진, 중심 불안정성, 적재물 물리 반응, 디버그 표시를 갱신한다.
 	virtual void Tick(float DeltaSeconds) override;
 
-	// 시작 위치를 기준으로 러너 진행 축, 중앙 라인, 초기 메시 상태를 저장한다.
+	// 시작 위치와 Project Settings 값을 캐시하고 런타임 컴포넌트를 초기화한다.
 	virtual void BeginPlay() override;
 
 	// 입력 방향(-1: 왼쪽, 1: 오른쪽)에 따라 인접 라인 이동을 요청한다.
 	void RequestLaneChange(int32 Direction);
 
-	// 자이로/키보드에서 계산된 중심 입력값을 캐릭터 기울기 반응에 반영한다.
+	// 자이로/키보드에서 계산한 플레이어 중심 보정 입력을 캐릭터에 반영한다.
 	void SetBalanceInput(float InBalanceInput);
 
 	// 현재 캐릭터가 위치한 라인 인덱스
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner")
 	int32 GetCurrentLaneIndex() const;
 
-	// 라인 이동 중 목표로 삼고 있는 라인 인덱스
+	// 라인 이동 중 목표로 삼는 라인 인덱스
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner")
 	int32 GetTargetLaneIndex() const;
 
-	// 현재 적용 중인 좌우 중심 입력값
+	// 현재 플레이어가 입력 중인 좌우 중심 보정값
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner")
 	float GetBalanceInput() const { return BalanceInput; }
 
-	// 적재물이 손실됐을 때 핵심 적재물 여부에 따라 실패 흐름을 요청한다.
+	// 물리 계란이 손실됐을 때 런 실패를 요청한다.
 	UFUNCTION()
-	void HandleCargoLost(int32 SlotIndex, bool bWasCoreCargo);
+	void HandleCargoLost(int32 CargoIndex);
 
-	// 런 실패 이벤트를 받으면 러너의 입력 반응과 자동 전진을 정지한다.
+	// 런 실패 이벤트를 받으면 자동 전진과 입력 반응을 정지한다.
 	UFUNCTION()
 	void HandleRunFailed(FName FailureReason);
 
@@ -61,15 +62,15 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement")
 	TObjectPtr<UPGRunnerMovementComponent> RunnerMovementComponent;
 
-	// 머리 위 적재물 개수와 시각 흔들림을 관리하는 컴포넌트
+	// 머리 바구니와 물리 계란 적재 상태를 관리하는 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cargo")
 	TObjectPtr<UPGCargoStackComponent> CargoStackComponent;
 
-	// 바람, 얼음 길, 보너스 적재 요청 같은 환경 이벤트 상태를 관리하는 컴포넌트
+	// 바람, 얼음 길, 계란 추가 요청 같은 환경 이벤트 상태를 관리하는 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Environment")
 	TObjectPtr<UPGRunnerEnvironmentComponent> RunnerEnvironmentComponent;
 
-	// 캐릭터를 약간 위에서 따라가는 추적 카메라 암
+	// 캐릭터를 뒤쪽 위에서 따라가는 추적 카메라 암
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<USpringArmComponent> CameraBoom;
 
@@ -78,7 +79,7 @@ protected:
 	TObjectPtr<UCameraComponent> FollowCamera;
 
 private:
-	// Project Settings의 Go Deliver 설정값을 시작 시 캐시하고 런타임 컴포넌트에 반영한다.
+	// Project Settings의 Go Deliver 설정값을 캐시하고 컴포넌트 기본값에 반영한다.
 	void ApplyGameSettings();
 
 	// 러너 기준 전방 축으로 매 프레임 자동 전진 입력을 넣는다.
@@ -87,16 +88,10 @@ private:
 	// 시작 높이 기준 추락 실패 조건을 확인하고 GameMode 실패 흐름으로 전달한다.
 	void CheckFallFailure();
 
-	// 보너스 적재물 손실 시 짧은 감속과 중심 흔들림 페널티를 시작한다.
-	void StartBonusCargoPenalty(int32 LostSlotIndex);
-
-	// 보너스 적재물 손실 페널티 시간을 갱신하고 종료 시 이동 속도를 복구한다.
-	void UpdateCargoPenalty(float DeltaSeconds);
-
-	// 직선 주행 중에도 발생하는 기본 좌우 중심 흔들림을 갱신한다.
+	// 직선 주행 중 자동으로 발생하는 좌우 중심 흔들림을 갱신한다.
 	void UpdateBaseInstability(float DeltaSeconds);
 
-	// 플레이어 중심 입력에 손실 페널티 흔들림을 합산한 최종 입력값을 반환한다.
+	// 기본 흔들림, 플레이어 입력, 환경 효과를 합산한 최종 중심 입력값을 반환한다.
 	float GetEffectiveBalanceInput() const;
 
 	// 중심 입력값을 캐릭터 메시의 좌우 기울기 연출로 변환한다.
@@ -108,7 +103,7 @@ private:
 	// 디버그 옵션이 켜져 있을 때 러너 기준 3라인 위치를 월드에 표시한다.
 	void DrawDebugLanes() const;
 
-	// Skeletal Mesh 상대 높이를 보정한다. 현재 라인 점프는 캡슐이 직접 수행하므로 기본적으로 0을 적용한다.
+	// Skeletal Mesh 상대 높이를 보정한다. 현재 물리 계란 구조에서는 기본적으로 0을 적용한다.
 	void SetMeshJumpOffset(float JumpOffset);
 
 	// BeginPlay에서 캐시한 자동 전진/몸 기울기 설정
@@ -129,13 +124,13 @@ private:
 	// BeginPlay에서 캐시한 에디터 디버그 설정
 	FPGDebugSettings CachedDebugSettings;
 
-	// BeginPlay에서 캐시한 적재물 스택 설정
+	// BeginPlay에서 캐시한 물리 계란/바구니 설정
 	FPGCargoSettings CachedCargoSettings;
 
-	// BeginPlay에서 캐시한 바람/얼음 길/적재 증가 환경 이벤트 설정
+	// BeginPlay에서 캐시한 바람/얼음 길 환경 이벤트 설정
 	FPGEnvironmentSettings CachedEnvironmentSettings;
 
-	// 현재 좌우 중심 입력값
+	// 현재 플레이어가 입력 중인 좌우 중심 보정값
 	float BalanceInput = 0.0f;
 
 	// 직선 주행 중 자동으로 발생하는 기본 좌우 중심 흔들림 입력값
@@ -147,21 +142,15 @@ private:
 	// 현재 러너가 조작 가능한 런 진행 상태인지 여부
 	bool bIsRunActive = true;
 
-	// 추락 실패 판정의 기준이 되는 시작 월드 Z 위치
+	// 추락 실패 판정 기준이 되는 시작 월드 Z 위치
 	float StartLocationZ = 0.0f;
-
-	// 보너스 적재물 손실 페널티가 남아 있는 시간
-	float CargoPenaltyRemainingTime = 0.0f;
-
-	// 보너스 적재물 손실 직후 어느 방향으로 중심을 흔들지 결정하는 부호
-	float CargoPenaltyKickDirection = 1.0f;
 
 	// 메시 연출에 적용 중인 현재 롤 각도
 	float CurrentBodyRoll = 0.0f;
 
-	// 몸 기울기 연출을 더하기 전 Skeletal Mesh의 초기 상대 회전
+	// 몸 기울기 연출을 더하기 위한 Skeletal Mesh 초기 상대 회전
 	FRotator InitialMeshRelativeRotation = FRotator::ZeroRotator;
 
-	// 점프 연출을 더하기 전 Skeletal Mesh의 초기 상대 위치
+	// 점프 연출을 더하기 위한 Skeletal Mesh 초기 상대 위치
 	FVector InitialMeshRelativeLocation = FVector::ZeroVector;
 };

@@ -7,51 +7,16 @@
 #include "Settings/PGGameSettings.h"
 #include "PGCargoStackComponent.generated.h"
 
+class APGPhysicsCargoActor;
 class UPGCargoTypeDefinition;
-class UStaticMesh;
+class USkeletalMeshComponent;
 class UStaticMeshComponent;
 
-/**
- * 적재물이 현재 얼마나 위험한 상태인지 나타내는 안정도 단계
- */
-UENUM(BlueprintType)
-enum class EPGCargoStabilityState : uint8
-{
-	Stable,
-	Warning,
-	Critical
-};
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPGCargoLostSignature, int32, CargoIndex);
 
 /**
- * 머리 위 슬롯 하나에 올라간 적재물의 타입과 현재 안정도 상태
- */
-USTRUCT(BlueprintType)
-struct FPGCargoInstance
-{
-	GENERATED_BODY()
-
-	// 이 슬롯에 올라간 적재물 타입. 비어 있으면 기본 핵심 계란처럼 취급한다.
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Cargo")
-	TObjectPtr<UPGCargoTypeDefinition> CargoType;
-
-	// 이 슬롯 적재물이 손실됐을 때 즉시 게임오버로 이어지는 핵심 적재물인지 여부
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Cargo")
-	bool bIsCoreCargoInstance = true;
-
-	// 손실 임계값에 가까워지는 현재 불안정도 값
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Cargo")
-	float StabilityValue = 0.0f;
-
-	// 현재 안정도 단계
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Cargo")
-	EPGCargoStabilityState StabilityState = EPGCargoStabilityState::Stable;
-};
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPGCargoStateChangedSignature, int32, SlotIndex, EPGCargoStabilityState, NewState);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPGCargoLostSignature, int32, SlotIndex, bool, bWasCoreCargo);
-
-/**
- * Go Deliver!의 머리 위 적재물 타입, 슬롯 위치, 안정도, 시각 흔들림, 손실 이벤트를 관리하는 컴포넌트
+ * 러너 머리의 바구니와 물리 계란 적재 상태를 관리하는 컴포넌트입니다.
+ * 바구니는 캐릭터 소켓에 부착된 메시 콜리전을 사용하고, 계란은 별도 물리 Actor로 스폰됩니다.
  */
 UCLASS(ClassGroup = (ProjectG), meta = (BlueprintSpawnableComponent))
 class PROJECTG_API UPGCargoStackComponent : public USceneComponent
@@ -61,110 +26,111 @@ class PROJECTG_API UPGCargoStackComponent : public USceneComponent
 public:
 	UPGCargoStackComponent();
 
-	// 적재물 안정도 단계가 바뀔 때 호출되는 이벤트
-	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Cargo")
-	FPGCargoStateChangedSignature OnCargoStateChanged;
-
-	// 적재물이 손실될 때 호출되는 이벤트
+	// 계란이 바구니 밖으로 떨어져 손실됐을 때 호출되는 이벤트
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Cargo")
 	FPGCargoLostSignature OnCargoLost;
 
-	// Project Settings의 적재물 설정을 적용하고 시작 적재물을 생성한다.
-	void InitializeCargoStack(const FPGCargoSettings& InCargoSettings);
+	// Project Settings의 적재 설정을 적용하고 바구니/초기 계란을 준비한다.
+	void InitializeCargoStack(const FPGCargoSettings& InCargoSettings, USkeletalMeshComponent* RunnerMesh);
 
-	// 러너 입력과 라인 점프 상태를 적재물 안정도와 시각 반응에 반영한다.
+	// 중심 입력과 라인 점프 상태를 바구니 기울기, 계란 물리 보조 힘, 손실 판정에 반영한다.
 	void UpdateCargoReaction(float DeltaSeconds, float BalanceInput, float VisualJumpOffset, bool bIsChangingLane);
 
-	// 기본 적재물 타입으로 적재물을 1개 추가하고 최대 개수를 넘으면 실패를 반환한다.
+	// 기본 계란 타입으로 새 계란 추가 프리뷰를 시작한다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Cargo")
 	bool AddCargo();
 
-	// 지정한 적재물 타입으로 1개를 추가한다. 타입이 비어 있으면 추가하지 않는다.
+	// 지정한 계란 타입으로 새 계란 추가 프리뷰를 시작한다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Cargo")
 	bool AddCargoByType(UPGCargoTypeDefinition* CargoType);
 
-	// 설정된 보너스 적재물 타입 또는 Mesh 없는 비핵심 fallback 적재물을 1개 추가한다.
-	UFUNCTION(BlueprintCallable, Category = "ProjectG | Cargo")
-	bool AddBonusCargo();
-
-	// 가장 위의 적재물을 1개 제거하고 더 제거할 수 없으면 실패를 반환한다.
+	// 가장 마지막 계란을 손실 처리한다. 디버그/테스트용으로 사용한다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Cargo")
 	bool RemoveCargo();
 
-	// 현재 머리 위에 유지 중인 적재물 개수
+	// 현재 살아 있는 계란 수
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
-	int32 GetCurrentCargoCount() const { return CargoInstances.Num(); }
+	int32 GetCurrentCargoCount() const { return CargoActors.Num(); }
 
-	// 현재 적용 중인 적재물 흔들림 롤 각도
+	// 현재 바구니에 적용 중인 기울기 각도
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
-	float GetCurrentSwayRoll() const { return CurrentSwayRoll; }
+	float GetCurrentSwayRoll() const { return CurrentBasketRoll; }
 
-	// 지정 슬롯의 안정도 값을 반환한다.
+	// 바구니 메시 컴포넌트. 에디터에서 메시 콜리전 상태를 확인할 때 사용한다.
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
-	float GetCargoStabilityValue(int32 SlotIndex) const;
-
-	// 지정 슬롯의 안정도 단계를 반환한다.
-	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
-	EPGCargoStabilityState GetCargoStabilityState(int32 SlotIndex) const;
+	UStaticMeshComponent* GetBasketMeshComponent() const { return BasketMeshComponent; }
 
 private:
-	// 기본 타입을 사용해 새 적재물 슬롯 인스턴스를 만든다.
-	FPGCargoInstance MakeDefaultCargoInstance() const;
+	// 바구니를 머리 소켓 또는 fallback 위치에 부착한다.
+	void AttachBasketRoot(USkeletalMeshComponent* RunnerMesh);
 
-	// 타입과 fallback 핵심 여부를 기준으로 슬롯 인스턴스를 생성한다.
-	FPGCargoInstance MakeCargoInstance(UPGCargoTypeDefinition* CargoType, bool bFallbackCoreCargo) const;
+	// 바구니 메시와 충돌 설정을 Project Settings 기준으로 적용한다.
+	void ApplyBasketSettings();
 
-	// 최대 적재 개수만큼 표시용 메시 슬롯 풀을 준비한다.
-	void EnsureCargoMeshPool();
+	// 시작 계란을 물리 Actor로 즉시 배치한다.
+	void SpawnInitialCargo();
 
-	// 현재 적재 슬롯에 맞게 메시 슬롯 표시 상태를 갱신한다.
-	void RefreshCargoSlotVisibility();
+	// 계란 추가 요청을 홀로그램 프리뷰 상태로 전환한다.
+	bool StartCargoPreview(UPGCargoTypeDefinition* CargoType);
 
-	// 각 적재 슬롯의 위치와 회전을 현재 흔들림/점프 상태에 맞게 갱신한다.
-	void UpdateSlotTransforms();
+	// 프리뷰 시간이 끝났을 때 실제 물리 계란을 낙하시킨다.
+	void FinishCargoPreview();
 
-	// 모든 적재물의 안정도 손상/회복과 상태 변화를 갱신한다.
-	void UpdateCargoStability(float DeltaSeconds, float BalanceInput, bool bIsChangingLane);
+	// 지정한 Transform에 물리 계란 Actor를 생성한다.
+	APGPhysicsCargoActor* SpawnPhysicsCargo(UPGCargoTypeDefinition* CargoType, const FTransform& SpawnTransform);
 
-	// 지정 슬롯의 안정도 상태를 현재 안정도 값에 맞게 계산한다.
-	EPGCargoStabilityState CalculateStabilityState(float StabilityValue) const;
+	// DefaultCargoType을 동기 로드해 반환한다.
+	UPGCargoTypeDefinition* ResolveDefaultCargoType() const;
 
-	// 지정 슬롯의 적재물 손상/흔들림 계수를 반환한다.
-	float GetCargoDamageMultiplier(const FPGCargoInstance& CargoInstance) const;
-	float GetCargoSwayMultiplier(const FPGCargoInstance& CargoInstance) const;
+	// 바구니 기준 상대 위치를 월드 Transform으로 변환한다.
+	FTransform MakeCargoWorldTransform(const FVector& LocalOffset, int32 CargoIndex = 0) const;
 
-	// 지정 슬롯이 핵심 적재물인지 반환한다.
-	bool IsCoreCargo(const FPGCargoInstance& CargoInstance) const;
+	// 바구니 흔들림과 라인 점프 시각 오프셋을 메시 Transform에 반영한다.
+	void UpdateBasketTransform(float DeltaSeconds, float BalanceInput, float VisualJumpOffset, bool bIsChangingLane);
 
-	// 지정 슬롯의 표시용 메시를 반환한다.
-	UStaticMesh* GetCargoMesh(const FPGCargoInstance& CargoInstance) const;
+	// 살아 있는 계란에 중심 흔들림 보조 힘을 적용한다.
+	void ApplyCargoPhysicsForces(float DeltaSeconds, float BalanceInput);
 
-	// 지정 슬롯의 적재물을 손실 처리하고 이벤트를 발생시킨다.
-	void LoseCargoAt(int32 SlotIndex);
+	// 계란이 바구니 기준 허용 범위를 벗어났는지 확인한다.
+	void CheckCargoLoss();
 
-	// 메시가 없거나 디버그 표시가 켜진 경우 적재 슬롯 위치를 시각화한다.
+	// 지정 계란을 제거하고 손실 이벤트를 발생시킨다.
+	void LoseCargoAt(int32 CargoIndex);
+
+	// 파괴됐거나 유효하지 않은 계란 Actor 참조를 정리한다.
+	void CleanupInvalidCargoActors();
+
+	// 개발 빌드에서 바구니 손실 범위와 계란 위치를 표시한다.
 	void DrawCargoDebug() const;
 
-	// 지정한 인덱스의 적재물 상대 위치를 계산한다.
-	FVector GetSlotRelativeLocation(int32 SlotIndex) const;
-
-	// BeginPlay에서 캐시한 적재물 설정
+	// BeginPlay에서 캐시한 적재 설정
 	FPGCargoSettings CachedCargoSettings;
 
-	// 현재 머리 위에 올라간 적재물 슬롯 목록
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Cargo", meta = (AllowPrivateAccess = "true"))
-	TArray<FPGCargoInstance> CargoInstances;
+	// 캐릭터 머리를 따라가는 바구니 메시. 메시 자체 Simple Collision으로 계란을 받는다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UStaticMeshComponent> BasketMeshComponent;
 
-	// 런타임에 생성한 적재물 메시 컴포넌트 풀
+	// 새 계란이 떨어지기 전 위치를 보여주는 비물리 프리뷰 메시
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UStaticMeshComponent> PreviewCargoMeshComponent;
+
+	// 현재 월드에 살아 있는 물리 계란 Actor 목록
 	UPROPERTY(Transient)
-	TArray<TObjectPtr<UStaticMeshComponent>> CargoMeshComponents;
+	TArray<TObjectPtr<APGPhysicsCargoActor>> CargoActors;
 
-	// 현재 적용 중인 흔들림 롤 각도
-	float CurrentSwayRoll = 0.0f;
+	// 프리뷰 종료 후 스폰할 계란 타입
+	UPROPERTY(Transient)
+	TObjectPtr<UPGCargoTypeDefinition> PendingCargoType;
 
-	// 현재 라인 점프에 의해 추가된 시각 상승 높이
-	float CurrentJumpLift = 0.0f;
+	// 현재 새 계란 프리뷰가 진행 중인지 여부
+	bool bHasPendingCargoDrop = false;
 
-	// 직전 프레임에 라인 이동 중이었는지 여부. 점프 손상을 한 번만 적용하기 위해 사용한다.
-	bool bWasChangingLaneLastFrame = false;
+	// 새 계란 프리뷰가 끝나기까지 남은 시간
+	float CargoPreviewRemainingTime = 0.0f;
+
+	// 바구니에 현재 적용 중인 롤 각도
+	float CurrentBasketRoll = 0.0f;
+
+	// 물리 흔들림 계산에 사용하는 경과 시간
+	float CargoShakeElapsedTime = 0.0f;
 };

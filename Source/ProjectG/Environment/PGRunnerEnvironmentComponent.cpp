@@ -106,14 +106,14 @@ void UPGRunnerEnvironmentComponent::ApplyIce(float Duration, float InputLagScale
 	IceInputLagScale = FMath::Clamp(IceInputLagScale, 0.05f, 1.0f);
 }
 
-bool UPGRunnerEnvironmentComponent::RequestBonusCargo()
+bool UPGRunnerEnvironmentComponent::RequestCargoDrop()
 {
 	if (!bIsRunActive || !CargoStackComponent)
 	{
 		return false;
 	}
 
-	return CargoStackComponent->AddBonusCargo();
+	return CargoStackComponent->AddCargo();
 }
 
 void UPGRunnerEnvironmentComponent::ClearEnvironmentEffects()

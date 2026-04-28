@@ -7,6 +7,7 @@
 #include "PGGameSettings.generated.h"
 
 class UPGCargoTypeDefinition;
+class UStaticMesh;
 
 /**
  * 자동 전진 캐릭터의 기본 이동/기울기 반응 설정
@@ -175,92 +176,108 @@ struct FPGDebugSettings
 };
 
 /**
- * 머리 위 적재물 스택과 시각 흔들림 설정
+ * 머리 위 바구니와 물리 계란 적재 설정
  */
 USTRUCT(BlueprintType)
 struct FPGCargoSettings
 {
 	GENERATED_BODY()
 
-	// 에셋이 지정된 경우 시작/추가 적재물에 사용할 기본 적재물 타입
+	// 시작/추가 적재물에 사용할 기본 계란 타입
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")
 	TSoftObjectPtr<UPGCargoTypeDefinition> DefaultCargoType;
 
-	// 적재 증가 이벤트에서 사용할 보너스 적재물 타입. 비어 있으면 Mesh 없는 비핵심 적재물로 테스트한다.
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")
-	TSoftObjectPtr<UPGCargoTypeDefinition> BonusCargoType;
+	// 캐릭터 머리에 부착할 바구니 Static Mesh
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Basket")
+	TSoftObjectPtr<UStaticMesh> BasketMesh;
 
-	// 게임 시작 시 머리 위에 올릴 적재물 개수
+	// 바구니를 붙일 캐릭터 Skeletal Mesh 소켓 이름
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Basket")
+	FName BasketSocketName = TEXT("HeadCargoSocket");
+
+	// 소켓이 없을 때 캡슐 루트 기준으로 사용할 바구니 임시 위치
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Basket")
+	FVector BasketFallbackOffset = FVector(0.0f, 0.0f, 120.0f);
+
+	// 소켓 기준 바구니 위치 보정
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Basket")
+	FVector BasketRelativeLocation = FVector::ZeroVector;
+
+	// 소켓 기준 바구니 회전 보정
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Basket")
+	FRotator BasketRelativeRotation = FRotator::ZeroRotator;
+
+	// 바구니 메시 크기 보정
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Basket")
+	FVector BasketRelativeScale = FVector(1.0f);
+
+	// 바구니 메시가 사용할 충돌 프로파일. 바구니 Static Mesh에는 계란을 담을 Simple Collision이 필요하다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Basket")
+	FName BasketCollisionProfileName = TEXT("BlockAllDynamic");
+
+	// 중심 입력이 바구니 기울기로 표현되는 최대 롤 각도
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Basket", meta = (ClampMin = "0.0", ClampMax = "45.0", UIMin = "0.0", UIMax = "35.0"))
+	float BasketSwayMaxRoll = 18.0f;
+
+	// 바구니 기울기가 목표 각도로 따라가는 보간 속도
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Basket", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "25.0"))
+	float BasketSwayInterpSpeed = 10.0f;
+
+	// 라인 이동 시 바구니가 시각 점프 높이를 따라가는 비율
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Basket", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0"))
+	float BasketJumpLiftScale = 0.15f;
+
+	// 게임 시작 시 바구니에 넣을 계란 개수
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "0", UIMin = "0", UIMax = "5"))
 	int32 InitialCargoCount = 1;
 
-	// 에디터 검증용으로 시작 시 보너스 적재물 1개를 추가할지 여부
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")
-	bool bDebugStartWithBonusCargo = false;
-
-	// 동시에 유지할 수 있는 최대 적재물 개수
+	// 동시에 바구니에 유지할 수 있는 최대 계란 개수
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "1", UIMin = "1", UIMax = "5"))
 	int32 MaxCargoCount = 3;
 
-	// 적재물 사이의 세로 간격
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "80.0"))
-	float CargoSlotSpacing = 18.0f;
+	// 시작 계란을 바구니 기준 어디에 놓을지 정하는 상대 위치
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn")
+	FVector InitialCargoLocalOffset = FVector(0.0f, 0.0f, 24.0f);
 
-	// 캐릭터 기준 첫 적재물 위치 오프셋
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")
-	FVector CargoBaseOffset = FVector(0.0f, 0.0f, 120.0f);
+	// 여러 계란을 시작 배치할 때 위로 띄우는 간격
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "80.0"))
+	float InitialCargoSpacing = 18.0f;
 
-	// 중심 입력이 적재물 흔들림으로 표현되는 최대 롤 각도
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "0.0", ClampMax = "45.0", UIMin = "0.0", UIMax = "30.0"))
-	float SwayMaxRoll = 10.0f;
+	// 새 계란 홀로그램과 실제 낙하 시작 위치
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn")
+	FVector CargoPreviewLocalOffset = FVector(0.0f, 0.0f, 120.0f);
 
-	// 적재물 흔들림이 목표 각도로 따라가는 보간 속도
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "20.0"))
-	float SwayInterpSpeed = 8.0f;
+	// 홀로그램으로 대기한 뒤 실제 계란을 떨어뜨리기까지의 시간
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
+	float CargoPreviewDuration = 1.25f;
 
-	// 라인 점프 높이가 적재물 시각 상승에 반영되는 비율
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0"))
-	float JumpLiftScale = 0.35f;
+	// 계란 물리 오브젝트가 사용할 충돌 프로파일
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Physics")
+	FName CargoCollisionProfileName = TEXT("PhysicsActor");
 
-	// 메시가 없을 때 적재 위치를 디버그 구체로 표시할지 여부
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")
+	// 중심 불균형이 계란에 직접 가하는 보조 물리 힘. 바구니 회전만으로 부족할 때 체감 흔들림을 보강한다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1000.0"))
+	float CargoBalanceForce = 160.0f;
+
+	// 직선 주행 중 계란에 가하는 약한 흔들림 힘
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "500.0"))
+	float CargoIdleShakeForce = 25.0f;
+
+	// 직선 주행 흔들림 힘의 반복 빈도
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
+	float CargoIdleShakeFrequency = 1.15f;
+
+	// 바구니 기준 이 높이보다 아래로 계란이 떨어지면 손실로 처리한다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Loss", meta = (ClampMin = "10.0", UIMin = "50.0", UIMax = "500.0"))
+	float CargoLossZOffset = 140.0f;
+
+	// 바구니 중심에서 이 수평 거리보다 멀어지면 계란 손실로 처리한다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Loss", meta = (ClampMin = "10.0", UIMin = "50.0", UIMax = "500.0"))
+	float CargoLossHorizontalDistance = 180.0f;
+
+	// 개발 빌드에서 바구니 기준 손실 반경과 계란 위치를 표시할지 여부
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Debug")
 	bool bDrawCargoDebug = false;
-
-	// 안정도 값이 이 값 이상이면 경고 상태로 표시한다.
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Stability", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-	float WarningThreshold = 0.45f;
-
-	// 안정도 값이 이 값 이상이면 위험 상태로 표시한다.
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Stability", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-	float CriticalThreshold = 0.8f;
-
-	// 안정도 값이 이 값 이상이면 적재물이 손실된다.
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Stability", meta = (ClampMin = "0.01", UIMin = "0.1", UIMax = "2.0"))
-	float LossThreshold = 1.0f;
-
-	// 중심 입력 절댓값이 초당 안정도 손상으로 누적되는 비율
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Stability", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3.0"))
-	float BalanceDamageRate = 0.65f;
-
-	// 라인 점프를 시작할 때 한 번 추가되는 안정도 손상량
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Stability", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0"))
-	float JumpDamageAmount = 0.12f;
-
-	// 중심 입력이 안정됐을 때 초당 안정도가 회복되는 비율
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Stability", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2.0"))
-	float StabilityRecoveryRate = 0.25f;
-
-	// 보너스 적재물을 잃었을 때 감속/흔들림 페널티가 유지되는 시간
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Penalty", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3.0"))
-	float BonusCargoPenaltyDuration = 0.75f;
-
-	// 보너스 적재물 손실 페널티 중 자동 전진 속도에 곱하는 비율
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Penalty", meta = (ClampMin = "0.1", ClampMax = "1.0", UIMin = "0.3", UIMax = "1.0"))
-	float BonusCargoPenaltySpeedScale = 0.65f;
-
-	// 보너스 적재물 손실 직후 중심 입력에 더해지는 순간 흔들림 강도
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Penalty", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-	float BonusCargoPenaltyBalanceKick = 0.35f;
 };
 
 /**

@@ -28,13 +28,3 @@ void APGGameModeBase::RequestRunFailed(FName FailureReason)
 	RunState = EPGRunState::Failed;
 	OnRunFailed.Broadcast(FailureReason);
 }
-
-void APGGameModeBase::RequestCargoPenalty(int32 LostSlotIndex)
-{
-	if (RunState != EPGRunState::Running)
-	{
-		return;
-	}
-
-	OnCargoPenalty.Broadcast(LostSlotIndex);
-}
