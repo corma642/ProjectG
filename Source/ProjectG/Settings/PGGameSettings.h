@@ -7,7 +7,6 @@
 #include "PGGameSettings.generated.h"
 
 class UPGCargoTypeDefinition;
-class UStaticMesh;
 
 /**
  * 자동 전진 캐릭터의 기본 이동/기울기 반응 설정
@@ -176,7 +175,7 @@ struct FPGDebugSettings
 };
 
 /**
- * 머리 위 바구니와 물리 계란 적재 설정
+ * 플레이어 기준 물리 계란 스폰/손실 판정 설정
  */
 USTRUCT(BlueprintType)
 struct FPGCargoSettings
@@ -187,55 +186,15 @@ struct FPGCargoSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")
 	TSoftObjectPtr<UPGCargoTypeDefinition> DefaultCargoType;
 
-	// 캐릭터 머리에 부착할 바구니 Static Mesh
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Basket")
-	TSoftObjectPtr<UStaticMesh> BasketMesh;
-
-	// 바구니를 붙일 캐릭터 Skeletal Mesh 소켓 이름
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Basket")
-	FName BasketSocketName = TEXT("HeadCargoSocket");
-
-	// 소켓이 없을 때 캡슐 루트 기준으로 사용할 바구니 임시 위치
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Basket")
-	FVector BasketFallbackOffset = FVector(0.0f, 0.0f, 120.0f);
-
-	// 소켓 기준 바구니 위치 보정
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Basket")
-	FVector BasketRelativeLocation = FVector::ZeroVector;
-
-	// 소켓 기준 바구니 회전 보정
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Basket")
-	FRotator BasketRelativeRotation = FRotator::ZeroRotator;
-
-	// 바구니 메시 크기 보정
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Basket")
-	FVector BasketRelativeScale = FVector(1.0f);
-
-	// 바구니 메시가 사용할 충돌 프로파일. 바구니 Static Mesh에는 계란을 담을 Simple Collision이 필요하다.
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Basket")
-	FName BasketCollisionProfileName = TEXT("BlockAllDynamic");
-
-	// 중심 입력이 바구니 기울기로 표현되는 최대 롤 각도
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Basket", meta = (ClampMin = "0.0", ClampMax = "45.0", UIMin = "0.0", UIMax = "35.0"))
-	float BasketSwayMaxRoll = 18.0f;
-
-	// 바구니 기울기가 목표 각도로 따라가는 보간 속도
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Basket", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "25.0"))
-	float BasketSwayInterpSpeed = 10.0f;
-
-	// 라인 이동 시 바구니가 시각 점프 높이를 따라가는 비율
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Basket", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0"))
-	float BasketJumpLiftScale = 0.15f;
-
-	// 게임 시작 시 바구니에 넣을 계란 개수
+	// 게임 시작 시 플레이어 기준 앵커에 생성할 계란 개수
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "0", UIMin = "0", UIMax = "5"))
 	int32 InitialCargoCount = 1;
 
-	// 동시에 바구니에 유지할 수 있는 최대 계란 개수
+	// 동시에 유지할 수 있는 최대 계란 개수
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "1", UIMin = "1", UIMax = "5"))
 	int32 MaxCargoCount = 3;
 
-	// 시작 계란을 바구니 기준 어디에 놓을지 정하는 상대 위치
+	// 시작 계란을 CargoStackComponent 앵커 기준 어디에 놓을지 정하는 상대 위치
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn")
 	FVector InitialCargoLocalOffset = FVector(0.0f, 0.0f, 24.0f);
 
@@ -243,7 +202,7 @@ struct FPGCargoSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "80.0"))
 	float InitialCargoSpacing = 18.0f;
 
-	// 새 계란 홀로그램과 실제 낙하 시작 위치
+	// 새 계란 프리뷰와 실제 낙하 시작 위치. 플레이어에 붙은 CargoStackComponent 기준 상대 위치다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn")
 	FVector CargoPreviewLocalOffset = FVector(0.0f, 0.0f, 120.0f);
 
@@ -267,15 +226,15 @@ struct FPGCargoSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
 	float CargoIdleShakeFrequency = 1.15f;
 
-	// 바구니 기준 이 높이보다 아래로 계란이 떨어지면 손실로 처리한다.
+	// CargoStackComponent 앵커 기준 이 높이보다 아래로 계란이 떨어지면 손실로 처리한다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Loss", meta = (ClampMin = "10.0", UIMin = "50.0", UIMax = "500.0"))
 	float CargoLossZOffset = 140.0f;
 
-	// 바구니 중심에서 이 수평 거리보다 멀어지면 계란 손실로 처리한다.
+	// CargoStackComponent 앵커 중심에서 이 수평 거리보다 멀어지면 계란 손실로 처리한다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Loss", meta = (ClampMin = "10.0", UIMin = "50.0", UIMax = "500.0"))
 	float CargoLossHorizontalDistance = 180.0f;
 
-	// 개발 빌드에서 바구니 기준 손실 반경과 계란 위치를 표시할지 여부
+	// 개발 빌드에서 앵커 기준 손실 반경과 계란 위치를 표시할지 여부
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Debug")
 	bool bDrawCargoDebug = false;
 };
@@ -336,7 +295,7 @@ public:
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Debug")
 	FPGDebugSettings Debug;
 
-	// 머리 위 적재물 스택과 시각 흔들림 설정
+	// 플레이어 기준 물리 계란 스폰/손실 판정 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")
 	FPGCargoSettings Cargo;
 

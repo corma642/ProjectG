@@ -69,8 +69,8 @@ void APGRunnerCharacter::BeginPlay()
 
 	if (CargoStackComponent)
 	{
-		// 바구니는 머리 소켓에 붙이고, 계란은 별도 물리 Actor로 스폰한다.
-		CargoStackComponent->InitializeCargoStack(CachedCargoSettings, GetMesh());
+		// CargoStackComponent는 플레이어에 붙은 계란 스폰/손실 판정 앵커로 사용한다.
+		CargoStackComponent->InitializeCargoStack(CachedCargoSettings);
 		CargoStackComponent->OnCargoLost.AddDynamic(this, &APGRunnerCharacter::HandleCargoLost);
 	}
 
