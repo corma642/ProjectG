@@ -194,6 +194,10 @@ struct FPGCargoSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "1", UIMin = "1", UIMax = "5"))
 	int32 MaxCargoCount = 3;
 
+	// BP에서 앵커 위치를 옮기지 않았을 때 사용할 기본 머리 위 앵커 위치
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn")
+	FVector CargoAnchorFallbackRelativeLocation = FVector(0.0f, 0.0f, 120.0f);
+
 	// 시작 계란을 CargoStackComponent 앵커 기준 어디에 놓을지 정하는 상대 위치
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn")
 	FVector InitialCargoLocalOffset = FVector(0.0f, 0.0f, 24.0f);
@@ -225,6 +229,18 @@ struct FPGCargoSettings
 	// 직선 주행 흔들림 힘의 반복 빈도
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
 	float CargoIdleShakeFrequency = 1.15f;
+
+	// 라인 점프 중과 착지 직후 계란 이탈을 줄이기 위해 상대속도 제한을 유지하는 시간
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0"))
+	float LaneJumpCargoAssistDuration = 0.2f;
+
+	// 라인 점프 보정 중 CargoStack 앵커 기준 계란 최대 상대속도
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1000.0"))
+	float LaneJumpMaxRelativeSpeed = 180.0f;
+
+	// 라인 점프 보정 중 CargoStack 앵커 기준 계란 최대 위쪽 상대속도
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "500.0"))
+	float LaneJumpMaxUpwardRelativeSpeed = 60.0f;
 
 	// CargoStackComponent 앵커 기준 이 높이보다 아래로 계란이 떨어지면 손실로 처리한다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Loss", meta = (ClampMin = "10.0", UIMin = "50.0", UIMax = "500.0"))

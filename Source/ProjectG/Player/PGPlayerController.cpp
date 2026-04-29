@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Player/PGPlayerController.h"
 
@@ -39,6 +39,8 @@ void APGPlayerController::BeginPlay()
 			InputSubsystem->AddMappingContext(GetResolvedMappingContext(), DefaultMappingPriority);
 		}
 	}
+
+	SetInputMode(FInputModeGameOnly());
 }
 
 void APGPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)

@@ -7,6 +7,7 @@
 #include "PGPhysicsCargoActor.generated.h"
 
 class UPGCargoTypeDefinition;
+class UPrimitiveComponent;
 class UStaticMeshComponent;
 
 /**
@@ -31,6 +32,16 @@ public:
 	UPGCargoTypeDefinition* GetCargoType() const { return CargoType; }
 
 private:
+	// 물리 충돌 직후 과도한 위쪽 반발 속도와 회전 속도를 제한한다.
+	UFUNCTION()
+	void HandleCargoMeshHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
+	// 설정값을 기준으로 충돌 후 튀어오르는 속도를 낮춘다.
+	void LimitImpactBounceVelocity() const;
+
+	// 설정값을 기준으로 충돌 후 과도한 회전 속도를 낮춘다.
+	void LimitAngularVelocity() const;
+
 	// 물리 시뮬레이션과 충돌을 담당하는 적재물 메시
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UStaticMeshComponent> CargoMeshComponent;
