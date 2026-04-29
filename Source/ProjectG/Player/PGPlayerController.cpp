@@ -338,7 +338,7 @@ void APGPlayerController::UpdateGyroInput(float DeltaTime)
 			reinterpret_cast<uint64>(this),
 			0.0f,
 			FColor::Cyan,
-			FString::Printf(TEXT("Tilt Raw: %.3f | Balance: %.3f | Calibration: %.3f"), LastRawTilt, FinalBalanceInput, CalibrationTilt));
+			FString::Printf(TEXT("Tilt Raw: %.3f | Balance: %.3f | Keyboard(Q=-1/E=+1): %.1f | Calibration: %.3f"), LastRawTilt, FinalBalanceInput, KeyboardBalanceInput, CalibrationTilt));
 	}
 #endif
 }

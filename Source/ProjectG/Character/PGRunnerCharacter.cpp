@@ -64,7 +64,7 @@ void APGRunnerCharacter::BeginPlay()
 	if (RunnerMovementComponent)
 	{
 		// 시작 위치와 방향을 러너 기준 트랙 좌표계로 고정해 월드 X/Y축 의존성을 제거한다.
-		RunnerMovementComponent->InitializeRunnerMovement(CachedLaneSettings, CachedGyroSettings, GetActorLocation(), GetActorForwardVector(), GetActorRightVector());
+		RunnerMovementComponent->InitializeRunnerMovement(CachedLaneSettings, CachedGyroSettings, CachedBalanceSettings, GetActorLocation(), GetActorForwardVector(), GetActorRightVector());
 	}
 
 	if (CargoStackComponent)
@@ -115,6 +115,11 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 	if (RunnerEnvironmentComponent)
 	{
 		RunnerEnvironmentComponent->UpdateEnvironment(DeltaSeconds, BalanceInput);
+	}
+	if (RunnerMovementComponent)
+	{
+		const float PlayerCorrectionInput = RunnerEnvironmentComponent ? RunnerEnvironmentComponent->GetProcessedBalanceInput() : BalanceInput;
+		RunnerMovementComponent->SetBalanceMovementInput(BaseInstabilityInput, PlayerCorrectionInput);
 	}
 
 	UpdateForwardMovement();
@@ -286,7 +291,7 @@ float APGRunnerCharacter::GetEffectiveBalanceInput() const
 void APGRunnerCharacter::UpdateBodyLean(float DeltaSeconds)
 {
 	const float EffectiveBalanceInput = GetEffectiveBalanceInput();
-	const float TargetRoll = EffectiveBalanceInput * CachedRunnerSettings.BodyLeanMaxRoll;
+	const float TargetRoll = -EffectiveBalanceInput * CachedRunnerSettings.BodyLeanMaxRoll;
 
 	// 중심 입력이 즉시 꺾이지 않고 몸이 따라가는 느낌이 나도록 보간한다.
 	CurrentBodyRoll = FMath::FInterpTo(CurrentBodyRoll, TargetRoll, DeltaSeconds, CachedRunnerSettings.BodyLeanInterpSpeed);
@@ -311,11 +316,13 @@ void APGRunnerCharacter::DrawBalanceDebug() const
 	}
 
 	const float EnvironmentBalanceInput = RunnerEnvironmentComponent ? RunnerEnvironmentComponent->GetProcessedBalanceInput() : BalanceInput;
+	const float BalanceOffset = RunnerMovementComponent ? RunnerMovementComponent->GetBalanceOffset() : 0.0f;
+	const float BalanceVelocity = RunnerMovementComponent ? RunnerMovementComponent->GetBalanceVelocity() : 0.0f;
 	GEngine->AddOnScreenDebugMessage(
 		reinterpret_cast<uint64>(this) + 1,
 		0.0f,
 		FColor::Yellow,
-		FString::Printf(TEXT("Balance Base: %.2f | Player: %.2f | Final: %.2f"), BaseInstabilityInput, EnvironmentBalanceInput, GetEffectiveBalanceInput()));
+		FString::Printf(TEXT("Balance Base: %.2f | Player: %.2f | Final: %.2f | Offset: %.1f | Speed: %.1f"), BaseInstabilityInput, EnvironmentBalanceInput, GetEffectiveBalanceInput(), BalanceOffset, BalanceVelocity));
 #endif
 }
 

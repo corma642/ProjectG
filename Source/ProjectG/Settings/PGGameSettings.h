@@ -57,6 +57,26 @@ struct FPGBalanceSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2.0"))
 	float PlayerCorrectionScale = 1.0f;
 
+	// 기본 중심 흔들림이 플레이어 캡슐을 좌우로 밀어내는 가속도
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance | Movement", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2000.0"))
+	float BalanceDriftAcceleration = 420.0f;
+
+	// 플레이어 입력이 라인 중심으로 되돌리기 위해 적용하는 보정 가속도
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance | Movement", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3000.0"))
+	float PlayerCorrectionAcceleration = 720.0f;
+
+	// 현재 라인 중심에서 허용하는 최대 좌우 이탈 거리
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance | Movement", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "300.0"))
+	float BalanceMaxOffset = 90.0f;
+
+	// 중심 흔들림으로 발생하는 최대 좌우 이동 속도
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance | Movement", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1000.0"))
+	float BalanceMaxSpeed = 220.0f;
+
+	// 입력이 없거나 방향이 바뀔 때 과속과 잔진동을 줄이는 감쇠 속도
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance | Movement", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "20.0"))
+	float BalanceCenteringDamping = 4.0f;
+
 	// 개발 빌드에서 기본 흔들림/플레이어 보정/최종 중심 입력을 화면에 표시할지 여부
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance | Debug")
 	bool bDrawBalanceDebug = false;

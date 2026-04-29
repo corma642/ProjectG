@@ -18,8 +18,8 @@ class PROJECTG_API UPGRunnerMovementComponent : public UCharacterMovementCompone
 public:
 	UPGRunnerMovementComponent();
 
-	// Project Settings에서 캐시한 설정과 시작 트랙 축을 받아 라인 이동 상태를 초기화한다.
-	void InitializeRunnerMovement(const FPGLaneSettings& InLaneSettings, const FPGGyroSettings& InGyroSettings, const FVector& InLaneOriginLocation, const FVector& InRunnerForwardVector, const FVector& InRunnerRightVector);
+	// Project Settings에서 캐시한 설정과 시작 트랙 축을 받아 라인/밸런스 이동 상태를 초기화한다.
+	void InitializeRunnerMovement(const FPGLaneSettings& InLaneSettings, const FPGGyroSettings& InGyroSettings, const FPGBalanceSettings& InBalanceSettings, const FVector& InLaneOriginLocation, const FVector& InRunnerForwardVector, const FVector& InRunnerRightVector);
 
 	// 입력 방향(-1: 왼쪽, 1: 오른쪽)에 따라 인접 라인 이동을 요청한다.
 	void RequestLaneChange(int32 Direction);
@@ -53,6 +53,17 @@ public:
 	// 지정 라인의 현재 전방 진행 거리 기준 월드 위치를 계산한다.
 	FVector GetLaneWorldLocation(int32 LaneIndex) const;
 
+	// 기본 흔들림과 플레이어 보정 입력을 받아 실제 캡슐 좌우 밀림에 반영한다.
+	void SetBalanceMovementInput(float InBaseInstabilityInput, float InPlayerCorrectionInput);
+
+	// 현재 라인 중심에서 실제 캡슐이 밀려난 좌우 거리
+	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner Movement")
+	float GetBalanceOffset() const { return BalanceOffset; }
+
+	// 현재 밸런스 흔들림으로 발생 중인 좌우 속도
+	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner Movement")
+	float GetBalanceVelocity() const { return BalanceVelocity; }
+
 protected:
 	// CharacterMovement의 기본 이동 이후 라인 이동 보간을 같은 Movement 계층에서 처리한다.
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
@@ -60,6 +71,9 @@ protected:
 private:
 	// 라인 변경 진행도와 수평 캡슐 이동을 갱신한다.
 	void UpdateLaneMovement(float DeltaSeconds);
+
+	// 줄타기 중심 흔들림을 실제 라인 중심 기준 좌우 오프셋으로 갱신한다.
+	void UpdateBalanceMovement(float DeltaSeconds);
 
 	// 지정한 라인 인덱스로 이동을 시작한다.
 	void StartLaneChange(int32 NewLaneIndex);
@@ -94,6 +108,9 @@ private:
 	// BeginPlay에서 캐시한 자이로 중심 제어 설정
 	FPGGyroSettings CachedGyroSettings;
 
+	// BeginPlay에서 캐시한 실제 중심 이동 설정
+	FPGBalanceSettings CachedBalanceSettings;
+
 	// 시작 시 중앙 라인으로 잡은 월드 위치
 	FVector LaneOriginLocation = FVector::ZeroVector;
 
@@ -117,6 +134,18 @@ private:
 
 	// 라인 이동 목표 지점의 중앙 라인 기준 좌우 오프셋
 	float LaneTargetOffset = 0.0f;
+
+	// 현재 라인 중심에서 실제 플레이어 캡슐이 밀려난 좌우 거리
+	float BalanceOffset = 0.0f;
+
+	// 밸런스 흔들림으로 발생 중인 좌우 속도
+	float BalanceVelocity = 0.0f;
+
+	// 기본 중심 불안정성이 밀어내는 입력값
+	float BaseInstabilityInput = 0.0f;
+
+	// 플레이어가 라인 중심을 회복하기 위해 넣는 보정 입력값
+	float PlayerCorrectionInput = 0.0f;
 
 	// 현재 라인 이동이 진행된 시간
 	float LaneMoveElapsed = 0.0f;
