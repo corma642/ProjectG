@@ -51,6 +51,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
 	int32 GetCurrentCargoCount() const { return CargoActors.Num(); }
 
+	// 현재 적재 중이거나 낙하 예약된 계란을 포함한 개수입니다. 자동 적재 이벤트 예산 판단에 사용합니다.
+	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
+	int32 GetReservedCargoCount() const { return CargoActors.Num() + (bHasPendingCargoDrop ? 1 : 0); }
+
+	// Project Settings 기준 최대 적재 개수입니다.
+	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
+	int32 GetMaxCargoCount() const { return CachedCargoSettings.MaxCargoCount; }
+
 private:
 	// BP에서 앵커 위치를 지정하지 않은 경우 설정값 기반 기본 위치를 적용한다.
 	void ApplyFallbackAnchorLocation();
