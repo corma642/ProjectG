@@ -8,6 +8,8 @@
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogPGCargoStack, Log, All);
+
 UPGCargoStackComponent::UPGCargoStackComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
@@ -29,14 +31,23 @@ void UPGCargoStackComponent::InitializeCargoStack(const FPGCargoSettings& InCarg
 	bHasPendingCargoDrop = false;
 	CargoPreviewRemainingTime = 0.0f;
 	CargoShakeElapsedTime = 0.0f;
+	PreviousAnchorLocation = GetComponentLocation();
+	AnchorVelocity = FVector::ZeroVector;
+	LaneJumpCargoAssistRemainingTime = 0.0f;
+	bWasChangingLaneLastFrame = false;
+	bHasPreviousAnchorLocation = true;
 
+	ApplyFallbackAnchorLocation();
+	PreviousAnchorLocation = GetComponentLocation();
 	SpawnInitialCargo();
 }
 
 void UPGCargoStackComponent::UpdateCargoReaction(float DeltaSeconds, float BalanceInput, float VisualJumpOffset, bool bIsChangingLane)
 {
 	CleanupInvalidCargoActors();
+	UpdateAnchorMotion(DeltaSeconds, bIsChangingLane);
 	ApplyCargoPhysicsForces(DeltaSeconds, BalanceInput);
+	ApplyLaneJumpCargoAssist();
 
 	if (bHasPendingCargoDrop)
 	{
@@ -75,7 +86,7 @@ bool UPGCargoStackComponent::RemoveCargo()
 void UPGCargoStackComponent::SpawnInitialCargo()
 {
 	UPGCargoTypeDefinition* CargoType = ResolveDefaultCargoType();
-	if (!CargoType || !CargoType->CargoMesh)
+	if (!IsValidCargoTypeForSpawn(CargoType, TEXT("SpawnInitialCargo")))
 	{
 		return;
 	}
@@ -89,7 +100,7 @@ void UPGCargoStackComponent::SpawnInitialCargo()
 
 bool UPGCargoStackComponent::StartCargoPreview(UPGCargoTypeDefinition* CargoType)
 {
-	if (!CargoType || !CargoType->CargoMesh)
+	if (!IsValidCargoTypeForSpawn(CargoType, TEXT("StartCargoPreview")))
 	{
 		return false;
 	}
@@ -147,7 +158,7 @@ void UPGCargoStackComponent::FinishCargoPreview()
 
 APGPhysicsCargoActor* UPGCargoStackComponent::SpawnPhysicsCargo(UPGCargoTypeDefinition* CargoType, const FTransform& SpawnTransform)
 {
-	if (!CargoType || !CargoType->CargoMesh)
+	if (!IsValidCargoTypeForSpawn(CargoType, TEXT("SpawnPhysicsCargo")))
 	{
 		return nullptr;
 	}
@@ -178,6 +189,41 @@ UPGCargoTypeDefinition* UPGCargoStackComponent::ResolveDefaultCargoType() const
 	return CachedCargoSettings.DefaultCargoType.LoadSynchronous();
 }
 
+void UPGCargoStackComponent::ApplyFallbackAnchorLocation()
+{
+	if (!GetRelativeLocation().IsNearlyZero())
+	{
+		return;
+	}
+
+	const FVector FallbackLocation = CachedCargoSettings.CargoAnchorFallbackRelativeLocation;
+	if (FallbackLocation.IsNearlyZero())
+	{
+		return;
+	}
+
+	// BP에서 명시적으로 앵커를 배치하지 않은 초기 프로토타입에서도 계란이 캡슐 루트 근처에 생기지 않게 한다.
+	SetRelativeLocation(FallbackLocation);
+	UE_LOG(LogPGCargoStack, Warning, TEXT("CargoStackComponent anchor was at origin. Applied fallback relative location: %s. Move the component in BP_PlayerRunner for the final basket/socket placement."), *FallbackLocation.ToCompactString());
+}
+
+bool UPGCargoStackComponent::IsValidCargoTypeForSpawn(const UPGCargoTypeDefinition* CargoType, const TCHAR* Context) const
+{
+	if (!CargoType)
+	{
+		UE_LOG(LogPGCargoStack, Warning, TEXT("%s failed: DefaultCargoType is not set or could not be loaded."), Context);
+		return false;
+	}
+
+	if (!CargoType->CargoMesh)
+	{
+		UE_LOG(LogPGCargoStack, Warning, TEXT("%s failed: CargoType '%s' has no CargoMesh."), Context, *GetNameSafe(CargoType));
+		return false;
+	}
+
+	return true;
+}
+
 FTransform UPGCargoStackComponent::MakeCargoWorldTransform(const FVector& LocalOffset, int32 CargoIndex) const
 {
 	const FVector StackedOffset = LocalOffset + FVector(0.0f, 0.0f, CargoIndex * CachedCargoSettings.InitialCargoSpacing);
@@ -203,6 +249,72 @@ void UPGCargoStackComponent::ApplyCargoPhysicsForces(float DeltaSeconds, float B
 		const float IdleShake = FMath::Sin(ShakePhase + CargoIndex * 1.73f) * CachedCargoSettings.CargoIdleShakeForce;
 		const float BalanceForce = BalanceInput * CachedCargoSettings.CargoBalanceForce;
 		CargoActor->GetCargoMeshComponent()->AddForce(RightVector * (IdleShake + BalanceForce), NAME_None, true);
+	}
+}
+
+void UPGCargoStackComponent::UpdateAnchorMotion(float DeltaSeconds, bool bIsChangingLane)
+{
+	const FVector CurrentAnchorLocation = GetComponentLocation();
+	if (bHasPreviousAnchorLocation && DeltaSeconds > KINDA_SMALL_NUMBER)
+	{
+		AnchorVelocity = (CurrentAnchorLocation - PreviousAnchorLocation) / DeltaSeconds;
+	}
+	else
+	{
+		AnchorVelocity = FVector::ZeroVector;
+		bHasPreviousAnchorLocation = true;
+	}
+
+	PreviousAnchorLocation = CurrentAnchorLocation;
+
+	if (bIsChangingLane || (bWasChangingLaneLastFrame && !bIsChangingLane))
+	{
+		LaneJumpCargoAssistRemainingTime = FMath::Max(0.0f, CachedCargoSettings.LaneJumpCargoAssistDuration);
+	}
+	else if (LaneJumpCargoAssistRemainingTime > 0.0f)
+	{
+		LaneJumpCargoAssistRemainingTime = FMath::Max(0.0f, LaneJumpCargoAssistRemainingTime - DeltaSeconds);
+	}
+
+	bWasChangingLaneLastFrame = bIsChangingLane;
+}
+
+void UPGCargoStackComponent::ApplyLaneJumpCargoAssist()
+{
+	if (LaneJumpCargoAssistRemainingTime <= 0.0f)
+	{
+		return;
+	}
+
+	const float MaxRelativeSpeed = FMath::Max(0.0f, CachedCargoSettings.LaneJumpMaxRelativeSpeed);
+	const float MaxUpwardRelativeSpeed = FMath::Max(0.0f, CachedCargoSettings.LaneJumpMaxUpwardRelativeSpeed);
+	if (MaxRelativeSpeed <= KINDA_SMALL_NUMBER && MaxUpwardRelativeSpeed <= KINDA_SMALL_NUMBER)
+	{
+		return;
+	}
+
+	for (APGPhysicsCargoActor* CargoActor : CargoActors)
+	{
+		if (!CargoActor || !CargoActor->GetCargoMeshComponent())
+		{
+			continue;
+		}
+
+		UStaticMeshComponent* CargoMeshComponent = CargoActor->GetCargoMeshComponent();
+		FVector RelativeVelocity = CargoMeshComponent->GetPhysicsLinearVelocity() - AnchorVelocity;
+
+		if (MaxRelativeSpeed > KINDA_SMALL_NUMBER && RelativeVelocity.SizeSquared() > FMath::Square(MaxRelativeSpeed))
+		{
+			RelativeVelocity = RelativeVelocity.GetClampedToMaxSize(MaxRelativeSpeed);
+		}
+
+		if (RelativeVelocity.Z > MaxUpwardRelativeSpeed)
+		{
+			// 라인 점프 중 바구니가 급격히 움직여 계란이 위로 튕겨나가는 성분만 제한한다.
+			RelativeVelocity.Z = MaxUpwardRelativeSpeed;
+		}
+
+		CargoMeshComponent->SetPhysicsLinearVelocity(AnchorVelocity + RelativeVelocity);
 	}
 }
 

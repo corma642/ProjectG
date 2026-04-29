@@ -52,6 +52,12 @@ public:
 	int32 GetCurrentCargoCount() const { return CargoActors.Num(); }
 
 private:
+	// BP에서 앵커 위치를 지정하지 않은 경우 설정값 기반 기본 위치를 적용한다.
+	void ApplyFallbackAnchorLocation();
+
+	// 지정한 계란 타입이 스폰 가능한지 확인하고, 실패 시 원인을 로그로 남긴다.
+	bool IsValidCargoTypeForSpawn(const UPGCargoTypeDefinition* CargoType, const TCHAR* Context) const;
+
 	// 시작 계란을 물리 Actor로 즉시 배치한다.
 	void SpawnInitialCargo();
 
@@ -72,6 +78,12 @@ private:
 
 	// 살아 있는 계란에 중심 흔들림 보조 힘을 적용한다.
 	void ApplyCargoPhysicsForces(float DeltaSeconds, float BalanceInput);
+
+	// 현재 앵커 속도와 라인 점프 보정 시간을 갱신한다.
+	void UpdateAnchorMotion(float DeltaSeconds, bool bIsChangingLane);
+
+	// 라인 이동 중 또는 착지 직후 계란의 앵커 대비 과도한 상대속도를 제한한다.
+	void ApplyLaneJumpCargoAssist();
 
 	// 계란이 현재 플레이어 앵커 기준 허용 범위를 벗어났는지 확인한다.
 	void CheckCargoLoss();
@@ -108,4 +120,19 @@ private:
 
 	// 물리 흔들림 계산에 사용하는 경과 시간
 	float CargoShakeElapsedTime = 0.0f;
+
+	// 직전 프레임 CargoStack 앵커 위치
+	FVector PreviousAnchorLocation = FVector::ZeroVector;
+
+	// 현재 프레임 CargoStack 앵커 속도
+	FVector AnchorVelocity = FVector::ZeroVector;
+
+	// 라인 점프/착지 직후 상대속도 보정이 남아 있는 시간
+	float LaneJumpCargoAssistRemainingTime = 0.0f;
+
+	// 직전 프레임에 라인 이동 중이었는지 여부
+	bool bWasChangingLaneLastFrame = false;
+
+	// 앵커 속도 계산을 위한 이전 위치가 준비됐는지 여부
+	bool bHasPreviousAnchorLocation = false;
 };
