@@ -233,10 +233,12 @@ bool UPGCargoStackComponent::StartCargoPreview(UPGCargoTypeDefinition* CargoType
 		PreviewCargoMeshComponent->SetStaticMesh(CargoType->CargoMesh);
 		PreviewCargoMeshComponent->SetRelativeLocation(CachedCargoSettings.CargoPreviewLocalOffset);
 		PreviewCargoMeshComponent->SetRelativeRotation(CargoType->MeshRotation);
-		PreviewCargoMeshComponent->SetRelativeScale3D(CargoType->MeshScale);
+		PreviewCargoMeshComponent->SetRelativeScale3D(CargoType->MeshScale * FMath::Max(0.1f, CachedCargoSettings.CargoPreviewScaleMultiplier));
 		PreviewCargoMeshComponent->SetVisibility(true, true);
 		PreviewCargoMeshComponent->SetHiddenInGame(false, true);
 	}
+
+	OnCargoPreviewStarted.Broadcast();
 
 	if (CargoPreviewRemainingTime <= 0.0f)
 	{
@@ -264,8 +266,9 @@ void UPGCargoStackComponent::FinishCargoPreview()
 		PreviewCargoMeshComponent->SetHiddenInGame(true, true);
 	}
 
-	// 실제 계란은 프리뷰 종료 순간의 플레이어 앵커 위치에서 월드 Actor로 스폰하고, 이후 플레이어에 부착하지 않는다.
-	SpawnPhysicsCargo(CargoType, MakeCargoWorldTransform(CachedCargoSettings.CargoPreviewLocalOffset));
+	// 프리뷰는 눈에 잘 보이는 예고 위치, 실제 투입은 바구니 근처의 안정 위치를 사용합니다.
+	SpawnPhysicsCargo(CargoType, MakeCargoWorldTransform(CachedCargoSettings.CargoDropSpawnLocalOffset));
+	OnCargoPreviewFinished.Broadcast();
 }
 
 APGPhysicsCargoActor* UPGCargoStackComponent::SpawnPhysicsCargo(UPGCargoTypeDefinition* CargoType, const FTransform& SpawnTransform)
@@ -292,6 +295,12 @@ APGPhysicsCargoActor* UPGCargoStackComponent::SpawnPhysicsCargo(UPGCargoTypeDefi
 	}
 
 	CargoActor->InitializeCargo(CargoType, CachedCargoSettings.CargoCollisionProfileName);
+	if (UStaticMeshComponent* CargoMeshComponent = CargoActor->GetCargoMeshComponent())
+	{
+		// 물리 적재물은 부착하지 않지만, 생성 순간에는 앵커 속도를 상속해 자동 전진 중 뒤처지지 않게 합니다.
+		CargoMeshComponent->SetPhysicsLinearVelocity(AnchorVelocity);
+	}
+
 	CargoActors.Add(CargoActor);
 	return CargoActor;
 }
