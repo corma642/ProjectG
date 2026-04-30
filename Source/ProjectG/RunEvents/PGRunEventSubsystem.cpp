@@ -1,0 +1,373 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "RunEvents/PGRunEventSubsystem.h"
+
+#include "Cargo/PGCargoStackComponent.h"
+#include "Character/PGRunnerCharacter.h"
+#include "DrawDebugHelpers.h"
+#include "Environment/PGRunnerEnvironmentComponent.h"
+#include "GameModes/PGGameModeBase.h"
+#include "Kismet/GameplayStatics.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogPGRunEventSubsystem, Log, All);
+
+void UPGRunEventSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+
+	LoadSettings();
+	InitializeDefaultRules();
+
+	const int32 Seed = CachedRunEventSettings.bUseRandomSeedEachRun ? FMath::Rand() : CachedRunEventSettings.RandomSeed;
+	RandomStream.Initialize(Seed);
+
+	InitializeRunnerReferences();
+	BindGameMode();
+	ScheduleNextEvent();
+}
+
+void UPGRunEventSubsystem::Deinitialize()
+{
+	if (BoundGameMode && bIsBoundToRunFailed)
+	{
+		BoundGameMode->OnRunFailed.RemoveDynamic(this, &UPGRunEventSubsystem::HandleRunFailed);
+	}
+
+	BoundGameMode = nullptr;
+	bIsBoundToRunFailed = false;
+	ClearPendingEvent();
+
+	Super::Deinitialize();
+}
+
+bool UPGRunEventSubsystem::DoesSupportWorldType(EWorldType::Type WorldType) const
+{
+	return WorldType == EWorldType::Game || WorldType == EWorldType::PIE;
+}
+
+void UPGRunEventSubsystem::Tick(float DeltaTime)
+{
+	if (!bIsRunActive)
+	{
+		return;
+	}
+
+	TickAccumulator += DeltaTime;
+	if (TickAccumulator < 0.2f)
+	{
+		return;
+	}
+
+	const float ProcessDeltaSeconds = TickAccumulator;
+	TickAccumulator = 0.0f;
+	ProcessRunEventTick(ProcessDeltaSeconds);
+}
+
+TStatId UPGRunEventSubsystem::GetStatId() const
+{
+	RETURN_QUICK_DECLARE_CYCLE_STAT(UPGRunEventSubsystem, STATGROUP_Tickables);
+}
+
+bool UPGRunEventSubsystem::IsTickable() const
+{
+	return !IsTemplate() && bIsRunActive;
+}
+
+float UPGRunEventSubsystem::GetDifficultyAlpha() const
+{
+	return CachedRunEventSettings.DifficultyRampDuration > KINDA_SMALL_NUMBER
+		? FMath::Clamp(RunElapsedTime / CachedRunEventSettings.DifficultyRampDuration, 0.0f, 1.0f)
+		: 1.0f;
+}
+
+void UPGRunEventSubsystem::HandleRunFailed(FName FailureReason)
+{
+	bIsRunActive = false;
+	ClearPendingEvent();
+	if (RunnerEnvironmentComponent)
+	{
+		RunnerEnvironmentComponent->ClearEnvironmentEffects();
+	}
+}
+
+void UPGRunEventSubsystem::LoadSettings()
+{
+	if (const UPGGameSettings* Settings = GetDefault<UPGGameSettings>())
+	{
+		CachedRunEventSettings = Settings->RunEvent;
+		LoadedEventSet = CachedRunEventSettings.DefaultRunEventSet.LoadSynchronous();
+		if (!LoadedEventSet && !CachedRunEventSettings.DefaultRunEventSet.IsNull())
+		{
+			UE_LOG(LogPGRunEventSubsystem, Warning, TEXT("DefaultRunEventSet could not be loaded. C++ default run event rules will be used."));
+		}
+	}
+}
+
+void UPGRunEventSubsystem::InitializeDefaultRules()
+{
+	DefaultRules.Reset();
+
+	FPGRunEventRule WindRule;
+	WindRule.EventType = EPGRunEventType::Wind;
+	WindRule.MinRunTime = 10.0f;
+	WindRule.MinDifficultyAlpha = 0.1f;
+	WindRule.BaseWeight = 1.0f;
+	WindRule.DifficultyWeight = 1.0f;
+	WindRule.CooldownSeconds = 5.0f;
+	WindRule.Duration = 3.0f;
+	WindRule.Strength = 1.0f;
+	DefaultRules.Add(WindRule);
+
+	FPGRunEventRule SnowstormRule;
+	SnowstormRule.EventType = EPGRunEventType::Snowstorm;
+	SnowstormRule.MinRunTime = 20.0f;
+	SnowstormRule.MinDifficultyAlpha = 0.25f;
+	SnowstormRule.BaseWeight = 0.75f;
+	SnowstormRule.DifficultyWeight = 1.0f;
+	SnowstormRule.CooldownSeconds = 7.0f;
+	SnowstormRule.Duration = 3.0f;
+	SnowstormRule.InputLagScale = 0.35f;
+	DefaultRules.Add(SnowstormRule);
+
+	FPGRunEventRule CargoDropRule;
+	CargoDropRule.EventType = EPGRunEventType::CargoDrop;
+	CargoDropRule.MinRunTime = 18.0f;
+	CargoDropRule.MinDifficultyAlpha = 0.2f;
+	CargoDropRule.BaseWeight = 1.25f;
+	CargoDropRule.DifficultyWeight = 0.0f;
+	CargoDropRule.CooldownSeconds = 10.0f;
+	CargoDropRule.bRequiresCargoCapacity = true;
+	DefaultRules.Add(CargoDropRule);
+}
+
+void UPGRunEventSubsystem::InitializeRunnerReferences()
+{
+	RunnerCharacter = Cast<APGRunnerCharacter>(UGameplayStatics::GetPlayerPawn(this, 0));
+	RunnerEnvironmentComponent = RunnerCharacter ? RunnerCharacter->FindComponentByClass<UPGRunnerEnvironmentComponent>() : nullptr;
+	CargoStackComponent = RunnerCharacter ? RunnerCharacter->FindComponentByClass<UPGCargoStackComponent>() : nullptr;
+}
+
+void UPGRunEventSubsystem::BindGameMode()
+{
+	if (bIsBoundToRunFailed || !GetWorld())
+	{
+		return;
+	}
+
+	BoundGameMode = GetWorld()->GetAuthGameMode<APGGameModeBase>();
+	if (BoundGameMode)
+	{
+		BoundGameMode->OnRunFailed.AddDynamic(this, &UPGRunEventSubsystem::HandleRunFailed);
+		bIsBoundToRunFailed = true;
+	}
+}
+
+void UPGRunEventSubsystem::ProcessRunEventTick(float DeltaSeconds)
+{
+	BindGameMode();
+
+	if (!BoundGameMode || BoundGameMode->GetRunState() != EPGRunState::Running)
+	{
+		return;
+	}
+
+	RunElapsedTime += DeltaSeconds;
+
+	if (!RunnerEnvironmentComponent || !CargoStackComponent)
+	{
+		InitializeRunnerReferences();
+	}
+
+	if (PendingEventType == EPGRunEventType::None)
+	{
+		if (RunElapsedTime >= NextScheduleRetryTime)
+		{
+			ScheduleNextEvent();
+		}
+		DrawRunEventDebug();
+		return;
+	}
+
+	if (PendingEventState == EPGRunEventState::Scheduled && RunElapsedTime >= PendingEventFireTime - FMath::Max(0.0f, CachedRunEventSettings.PreviewLeadTime))
+	{
+		PendingEventState = EPGRunEventState::Preview;
+	}
+
+	if (RunElapsedTime >= PendingEventFireTime)
+	{
+		TriggerPendingEvent();
+		ScheduleNextEvent();
+	}
+
+	DrawRunEventDebug();
+}
+
+void UPGRunEventSubsystem::ScheduleNextEvent()
+{
+	ClearPendingEvent();
+
+	if (RunElapsedTime < CachedRunEventSettings.SafeInitialRunTime)
+	{
+		NextScheduleRetryTime = CachedRunEventSettings.SafeInitialRunTime;
+		return;
+	}
+
+	FPGRunEventRule SelectedRule;
+	if (!SelectEventRule(SelectedRule))
+	{
+		NextScheduleRetryTime = RunElapsedTime + 1.0f;
+		return;
+	}
+
+	const float DifficultyAlpha = GetDifficultyAlpha();
+	const float StartInterval = FMath::Max(CachedRunEventSettings.MinEventInterval, CachedRunEventSettings.BaseEventInterval);
+	const float EndInterval = FMath::Max(0.5f, CachedRunEventSettings.MinEventInterval);
+	PendingEventRule = SelectedRule;
+	PendingEventType = SelectedRule.EventType;
+	PendingEventState = EPGRunEventState::Scheduled;
+	PendingEventFireTime = RunElapsedTime + FMath::Lerp(StartInterval, EndInterval, DifficultyAlpha);
+}
+
+bool UPGRunEventSubsystem::SelectEventRule(FPGRunEventRule& OutRule)
+{
+	const TArray<FPGRunEventRule>& Rules = GetEffectiveEventRules();
+	const float DifficultyAlpha = GetDifficultyAlpha();
+	float TotalWeight = 0.0f;
+
+	for (const FPGRunEventRule& Rule : Rules)
+	{
+		if (!CanUseRule(Rule))
+		{
+			continue;
+		}
+
+		TotalWeight += FMath::Max(0.0f, Rule.BaseWeight + Rule.DifficultyWeight * DifficultyAlpha);
+	}
+
+	if (TotalWeight <= KINDA_SMALL_NUMBER)
+	{
+		return false;
+	}
+
+	const float Roll = RandomStream.FRandRange(0.0f, TotalWeight);
+	float AccumulatedWeight = 0.0f;
+	for (const FPGRunEventRule& Rule : Rules)
+	{
+		if (!CanUseRule(Rule))
+		{
+			continue;
+		}
+
+		const float Weight = FMath::Max(0.0f, Rule.BaseWeight + Rule.DifficultyWeight * DifficultyAlpha);
+		AccumulatedWeight += Weight;
+		if (Roll <= AccumulatedWeight)
+		{
+			OutRule = Rule;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+const TArray<FPGRunEventRule>& UPGRunEventSubsystem::GetEffectiveEventRules() const
+{
+	return LoadedEventSet && !LoadedEventSet->EventRules.IsEmpty() ? LoadedEventSet->EventRules : DefaultRules;
+}
+
+bool UPGRunEventSubsystem::CanUseRule(const FPGRunEventRule& Rule) const
+{
+	if (Rule.EventType == EPGRunEventType::None)
+	{
+		return false;
+	}
+
+	if (RunElapsedTime < Rule.MinRunTime || GetDifficultyAlpha() < Rule.MinDifficultyAlpha)
+	{
+		return false;
+	}
+
+	if (Rule.bRequiresCargoCapacity && !HasCargoCapacity())
+	{
+		return false;
+	}
+
+	if (const float* LastTriggeredTime = LastTriggeredTimeByEvent.Find(Rule.EventType))
+	{
+		if (RunElapsedTime - *LastTriggeredTime < FMath::Max(0.0f, Rule.CooldownSeconds))
+		{
+			return false;
+		}
+	}
+
+	return FMath::Max(0.0f, Rule.BaseWeight + Rule.DifficultyWeight * GetDifficultyAlpha()) > KINDA_SMALL_NUMBER;
+}
+
+bool UPGRunEventSubsystem::HasCargoCapacity() const
+{
+	return CargoStackComponent && CargoStackComponent->GetReservedCargoCount() < CargoStackComponent->GetMaxCargoCount();
+}
+
+void UPGRunEventSubsystem::TriggerPendingEvent()
+{
+	if (PendingEventType == EPGRunEventType::None || !RunnerEnvironmentComponent)
+	{
+		ClearPendingEvent();
+		return;
+	}
+
+	PendingEventState = EPGRunEventState::Triggered;
+	bool bTriggered = true;
+
+	switch (PendingEventType)
+	{
+	case EPGRunEventType::Wind:
+	{
+		const float Direction = PendingEventRule.bRandomizeDirection && RandomStream.RandRange(0, 1) == 0 ? -1.0f : 1.0f;
+		RunnerEnvironmentComponent->ApplyWind(Direction, PendingEventRule.Strength, PendingEventRule.Duration);
+		break;
+	}
+	case EPGRunEventType::Snowstorm:
+		RunnerEnvironmentComponent->ApplySnowstorm(PendingEventRule.Duration, PendingEventRule.InputLagScale);
+		break;
+	case EPGRunEventType::CargoDrop:
+		bTriggered = RunnerEnvironmentComponent->RequestCargoDrop();
+		break;
+	case EPGRunEventType::None:
+	default:
+		break;
+	}
+
+	if (bTriggered)
+	{
+		LastTriggeredTimeByEvent.FindOrAdd(PendingEventType) = RunElapsedTime;
+	}
+}
+
+void UPGRunEventSubsystem::ClearPendingEvent()
+{
+	PendingEventRule = FPGRunEventRule();
+	PendingEventType = EPGRunEventType::None;
+	PendingEventState = EPGRunEventState::Inactive;
+	PendingEventFireTime = 0.0f;
+}
+
+void UPGRunEventSubsystem::DrawRunEventDebug() const
+{
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+	if (!CachedRunEventSettings.bDrawRunEventDebug || !GetWorld())
+	{
+		return;
+	}
+
+	const FVector DebugLocation = RunnerCharacter ? RunnerCharacter->GetActorLocation() + FVector::UpVector * 330.0f : FVector::UpVector * 330.0f;
+	const FString DebugText = FString::Printf(
+		TEXT("RunEvent Time:%.1f Difficulty:%.2f Pending:%d State:%d ETA:%.1f"),
+		RunElapsedTime,
+		GetDifficultyAlpha(),
+		static_cast<int32>(PendingEventType),
+		static_cast<int32>(PendingEventState),
+		GetTimeUntilPendingEvent());
+	DrawDebugString(GetWorld(), DebugLocation, DebugText, nullptr, FColor::Orange, 0.0f, true);
+#endif
+}

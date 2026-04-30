@@ -2,7 +2,6 @@
 
 #include "Track/PGRunDirector.h"
 
-#include "Cargo/PGCargoStackComponent.h"
 #include "Character/PGRunnerCharacter.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
@@ -21,6 +20,18 @@ APGRunDirector::APGRunDirector()
 void APGRunDirector::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (GetWorld())
+	{
+		for (TActorIterator<APGRunDirector> DirectorIt(GetWorld()); DirectorIt; ++DirectorIt)
+		{
+			if (*DirectorIt != this)
+			{
+				UE_LOG(LogPGRunDirector, Warning, TEXT("Multiple RunDirector actors exist in this world. Keep only one APGRunDirector to avoid duplicate track spawning. Current='%s', Other='%s'."), *GetNameSafe(this), *GetNameSafe(*DirectorIt));
+				break;
+			}
+		}
+	}
 
 	const int32 Seed = bUseRandomSeedEachRun ? FMath::Rand() : RandomSeed;
 	RandomStream.Initialize(Seed);
@@ -74,7 +85,6 @@ void APGRunDirector::HandleRunFailed(FName FailureReason)
 void APGRunDirector::InitializeRunnerReference()
 {
 	RunnerCharacter = Cast<APGRunnerCharacter>(UGameplayStatics::GetPlayerPawn(this, 0));
-	CargoStackComponent = RunnerCharacter ? RunnerCharacter->FindComponentByClass<UPGCargoStackComponent>() : nullptr;
 }
 
 void APGRunDirector::InitializeInitialSegment()
@@ -147,16 +157,6 @@ void APGRunDirector::ValidateTrackData() const
 		if (Entry.bCanBeFallback)
 		{
 			bHasFallbackCandidate = true;
-		}
-
-		if (Entry.bAllowGeneratedEvents && SegmentDefault && SegmentDefault->AllowsGeneratedEvents())
-		{
-			TArray<UPGTrackEventMarkerComponent*> EventMarkers;
-			SegmentDefault->GetComponents(EventMarkers);
-			if (EventMarkers.IsEmpty())
-			{
-				UE_LOG(LogPGRunDirector, Warning, TEXT("SegmentSet '%s' entry %d allows generated events but its segment class has no PGTrackEventMarkerComponent."), *GetNameSafe(SegmentSet), EntryIndex);
-			}
 		}
 	}
 
@@ -252,11 +252,6 @@ bool APGRunDirector::SpawnNextSegment()
 	{
 		LastSpawnedSegmentByEntry.FindOrAdd(EntryIndex) = SegmentIndex;
 		LastValidSegmentClass = SegmentClass;
-		ConfigureGeneratedEvents(SpawnedSegment, *SegmentEntry, SegmentIndex);
-	}
-	else
-	{
-		SpawnedSegment->ResetGeneratedEventMarkers();
 	}
 
 	++GeneratedSegmentCount;
@@ -341,69 +336,6 @@ void APGRunDirector::ReturnSegmentToPool(APGTrackSegment* Segment)
 
 	Segment->DeactivateForPool();
 	SegmentPool.Segments.Add(Segment);
-}
-
-void APGRunDirector::ConfigureGeneratedEvents(APGTrackSegment* Segment, const FPGTrackSegmentEntry& SegmentEntry, int32 SegmentIndex)
-{
-	if (!Segment)
-	{
-		return;
-	}
-
-	TArray<UPGTrackEventMarkerComponent*> EventMarkers;
-	Segment->GetComponents(EventMarkers);
-
-	for (UPGTrackEventMarkerComponent* EventMarker : EventMarkers)
-	{
-		if (EventMarker)
-		{
-			EventMarker->ClearGeneratedEvent();
-		}
-	}
-
-	if (!Segment->AllowsGeneratedEvents() || !SegmentEntry.bAllowGeneratedEvents || EventMarkers.IsEmpty())
-	{
-		return;
-	}
-
-	const float DifficultyAlpha = GetDifficultyAlpha();
-	const float SegmentProgress = GetProgressAtLocation(Segment->GetSegmentStartWorldLocation());
-	if (!CanAssignGeneratedEvent(SegmentIndex, SegmentProgress))
-	{
-		return;
-	}
-
-	const float EventChance = FMath::Lerp(BaseEventChance, MaxEventChance, DifficultyAlpha);
-	if (RandomStream.FRand() > EventChance)
-	{
-		return;
-	}
-
-	TArray<UPGTrackEventMarkerComponent*> AvailableMarkers;
-	for (UPGTrackEventMarkerComponent* EventMarker : EventMarkers)
-	{
-		if (EventMarker && EventMarker->CanReceiveGeneratedEvent())
-		{
-			AvailableMarkers.Add(EventMarker);
-		}
-	}
-
-	if (AvailableMarkers.IsEmpty())
-	{
-		return;
-	}
-
-	const EPGTrackEventType SelectedEventType = SelectEventType(DifficultyAlpha);
-	if (SelectedEventType == EPGTrackEventType::None)
-	{
-		return;
-	}
-
-	const int32 MarkerIndex = RandomStream.RandRange(0, AvailableMarkers.Num() - 1);
-	AvailableMarkers[MarkerIndex]->ConfigureGeneratedEvent(SelectedEventType, DifficultyAlpha, RandomStream.RandRange(1, MAX_int32));
-	LastEventSegmentIndex = SegmentIndex;
-	LastEventTime = RunElapsedTime;
-	LastEventProgress = SegmentProgress;
 }
 
 int32 APGRunDirector::SelectSegmentEntryIndex()
@@ -516,104 +448,6 @@ TSubclassOf<APGTrackSegment> APGRunDirector::ResolveFallbackSegmentClass() const
 	}
 
 	return nullptr;
-}
-
-bool APGRunDirector::CanAssignGeneratedEvent(int32 SegmentIndex, float SegmentProgress) const
-{
-	if (SegmentIndex < SafeInitialGeneratedSegments)
-	{
-		return false;
-	}
-
-	if (RunElapsedTime < SafeInitialRunTime)
-	{
-		return false;
-	}
-
-	if (SegmentProgress < SafeInitialDistance)
-	{
-		return false;
-	}
-
-	if (LastEventSegmentIndex != INDEX_NONE && SegmentIndex - LastEventSegmentIndex <= MinSegmentsBetweenEvents)
-	{
-		return false;
-	}
-
-	if (RunElapsedTime - LastEventTime < MinSecondsBetweenEvents)
-	{
-		return false;
-	}
-
-	if (SegmentProgress - LastEventProgress < MinDistanceBetweenEvents)
-	{
-		return false;
-	}
-
-	return true;
-}
-
-EPGTrackEventType APGRunDirector::SelectEventType(float DifficultyAlpha) const
-{
-	struct FWeightedEventType
-	{
-		EPGTrackEventType EventType = EPGTrackEventType::None;
-		float Weight = 0.0f;
-	};
-
-	TArray<FWeightedEventType> Candidates;
-
-	if (DifficultyAlpha >= WindMinDifficulty)
-	{
-		Candidates.Add({ EPGTrackEventType::Wind, 1.0f + DifficultyAlpha });
-	}
-
-	if (DifficultyAlpha >= IceMinDifficulty)
-	{
-		Candidates.Add({ EPGTrackEventType::Ice, 0.75f + DifficultyAlpha });
-	}
-
-	if (DifficultyAlpha >= CargoDropMinDifficulty)
-	{
-		if (IsCargoDropAvailable())
-		{
-			Candidates.Add({ EPGTrackEventType::CargoDrop, 1.25f });
-		}
-	}
-
-	if (Candidates.IsEmpty())
-	{
-		return EPGTrackEventType::None;
-	}
-
-	float TotalWeight = 0.0f;
-	for (const FWeightedEventType& Candidate : Candidates)
-	{
-		TotalWeight += Candidate.Weight;
-	}
-
-	const float Roll = RandomStream.FRandRange(0.0f, TotalWeight);
-	float AccumulatedWeight = 0.0f;
-	for (const FWeightedEventType& Candidate : Candidates)
-	{
-		AccumulatedWeight += Candidate.Weight;
-		if (Roll <= AccumulatedWeight)
-		{
-			return Candidate.EventType;
-		}
-	}
-
-	return Candidates.Last().EventType;
-}
-
-bool APGRunDirector::IsCargoDropAvailable() const
-{
-	if (!CargoStackComponent)
-	{
-		return false;
-	}
-
-	return CargoStackComponent->GetReservedCargoCount() < CargoStackComponent->GetMaxCargoCount();
 }
 
 float APGRunDirector::GetPlayerProgress() const

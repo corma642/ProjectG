@@ -37,7 +37,6 @@ float UPGRunnerEnvironmentComponent::UpdateEnvironment(float DeltaSeconds, float
 
 	if (!HasActiveEnvironmentEffect())
 	{
-		// 환경 효과가 없을 때는 원본 중심 입력을 그대로 통과시켜 Sprint 1/2 조작 비용과 감각을 유지한다.
 		DelayedBalanceInput = RawBalanceInput;
 		ProcessedBalanceInput = RawBalanceInput;
 		return ProcessedBalanceInput;
@@ -45,12 +44,12 @@ float UPGRunnerEnvironmentComponent::UpdateEnvironment(float DeltaSeconds, float
 
 	float EnvironmentBalanceInput = RawBalanceInput;
 
-	if (IceRemainingTime > 0.0f)
+	if (SnowstormRemainingTime > 0.0f)
 	{
-		IceRemainingTime = FMath::Max(0.0f, IceRemainingTime - DeltaSeconds);
+		SnowstormRemainingTime = FMath::Max(0.0f, SnowstormRemainingTime - DeltaSeconds);
 
-		// 얼음 길은 입력 자체를 막지 않고, 목표 입력으로 천천히 따라가게 만들어 미끄러지는 느낌을 준다.
-		const float InterpSpeed = 12.0f * FMath::Clamp(IceInputLagScale, 0.05f, 1.0f);
+		// 눈바람은 노면을 바꾸지 않고, 차가운 바람과 시야 방해로 중심 보정 반응이 둔해지는 감각을 만든다.
+		const float InterpSpeed = 12.0f * FMath::Clamp(SnowstormInputLagScale, 0.05f, 1.0f);
 		DelayedBalanceInput = FMath::FInterpTo(DelayedBalanceInput, RawBalanceInput, DeltaSeconds, InterpSpeed);
 		EnvironmentBalanceInput = DelayedBalanceInput;
 	}
@@ -82,7 +81,6 @@ void UPGRunnerEnvironmentComponent::ApplyWind(float Direction, float Strength, f
 
 	if (FMath::IsNearlyZero(Direction) || Strength <= 0.0f || Duration <= 0.0f)
 	{
-		// 방향/강도/시간이 유효하지 않은 바람 요청은 이전 바람이 남지 않도록 명시적으로 정리한다.
 		WindDirection = 0.0f;
 		WindStrength = 0.0f;
 		WindRemainingTime = 0.0f;
@@ -94,16 +92,16 @@ void UPGRunnerEnvironmentComponent::ApplyWind(float Direction, float Strength, f
 	WindRemainingTime = Duration;
 }
 
-void UPGRunnerEnvironmentComponent::ApplyIce(float Duration, float InputLagScale)
+void UPGRunnerEnvironmentComponent::ApplySnowstorm(float Duration, float InputLagScale)
 {
 	if (!bIsRunActive)
 	{
 		return;
 	}
 
-	IceRemainingTime = FMath::Max(0.0f, Duration);
-	IceInputLagScale = InputLagScale > 0.0f ? InputLagScale : CachedEnvironmentSettings.IceInputLagScale;
-	IceInputLagScale = FMath::Clamp(IceInputLagScale, 0.05f, 1.0f);
+	SnowstormRemainingTime = FMath::Max(0.0f, Duration);
+	SnowstormInputLagScale = InputLagScale > 0.0f ? InputLagScale : CachedEnvironmentSettings.SnowstormInputLagScale;
+	SnowstormInputLagScale = FMath::Clamp(SnowstormInputLagScale, 0.05f, 1.0f);
 }
 
 bool UPGRunnerEnvironmentComponent::RequestCargoDrop()
@@ -121,15 +119,15 @@ void UPGRunnerEnvironmentComponent::ClearEnvironmentEffects()
 	WindRemainingTime = 0.0f;
 	WindDirection = 0.0f;
 	WindStrength = 0.0f;
-	IceRemainingTime = 0.0f;
-	IceInputLagScale = FMath::Clamp(CachedEnvironmentSettings.IceInputLagScale, 0.05f, 1.0f);
+	SnowstormRemainingTime = 0.0f;
+	SnowstormInputLagScale = FMath::Clamp(CachedEnvironmentSettings.SnowstormInputLagScale, 0.05f, 1.0f);
 	DelayedBalanceInput = 0.0f;
 	ProcessedBalanceInput = 0.0f;
 }
 
 bool UPGRunnerEnvironmentComponent::HasActiveEnvironmentEffect() const
 {
-	return WindRemainingTime > 0.0f || IceRemainingTime > 0.0f;
+	return WindRemainingTime > 0.0f || SnowstormRemainingTime > 0.0f;
 }
 
 void UPGRunnerEnvironmentComponent::DrawEnvironmentDebug() const
@@ -146,7 +144,7 @@ void UPGRunnerEnvironmentComponent::DrawEnvironmentDebug() const
 		return;
 	}
 
-	const FString DebugText = FString::Printf(TEXT("Wind %.2fs / Ice %.2fs / Balance %.2f"), WindRemainingTime, IceRemainingTime, ProcessedBalanceInput);
+	const FString DebugText = FString::Printf(TEXT("Wind %.2fs / Snowstorm %.2fs / Balance %.2f"), WindRemainingTime, SnowstormRemainingTime, ProcessedBalanceInput);
 	DrawDebugString(World, GetComponentLocation() + FVector::UpVector * 160.0f, DebugText, nullptr, FColor::Cyan, 0.0f, true);
 #endif
 }

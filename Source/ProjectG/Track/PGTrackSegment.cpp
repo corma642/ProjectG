@@ -3,7 +3,6 @@
 #include "Track/PGTrackSegment.h"
 
 #include "Components/SceneComponent.h"
-#include "Track/PGTrackEventMarkerComponent.h"
 
 APGTrackSegment::APGTrackSegment()
 {
@@ -54,26 +53,11 @@ void APGTrackSegment::ActivateFromPool(const FTransform& SegmentTransform)
 	SetActorTransform(SegmentTransform, false, nullptr, ETeleportType::TeleportPhysics);
 	SetActorHiddenInGame(false);
 	SetActorEnableCollision(true);
-	ResetGeneratedEventMarkers();
 }
 
 void APGTrackSegment::DeactivateForPool()
 {
-	ResetGeneratedEventMarkers();
 	SetActorEnableCollision(false);
 	SetActorHiddenInGame(true);
 	SetActorLocation(FVector(0.0f, 0.0f, -100000.0f), false, nullptr, ETeleportType::TeleportPhysics);
-}
-
-void APGTrackSegment::ResetGeneratedEventMarkers()
-{
-	TArray<UPGTrackEventMarkerComponent*> EventMarkers;
-	GetComponents(EventMarkers);
-	for (UPGTrackEventMarkerComponent* EventMarker : EventMarkers)
-	{
-		if (EventMarker)
-		{
-			EventMarker->ClearGeneratedEvent();
-		}
-	}
 }

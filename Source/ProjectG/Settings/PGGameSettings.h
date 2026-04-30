@@ -7,6 +7,7 @@
 #include "PGGameSettings.generated.h"
 
 class UPGCargoTypeDefinition;
+class UPGRunEventSet;
 
 /**
  * 자동 전진 캐릭터의 기본 이동/기울기 반응 설정
@@ -308,7 +309,7 @@ struct FPGCargoSettings
 };
 
 /**
- * 바람, 얼음 길, 적재 증가 같은 환경 이벤트의 기본 반응 설정
+ * 바람, 눈바람, 적재 증가 같은 환경 이벤트의 기본 반응 설정
  */
 USTRUCT(BlueprintType)
 struct FPGEnvironmentSettings
@@ -319,13 +320,58 @@ struct FPGEnvironmentSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Environment | Wind", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0"))
 	float WindBalanceBiasScale = 0.35f;
 
-	// 얼음 길에서 중심 입력이 목표값을 따라가는 속도 비율. 낮을수록 더 늦게 반응한다.
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Environment | Ice", meta = (ClampMin = "0.05", ClampMax = "1.0", UIMin = "0.1", UIMax = "1.0"))
-	float IceInputLagScale = 0.35f;
+	// 눈바람 중 중심 입력이 목표값을 따라가는 속도 비율. 낮을수록 더 늦게 반응한다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Environment | Snowstorm", meta = (ClampMin = "0.05", ClampMax = "1.0", UIMin = "0.1", UIMax = "1.0"))
+	float SnowstormInputLagScale = 0.35f;
 
 	// 개발 빌드에서 현재 환경 효과 상태를 디버그 텍스트로 표시할지 여부
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Environment | Debug")
 	bool bDrawEnvironmentDebug = false;
+};
+
+/**
+ * 러닝 시간 기반 전역 이벤트 예약/발동 설정
+ */
+USTRUCT(BlueprintType)
+struct FPGRunEventSettings
+{
+	GENERATED_BODY()
+
+	// 러닝 중 사용할 전역 이벤트 규칙 DataAsset. 비어 있으면 C++ 기본 규칙을 사용한다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event")
+	TSoftObjectPtr<UPGRunEventSet> DefaultRunEventSet;
+
+	// 이벤트 난이도가 1.0까지 도달하는 시간
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event | Difficulty", meta = (ClampMin = "1.0", UIMin = "30.0", UIMax = "300.0"))
+	float DifficultyRampDuration = 180.0f;
+
+	// 시작 후 이 시간 동안은 자동 이벤트를 예약하지 않는다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event | Schedule", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "60.0"))
+	float SafeInitialRunTime = 10.0f;
+
+	// 난이도 0일 때 이벤트 사이 기본 간격
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event | Schedule", meta = (ClampMin = "0.5", UIMin = "2.0", UIMax = "30.0"))
+	float BaseEventInterval = 9.0f;
+
+	// 난이도 1일 때 이벤트 사이 최소 간격
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event | Schedule", meta = (ClampMin = "0.5", UIMin = "2.0", UIMax = "30.0"))
+	float MinEventInterval = 4.0f;
+
+	// 이벤트 발동 전 BP/UMG가 예고 연출을 붙일 수 있는 시간
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event | Schedule", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
+	float PreviewLeadTime = 1.5f;
+
+	// 같은 이벤트 순서를 재현할 때 사용하는 시드
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event | Random")
+	int32 RandomSeed = 7331;
+
+	// 켜면 PIE/Game 시작마다 새 랜덤 시드를 사용한다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event | Random")
+	bool bUseRandomSeedEachRun = true;
+
+	// 개발 빌드에서 이벤트 예약/발동 상태를 화면에 표시할지 여부
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event | Debug")
+	bool bDrawRunEventDebug = false;
 };
 
 /**
@@ -367,7 +413,11 @@ public:
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")
 	FPGCargoSettings Cargo;
 
-	// 바람, 얼음 길, 적재 증가 같은 환경 이벤트 설정
+	// 바람, 눈바람, 적재 증가 같은 환경 이벤트 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Environment")
 	FPGEnvironmentSettings Environment;
+
+	// 러닝 시간 기반 전역 이벤트 예약/발동 설정
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event")
+	FPGRunEventSettings RunEvent;
 };
