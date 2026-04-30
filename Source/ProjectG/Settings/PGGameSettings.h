@@ -226,6 +226,30 @@ struct FPGCargoSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "80.0"))
 	float InitialCargoSpacing = 18.0f;
 
+	// 게임 시작 시 계란을 즉시 생성하지 않고 위에서 내려오는 인트로 연출로 시작할지 여부
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Intro")
+	bool bUseInitialCargoIntro = true;
+
+	// 시작 인트로 계란 메시가 내려오기 시작하는 CargoStackComponent 기준 상대 위치
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Intro")
+	FVector InitialCargoIntroStartLocalOffset = FVector(0.0f, 0.0f, 650.0f);
+
+	// 시작 인트로가 끝난 뒤 실제 물리 계란을 생성할 CargoStackComponent 기준 상대 위치
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Intro")
+	FVector InitialCargoIntroLandingLocalOffset = FVector(0.0f, 0.0f, 24.0f);
+
+	// 시작 계란 인트로 낙하 연출 시간
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Intro", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
+	float InitialCargoIntroDuration = 1.2f;
+
+	// 물리 계란으로 전환한 직후 손실 판정을 잠시 늦추는 안정화 시간
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Intro", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2.0"))
+	float InitialCargoIntroSettleDelay = 0.3f;
+
+	// 시작 인트로 중과 전환 직후 계란 손실 판정을 비활성화할지 여부
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Intro")
+	bool bDisableCargoLossDuringInitialIntro = true;
+
 	// 새 계란 프리뷰와 실제 낙하 시작 위치. 플레이어에 붙은 CargoStackComponent 기준 상대 위치다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn")
 	FVector CargoPreviewLocalOffset = FVector(0.0f, 0.0f, 120.0f);

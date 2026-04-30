@@ -28,7 +28,12 @@ void UPGCargoStackComponent::InitializeCargoStack(const FPGCargoSettings& InCarg
 	CachedCargoSettings = InCargoSettings;
 	CargoActors.Reset();
 	PendingCargoType = nullptr;
+	PendingInitialCargoType = nullptr;
 	bHasPendingCargoDrop = false;
+	bIsInitialCargoIntroActive = false;
+	PendingInitialCargoCount = 0;
+	InitialCargoIntroElapsedTime = 0.0f;
+	InitialCargoIntroSettleRemainingTime = 0.0f;
 	CargoPreviewRemainingTime = 0.0f;
 	CargoShakeElapsedTime = 0.0f;
 	PreviousAnchorLocation = GetComponentLocation();
@@ -46,6 +51,7 @@ void UPGCargoStackComponent::UpdateCargoReaction(float DeltaSeconds, float Balan
 {
 	CleanupInvalidCargoActors();
 	UpdateAnchorMotion(DeltaSeconds, bIsChangingLane);
+	UpdateInitialCargoIntro(DeltaSeconds);
 	ApplyCargoPhysicsForces(DeltaSeconds, BalanceInput);
 	ApplyLaneJumpCargoAssist();
 
@@ -92,15 +98,121 @@ void UPGCargoStackComponent::SpawnInitialCargo()
 	}
 
 	const int32 InitialCount = FMath::Clamp(CachedCargoSettings.InitialCargoCount, 0, FMath::Max(1, CachedCargoSettings.MaxCargoCount));
+	if (InitialCount <= 0)
+	{
+		return;
+	}
+
+	if (CachedCargoSettings.bUseInitialCargoIntro)
+	{
+		StartInitialCargoIntro(CargoType, InitialCount);
+		return;
+	}
+
 	for (int32 CargoIndex = 0; CargoIndex < InitialCount; ++CargoIndex)
 	{
 		SpawnPhysicsCargo(CargoType, MakeCargoWorldTransform(CachedCargoSettings.InitialCargoLocalOffset, CargoIndex));
 	}
 }
 
+void UPGCargoStackComponent::StartInitialCargoIntro(UPGCargoTypeDefinition* CargoType, int32 InitialCount)
+{
+	if (!IsValidCargoTypeForSpawn(CargoType, TEXT("StartInitialCargoIntro")) || InitialCount <= 0)
+	{
+		return;
+	}
+
+	PendingInitialCargoType = CargoType;
+	PendingInitialCargoCount = FMath::Clamp(InitialCount, 1, CachedCargoSettings.MaxCargoCount);
+	bIsInitialCargoIntroActive = true;
+	InitialCargoIntroElapsedTime = 0.0f;
+	InitialCargoIntroSettleRemainingTime = 0.0f;
+
+	if (PreviewCargoMeshComponent)
+	{
+		// 시작 인트로는 실제 물리 전환 전까지 스크립트 메시로만 보여줘 시작 억까를 막는다.
+		PreviewCargoMeshComponent->SetStaticMesh(CargoType->CargoMesh);
+		PreviewCargoMeshComponent->SetRelativeLocation(CachedCargoSettings.InitialCargoIntroStartLocalOffset);
+		PreviewCargoMeshComponent->SetRelativeRotation(CargoType->MeshRotation);
+		PreviewCargoMeshComponent->SetRelativeScale3D(CargoType->MeshScale);
+		PreviewCargoMeshComponent->SetVisibility(true, true);
+		PreviewCargoMeshComponent->SetHiddenInGame(false, true);
+	}
+
+	OnInitialCargoIntroStarted.Broadcast();
+
+	if (CachedCargoSettings.InitialCargoIntroDuration <= KINDA_SMALL_NUMBER)
+	{
+		FinishInitialCargoIntro();
+	}
+}
+
+void UPGCargoStackComponent::UpdateInitialCargoIntro(float DeltaSeconds)
+{
+	if (bIsInitialCargoIntroActive)
+	{
+		const float Duration = FMath::Max(CachedCargoSettings.InitialCargoIntroDuration, KINDA_SMALL_NUMBER);
+		InitialCargoIntroElapsedTime += FMath::Max(0.0f, DeltaSeconds);
+
+		const float Alpha = FMath::Clamp(InitialCargoIntroElapsedTime / Duration, 0.0f, 1.0f);
+		const float SmoothAlpha = Alpha * Alpha * (3.0f - 2.0f * Alpha);
+		const FVector IntroLocation = FMath::Lerp(CachedCargoSettings.InitialCargoIntroStartLocalOffset, CachedCargoSettings.InitialCargoIntroLandingLocalOffset, SmoothAlpha);
+		if (PreviewCargoMeshComponent)
+		{
+			PreviewCargoMeshComponent->SetRelativeLocation(IntroLocation);
+		}
+
+		if (Alpha >= 1.0f)
+		{
+			FinishInitialCargoIntro();
+		}
+		return;
+	}
+
+	if (InitialCargoIntroSettleRemainingTime > 0.0f)
+	{
+		InitialCargoIntroSettleRemainingTime = FMath::Max(0.0f, InitialCargoIntroSettleRemainingTime - DeltaSeconds);
+	}
+}
+
+void UPGCargoStackComponent::FinishInitialCargoIntro()
+{
+	if (!bIsInitialCargoIntroActive)
+	{
+		return;
+	}
+
+	UPGCargoTypeDefinition* CargoType = PendingInitialCargoType;
+	const int32 SpawnCount = PendingInitialCargoCount;
+
+	bIsInitialCargoIntroActive = false;
+	PendingInitialCargoType = nullptr;
+	PendingInitialCargoCount = 0;
+	InitialCargoIntroElapsedTime = 0.0f;
+	InitialCargoIntroSettleRemainingTime = CachedCargoSettings.bDisableCargoLossDuringInitialIntro ? FMath::Max(0.0f, CachedCargoSettings.InitialCargoIntroSettleDelay) : 0.0f;
+
+	if (PreviewCargoMeshComponent)
+	{
+		PreviewCargoMeshComponent->SetVisibility(false, true);
+		PreviewCargoMeshComponent->SetHiddenInGame(true, true);
+	}
+
+	for (int32 CargoIndex = 0; CargoIndex < SpawnCount; ++CargoIndex)
+	{
+		SpawnPhysicsCargo(CargoType, MakeCargoWorldTransform(CachedCargoSettings.InitialCargoIntroLandingLocalOffset, CargoIndex));
+	}
+
+	OnInitialCargoIntroFinished.Broadcast();
+}
+
 bool UPGCargoStackComponent::StartCargoPreview(UPGCargoTypeDefinition* CargoType)
 {
 	if (!IsValidCargoTypeForSpawn(CargoType, TEXT("StartCargoPreview")))
+	{
+		return false;
+	}
+
+	if (bIsInitialCargoIntroActive)
 	{
 		return false;
 	}
@@ -320,6 +432,11 @@ void UPGCargoStackComponent::ApplyLaneJumpCargoAssist()
 
 void UPGCargoStackComponent::CheckCargoLoss()
 {
+	if (CachedCargoSettings.bDisableCargoLossDuringInitialIntro && (bIsInitialCargoIntroActive || InitialCargoIntroSettleRemainingTime > 0.0f))
+	{
+		return;
+	}
+
 	const FVector AnchorLocation = GetComponentLocation();
 	const float LossZ = AnchorLocation.Z - CachedCargoSettings.CargoLossZOffset;
 	const float LossDistanceSquared = FMath::Square(CachedCargoSettings.CargoLossHorizontalDistance);

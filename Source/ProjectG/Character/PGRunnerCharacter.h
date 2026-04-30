@@ -57,6 +57,14 @@ public:
 	UFUNCTION()
 	void HandleRunFailed(FName FailureReason);
 
+	// 시작 적재물 인트로 동안 라인/밸런스 입력만 잠근다.
+	UFUNCTION()
+	void HandleInitialCargoIntroStarted();
+
+	// 시작 적재물 인트로가 끝나면 플레이어 입력을 다시 허용한다.
+	UFUNCTION()
+	void HandleInitialCargoIntroFinished();
+
 protected:
 	// 3라인 이동 상태와 캡슐 lateral 이동을 담당하는 러너 전용 이동 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement")
@@ -141,6 +149,9 @@ private:
 
 	// 현재 러너가 조작 가능한 런 진행 상태인지 여부
 	bool bIsRunActive = true;
+
+	// 시작 적재물 인트로 중 플레이어 조작 입력을 막는 상태. 자동 전진은 유지한다.
+	bool bIsPlayerInputLockedByCargoIntro = false;
 
 	// 추락 실패 판정 기준이 되는 시작 월드 Z 위치
 	float StartLocationZ = 0.0f;

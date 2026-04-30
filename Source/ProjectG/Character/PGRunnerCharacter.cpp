@@ -70,8 +70,10 @@ void APGRunnerCharacter::BeginPlay()
 	if (CargoStackComponent)
 	{
 		// CargoStackComponent는 플레이어에 붙은 계란 스폰/손실 판정 앵커로 사용한다.
-		CargoStackComponent->InitializeCargoStack(CachedCargoSettings);
 		CargoStackComponent->OnCargoLost.AddDynamic(this, &APGRunnerCharacter::HandleCargoLost);
+		CargoStackComponent->OnInitialCargoIntroStarted.AddDynamic(this, &APGRunnerCharacter::HandleInitialCargoIntroStarted);
+		CargoStackComponent->OnInitialCargoIntroFinished.AddDynamic(this, &APGRunnerCharacter::HandleInitialCargoIntroFinished);
+		CargoStackComponent->InitializeCargoStack(CachedCargoSettings);
 	}
 
 	if (RunnerEnvironmentComponent)
@@ -112,13 +114,17 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 	}
 
 	UpdateBaseInstability(DeltaSeconds);
+	if (bIsPlayerInputLockedByCargoIntro)
+	{
+		BaseInstabilityInput = 0.0f;
+	}
 	if (RunnerEnvironmentComponent)
 	{
-		RunnerEnvironmentComponent->UpdateEnvironment(DeltaSeconds, BalanceInput);
+		RunnerEnvironmentComponent->UpdateEnvironment(DeltaSeconds, bIsPlayerInputLockedByCargoIntro ? 0.0f : BalanceInput);
 	}
 	if (RunnerMovementComponent)
 	{
-		const float PlayerCorrectionInput = RunnerEnvironmentComponent ? RunnerEnvironmentComponent->GetProcessedBalanceInput() : BalanceInput;
+		const float PlayerCorrectionInput = bIsPlayerInputLockedByCargoIntro ? 0.0f : (RunnerEnvironmentComponent ? RunnerEnvironmentComponent->GetProcessedBalanceInput() : BalanceInput);
 		RunnerMovementComponent->SetBalanceMovementInput(BaseInstabilityInput, PlayerCorrectionInput);
 	}
 
@@ -136,7 +142,7 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 
 void APGRunnerCharacter::RequestLaneChange(int32 Direction)
 {
-	if (!bIsRunActive || Direction == 0)
+	if (!bIsRunActive || bIsPlayerInputLockedByCargoIntro || Direction == 0)
 	{
 		return;
 	}
@@ -150,6 +156,12 @@ void APGRunnerCharacter::RequestLaneChange(int32 Direction)
 void APGRunnerCharacter::SetBalanceInput(float InBalanceInput)
 {
 	if (!bIsRunActive)
+	{
+		BalanceInput = 0.0f;
+		return;
+	}
+
+	if (bIsPlayerInputLockedByCargoIntro)
 	{
 		BalanceInput = 0.0f;
 		return;
@@ -197,6 +209,7 @@ void APGRunnerCharacter::HandleRunFailed(FName FailureReason)
 
 	// 실패가 확정되면 추가 입력/전진/환경 효과가 누적되지 않도록 러너 상태를 즉시 고정한다.
 	bIsRunActive = false;
+	bIsPlayerInputLockedByCargoIntro = false;
 	BalanceInput = 0.0f;
 	BaseInstabilityInput = 0.0f;
 	BalanceElapsedTime = 0.0f;
@@ -214,6 +227,23 @@ void APGRunnerCharacter::HandleRunFailed(FName FailureReason)
 
 	SetMeshJumpOffset(0.0f);
 	UpdateBodyLean(0.0f);
+}
+
+void APGRunnerCharacter::HandleInitialCargoIntroStarted()
+{
+	if (!bIsRunActive)
+	{
+		return;
+	}
+
+	// 시작 연출 중에는 러너의 자동 전진은 유지하고 플레이어 조작만 막아 첫 실패 원인을 제거한다.
+	bIsPlayerInputLockedByCargoIntro = true;
+	BalanceInput = 0.0f;
+}
+
+void APGRunnerCharacter::HandleInitialCargoIntroFinished()
+{
+	bIsPlayerInputLockedByCargoIntro = false;
 }
 
 void APGRunnerCharacter::ApplyGameSettings()
