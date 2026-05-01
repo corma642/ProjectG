@@ -54,6 +54,9 @@ void APGRunnerCharacter::BeginPlay()
 
 	ApplyGameSettings();
 	StartLocationZ = GetActorLocation().Z;
+	RunStartLocation = GetActorLocation();
+	RunStartForwardVector = GetActorForwardVector().GetSafeNormal();
+	RunStartTimeSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 	bIsRunActive = true;
 
 	if (!RunnerMovementComponent)
@@ -179,6 +182,24 @@ void APGRunnerCharacter::SetBalanceInput(float InBalanceInput)
 	const float LandingScale = bIsLandingStabilizing ? 0.5f : 1.0f;
 
 	BalanceInput = ClampedInput * DampingScale * LandingScale;
+}
+
+float APGRunnerCharacter::GetRunElapsedTime() const
+{
+	const UWorld* World = GetWorld();
+	return World ? FMath::Max(0.0f, World->GetTimeSeconds() - RunStartTimeSeconds) : 0.0f;
+}
+
+float APGRunnerCharacter::GetRunDistanceMeters() const
+{
+	const FVector RunDelta = GetActorLocation() - RunStartLocation;
+	const float DistanceCm = FVector::DotProduct(RunDelta, RunStartForwardVector);
+	return FMath::Max(0.0f, DistanceCm * 0.01f);
+}
+
+int32 APGRunnerCharacter::GetRunScore() const
+{
+	return FMath::RoundToInt(GetRunDistanceMeters());
 }
 
 int32 APGRunnerCharacter::GetCurrentLaneIndex() const

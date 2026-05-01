@@ -49,6 +49,18 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner")
 	float GetBalanceInput() const { return BalanceInput; }
 
+	// 현재 런이 시작된 뒤 경과한 시간입니다.
+	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner")
+	float GetRunElapsedTime() const;
+
+	// 런 시작 지점 기준 전방 진행 거리입니다. UI 표시를 위해 미터 단위로 반환합니다.
+	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner")
+	float GetRunDistanceMeters() const;
+
+	// 현재 결과 화면에 표시할 임시 점수입니다. 현 단계에서는 진행 거리(m)를 정수화합니다.
+	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner")
+	int32 GetRunScore() const;
+
 	// 적재물 자동 연출/환경 이벤트 시스템이 현재 러너의 적재 상태에 접근할 때 사용합니다.
 	UPGCargoStackComponent* GetCargoStackComponent() const { return CargoStackComponent; }
 
@@ -158,6 +170,15 @@ private:
 
 	// 추락 실패 판정 기준이 되는 시작 월드 Z 위치
 	float StartLocationZ = 0.0f;
+
+	// 런 진행 거리 계산 기준이 되는 시작 월드 위치
+	FVector RunStartLocation = FVector::ZeroVector;
+
+	// 런 진행 거리 계산에 사용하는 시작 시점 전방 방향
+	FVector RunStartForwardVector = FVector::ForwardVector;
+
+	// 런 경과 시간 계산에 사용하는 월드 시간
+	float RunStartTimeSeconds = 0.0f;
 
 	// 메시 연출에 적용 중인 현재 롤 각도
 	float CurrentBodyRoll = 0.0f;

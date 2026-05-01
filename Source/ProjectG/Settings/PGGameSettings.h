@@ -10,6 +10,9 @@ class UPGCargoTypeDefinition;
 class UPGCargoPresentationSet;
 class UPGRunEventPresentationSet;
 class UPGRunEventSet;
+class UCameraShakeBase;
+class USoundBase;
+class UUserWidget;
 
 /**
  * 자동 전진 캐릭터의 기본 이동/기울기 반응 설정
@@ -195,6 +198,27 @@ struct FPGDebugSettings
 	// 자이로 입력 디버그 표시 여부
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Debug")
 	bool bDrawGyroDebug = false;
+};
+
+/**
+ * 런 실패 후 결과 화면에 사용할 로컬 UI/SFX/카메라 연출 설정
+ */
+USTRUCT(BlueprintType)
+struct FPGRunResultSettings
+{
+	GENERATED_BODY()
+
+	// 런 실패 시 자동으로 표시할 게임오버/결과 위젯 클래스
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | UI")
+	TSoftClassPtr<UUserWidget> GameOverWidgetClass;
+
+	// 런 실패 시 한 번 재생할 사운드
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | SFX")
+	TSoftObjectPtr<USoundBase> GameOverSound;
+
+	// 런 실패 시 로컬 플레이어 카메라에 적용할 카메라 쉐이크
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | Camera")
+	TSoftClassPtr<UCameraShakeBase> GameOverCameraShake;
 };
 
 /**
@@ -395,6 +419,10 @@ public:
 	// 에디터 테스트와 디버그 보조 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Debug")
 	FPGDebugSettings Debug;
+
+	// 런 실패 후 결과 화면 자동 표시 설정
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result")
+	FPGRunResultSettings RunResult;
 
 	// 플레이어 기준 물리 적재물 스폰/손실 판정 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")

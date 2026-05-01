@@ -12,6 +12,7 @@ class UPGCargoFeedbackComponent;
 class UInputAction;
 class UInputMappingContext;
 class UPGRunEventFeedbackComponent;
+class UPGRunResultFeedbackComponent;
 struct FInputActionValue;
 
 /**
@@ -145,6 +146,10 @@ private:
 	// 전역 런 이벤트의 UI/VFX/SFX를 로컬 플레이어 기준으로 자동 재생하는 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Run Event", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPGRunEventFeedbackComponent> RunEventFeedbackComponent;
+
+	// 런 실패 후 결과 화면 UI/SFX/CameraShake를 자동 재생하는 컴포넌트
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Run Result", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPGRunResultFeedbackComponent> RunResultFeedbackComponent;
 
 	// 적재물 추가/손실 UI/VFX/SFX를 로컬 플레이어 기준으로 자동 재생하는 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cargo Feedback", meta = (AllowPrivateAccess = "true"))

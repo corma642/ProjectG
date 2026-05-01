@@ -13,12 +13,14 @@
 #include "InputCoreTypes.h"
 #include "RunEvents/PGRunEventFeedbackComponent.h"
 #include "Settings/PGGameSettings.h"
+#include "UI/PGRunResultFeedbackComponent.h"
 
 APGPlayerController::APGPlayerController()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	bShowMouseCursor = false;
 	RunEventFeedbackComponent = CreateDefaultSubobject<UPGRunEventFeedbackComponent>(TEXT("RunEventFeedback"));
+	RunResultFeedbackComponent = CreateDefaultSubobject<UPGRunResultFeedbackComponent>(TEXT("RunResultFeedback"));
 	CargoFeedbackComponent = CreateDefaultSubobject<UPGCargoFeedbackComponent>(TEXT("CargoFeedback"));
 }
 
