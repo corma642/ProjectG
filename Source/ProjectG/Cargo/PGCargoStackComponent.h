@@ -79,6 +79,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
 	float GetCargoDropHoldRemainingTime() const { return CargoDropHoldRemainingTime; }
 
+	// 추가 적재물이 물리 전환 전 대기 중인지 반환합니다.
+	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
+	bool IsCargoDropHoldActive() const { return bHasPendingCargoDrop; }
+
+	// 추가 적재물 대기/물리 전환에 사용하는 월드 위치를 반환합니다.
+	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
+	FVector GetCargoDropHoldWorldLocation() const { return GetComponentLocation(); }
+
 private:
 	// BP에서 앵커 위치를 지정하지 않은 경우 설정값 기반 기본 위치를 적용합니다.
 	void ApplyFallbackAnchorLocation();
@@ -110,8 +118,11 @@ private:
 	// DefaultCargoType을 동기 로드해 반환합니다.
 	UPGCargoTypeDefinition* ResolveDefaultCargoType() const;
 
-	// CargoStackComponent 기준 로컬 위치를 월드 Transform으로 변환합니다.
-	FTransform MakeCargoWorldTransform(const FVector& LocalOffset, int32 CargoIndex = 0) const;
+	// CargoStackComponent 위치를 적재물 생성 월드 Transform으로 변환합니다.
+	FTransform MakeCargoWorldTransform(int32 CargoIndex = 0) const;
+
+	// 비물리 대기 메시를 실제 물리 적재물 스폰 Transform과 같은 기준으로 배치합니다.
+	void ApplyScriptedCargoDisplayTransform(const UPGCargoTypeDefinition* CargoType);
 
 	// 살아 있는 적재물에 중심 흔들림 보조 힘을 적용합니다.
 	void ApplyCargoPhysicsForces(float DeltaSeconds, float BalanceInput);
@@ -122,7 +133,10 @@ private:
 	// 라인 이동 중 또는 착지 직후 적재물의 앵커 대비 상대속도를 제한합니다.
 	void ApplyLaneJumpCargoAssist();
 
-	// 적재물이 플레이어 앵커 기준 손실 범위를 벗어났는지 확인합니다.
+	// 적재물 손실 판정의 기준 위치를 반환합니다. 기본은 플레이어 Actor 위치입니다.
+	FVector GetLossOriginLocation() const;
+
+	// 적재물이 플레이어 기준 손실 범위를 벗어났는지 확인합니다.
 	void CheckCargoLoss();
 
 	// 지정한 적재물을 제거하고 손실 이벤트를 발생시킵니다.

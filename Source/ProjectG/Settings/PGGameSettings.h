@@ -217,15 +217,11 @@ struct FPGCargoSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "1", UIMin = "1", UIMax = "5"))
 	int32 MaxCargoCount = 3;
 
-	// BP에서 앵커 위치를 옮기지 않았을 때 사용할 기본 머리 위 앵커 위치
+	// BP에서 적재물 생성/대기 앵커 위치를 옮기지 않았을 때 사용할 기본 머리 위 위치
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn")
 	FVector CargoAnchorFallbackRelativeLocation = FVector(0.0f, 0.0f, 120.0f);
 
-	// 인트로 잠금이 없을 때 시작 적재물을 CargoStackComponent 앵커 기준 어디에 놓을지 정하는 상대 위치
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn")
-	FVector InitialCargoLocalOffset = FVector(0.0f, 0.0f, 24.0f);
-
-	// 여러 적재물을 시작 배치할 때 위로 띄우는 간격
+	// 여러 적재물을 시작 배치할 때 CargoStackComponent 위치에서 위로 띄우는 간격
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "80.0"))
 	float InitialCargoSpacing = 18.0f;
 
@@ -233,23 +229,11 @@ struct FPGCargoSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Intro", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
 	float InitialIntroLockDuration = 1.2f;
 
-	// 시작 인트로가 끝난 뒤 첫 적재물을 생성할 CargoStackComponent 기준 상대 위치
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Intro")
-	FVector InitialCargoDropSpawnLocalOffset = FVector(0.0f, 0.0f, 24.0f);
-
 	// 첫 적재물이 물리 Actor로 투입된 직후 손실 판정을 잠시 늦추는 안정화 시간
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Intro", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2.0"))
 	float InitialCargoSettleDelay = 0.3f;
 
-	// 추가 적재물이 물리 전환 전 잠시 머무르는 CargoStackComponent 기준 상대 위치
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn")
-	FVector CargoDropHoldLocalOffset = FVector(0.0f, 0.0f, 220.0f);
-
-	// 추가 적재물 대기 종료 후 실제 물리 Actor로 전환할 CargoStackComponent 기준 상대 위치
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn")
-	FVector CargoDropSpawnLocalOffset = FVector(0.0f, 0.0f, 24.0f);
-
-	// 추가 적재물이 위에서 대기한 뒤 실제 물리 적재물로 전환되기까지의 시간
+	// 추가 적재물이 CargoStackComponent 위치에서 대기한 뒤 실제 물리 적재물로 전환되기까지의 시간
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
 	float CargoDropHoldDuration = 3.0f;
 
@@ -281,15 +265,15 @@ struct FPGCargoSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "500.0"))
 	float LaneJumpMaxUpwardRelativeSpeed = 60.0f;
 
-	// CargoStackComponent 앵커 기준 이 높이보다 아래로 적재물이 떨어지면 손실로 처리한다.
+	// 플레이어 Actor 위치 기준 이 높이보다 아래로 적재물이 떨어지면 손실로 처리한다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Loss", meta = (ClampMin = "10.0", UIMin = "50.0", UIMax = "500.0"))
 	float CargoLossZOffset = 140.0f;
 
-	// CargoStackComponent 앵커 중심에서 이 수평 거리보다 멀어지면 적재물 손실로 처리한다.
+	// 플레이어 Actor 위치 기준 이 수평 거리보다 멀어지면 적재물 손실로 처리한다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Loss", meta = (ClampMin = "10.0", UIMin = "50.0", UIMax = "500.0"))
 	float CargoLossHorizontalDistance = 180.0f;
 
-	// 개발 빌드에서 앵커 기준 손실 반경과 계란 위치를 표시할지 여부
+	// 개발 빌드에서 CargoStack 생성 앵커, 플레이어 기준 손실 반경, 적재물 위치를 표시할지 여부
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Debug")
 	bool bDrawCargoDebug = false;
 };
