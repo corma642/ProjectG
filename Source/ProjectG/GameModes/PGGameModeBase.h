@@ -33,7 +33,7 @@ public:
 	// 게임 시작 시 런 상태를 Running으로 전환한다.
 	virtual void BeginPlay() override;
 
-	// 계란 손실, 추락 등으로 런 실패를 요청한다.
+	// 적재물 손실, 추락 등으로 런 실패를 요청한다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Run")
 	void RequestRunFailed(FName FailureReason);
 

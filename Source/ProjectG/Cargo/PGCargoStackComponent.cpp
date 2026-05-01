@@ -31,9 +31,9 @@ void UPGCargoStackComponent::InitializeCargoStack(const FPGCargoSettings& InCarg
 	PendingCargoType = nullptr;
 	PendingInitialCargoType = nullptr;
 	bHasPendingCargoDrop = false;
-	bIsInitialCargoIntroActive = false;
+	bIsInitialCargoLockActive = false;
 	PendingInitialCargoCount = 0;
-	InitialCargoIntroRemainingTime = 0.0f;
+	InitialCargoLockRemainingTime = 0.0f;
 	InitialCargoSettleRemainingTime = 0.0f;
 	CargoDropHoldRemainingTime = 0.0f;
 	CargoShakeElapsedTime = 0.0f;
@@ -43,16 +43,15 @@ void UPGCargoStackComponent::InitializeCargoStack(const FPGCargoSettings& InCarg
 	bWasChangingLaneLastFrame = false;
 	bHasPreviousAnchorLocation = true;
 
-	ApplyFallbackAnchorLocation();
 	PreviousAnchorLocation = GetComponentLocation();
 	SpawnInitialCargo();
 }
 
-void UPGCargoStackComponent::UpdateCargoReaction(float DeltaSeconds, float BalanceInput, float VisualJumpOffset, bool bIsChangingLane)
+void UPGCargoStackComponent::UpdateCargoReaction(float DeltaSeconds, float BalanceInput, bool bIsChangingLane)
 {
 	CleanupInvalidCargoActors();
 	UpdateAnchorMotion(DeltaSeconds, bIsChangingLane);
-	UpdateInitialCargoIntro(DeltaSeconds);
+	UpdateInitialCargoLock(DeltaSeconds);
 	ApplyCargoPhysicsForces(DeltaSeconds, BalanceInput);
 	ApplyLaneJumpCargoAssist();
 
@@ -80,17 +79,6 @@ bool UPGCargoStackComponent::AddCargoByType(UPGCargoTypeDefinition* CargoType)
 	return StartCargoDropHold(CargoType);
 }
 
-bool UPGCargoStackComponent::RemoveCargo()
-{
-	if (CargoActors.IsEmpty())
-	{
-		return false;
-	}
-
-	LoseCargoAt(CargoActors.Num() - 1);
-	return true;
-}
-
 void UPGCargoStackComponent::SpawnInitialCargo()
 {
 	UPGCargoTypeDefinition* CargoType = ResolveDefaultCargoType();
@@ -107,7 +95,7 @@ void UPGCargoStackComponent::SpawnInitialCargo()
 
 	if (CachedCargoSettings.InitialIntroLockDuration > KINDA_SMALL_NUMBER)
 	{
-		StartInitialCargoIntro(CargoType, InitialCount);
+		StartInitialCargoLock(CargoType, InitialCount);
 		return;
 	}
 
@@ -117,46 +105,33 @@ void UPGCargoStackComponent::SpawnInitialCargo()
 	}
 }
 
-void UPGCargoStackComponent::StartInitialCargoIntro(UPGCargoTypeDefinition* CargoType, int32 InitialCount)
+void UPGCargoStackComponent::StartInitialCargoLock(UPGCargoTypeDefinition* CargoType, int32 InitialCount)
 {
-	if (!IsValidCargoTypeForSpawn(CargoType, TEXT("StartInitialCargoIntro")) || InitialCount <= 0)
+	if (!IsValidCargoTypeForSpawn(CargoType, TEXT("StartInitialCargoLock")) || InitialCount <= 0)
 	{
 		return;
 	}
 
 	PendingInitialCargoType = CargoType;
 	PendingInitialCargoCount = FMath::Clamp(InitialCount, 1, CachedCargoSettings.MaxCargoCount);
-	bIsInitialCargoIntroActive = true;
-	InitialCargoIntroRemainingTime = FMath::Max(0.0f, CachedCargoSettings.InitialIntroLockDuration);
+	bIsInitialCargoLockActive = true;
+	InitialCargoLockRemainingTime = FMath::Max(0.0f, CachedCargoSettings.InitialIntroLockDuration);
 	InitialCargoSettleRemainingTime = 0.0f;
 
-	if (ScriptedCargoMeshComponent)
+	if (InitialCargoLockRemainingTime <= KINDA_SMALL_NUMBER)
 	{
-		// 시작 인트로는 실제 물리 전환 전까지 스크립트 메시로만 보여줘 시작 억까를 막는다.
-		ScriptedCargoMeshComponent->SetStaticMesh(CargoType->CargoMesh);
-		ScriptedCargoMeshComponent->SetRelativeLocation(FVector::ZeroVector);
-		ScriptedCargoMeshComponent->SetRelativeRotation(CargoType->MeshRotation);
-		ScriptedCargoMeshComponent->SetRelativeScale3D(CargoType->MeshScale);
-		ScriptedCargoMeshComponent->SetVisibility(false, true);
-		ScriptedCargoMeshComponent->SetHiddenInGame(true, true);
-	}
-
-	OnInitialCargoIntroStarted.Broadcast();
-
-	if (InitialCargoIntroRemainingTime <= KINDA_SMALL_NUMBER)
-	{
-		FinishInitialCargoIntro();
+		FinishInitialCargoLock();
 	}
 }
 
-void UPGCargoStackComponent::UpdateInitialCargoIntro(float DeltaSeconds)
+void UPGCargoStackComponent::UpdateInitialCargoLock(float DeltaSeconds)
 {
-	if (bIsInitialCargoIntroActive)
+	if (bIsInitialCargoLockActive)
 	{
-		InitialCargoIntroRemainingTime = FMath::Max(0.0f, InitialCargoIntroRemainingTime - FMath::Max(0.0f, DeltaSeconds));
-		if (InitialCargoIntroRemainingTime <= 0.0f)
+		InitialCargoLockRemainingTime = FMath::Max(0.0f, InitialCargoLockRemainingTime - FMath::Max(0.0f, DeltaSeconds));
+		if (InitialCargoLockRemainingTime <= 0.0f)
 		{
-			FinishInitialCargoIntro();
+			FinishInitialCargoLock();
 		}
 		return;
 	}
@@ -167,9 +142,9 @@ void UPGCargoStackComponent::UpdateInitialCargoIntro(float DeltaSeconds)
 	}
 }
 
-void UPGCargoStackComponent::FinishInitialCargoIntro()
+void UPGCargoStackComponent::FinishInitialCargoLock()
 {
-	if (!bIsInitialCargoIntroActive)
+	if (!bIsInitialCargoLockActive)
 	{
 		return;
 	}
@@ -177,10 +152,10 @@ void UPGCargoStackComponent::FinishInitialCargoIntro()
 	UPGCargoTypeDefinition* CargoType = PendingInitialCargoType;
 	const int32 SpawnCount = PendingInitialCargoCount;
 
-	bIsInitialCargoIntroActive = false;
+	bIsInitialCargoLockActive = false;
 	PendingInitialCargoType = nullptr;
 	PendingInitialCargoCount = 0;
-	InitialCargoIntroRemainingTime = 0.0f;
+	InitialCargoLockRemainingTime = 0.0f;
 	InitialCargoSettleRemainingTime = FMath::Max(0.0f, CachedCargoSettings.InitialCargoSettleDelay);
 
 	if (ScriptedCargoMeshComponent)
@@ -193,8 +168,6 @@ void UPGCargoStackComponent::FinishInitialCargoIntro()
 	{
 		SpawnPhysicsCargo(CargoType, MakeCargoWorldTransform(CargoIndex));
 	}
-
-	OnInitialCargoIntroFinished.Broadcast();
 }
 
 bool UPGCargoStackComponent::StartCargoDropHold(UPGCargoTypeDefinition* CargoType)
@@ -204,7 +177,7 @@ bool UPGCargoStackComponent::StartCargoDropHold(UPGCargoTypeDefinition* CargoTyp
 		return false;
 	}
 
-	if (bIsInitialCargoIntroActive)
+	if (bIsInitialCargoLockActive)
 	{
 		return false;
 	}
@@ -230,7 +203,7 @@ bool UPGCargoStackComponent::StartCargoDropHold(UPGCargoTypeDefinition* CargoTyp
 
 	if (ScriptedCargoMeshComponent)
 	{
-		// 추가 적재물은 물리 전환 전까지 바구니 위에서 대기해 플레이어가 다음 적재를 직관적으로 인지하게 한다.
+		// 추가 적재물은 물리 전환 전까지 CargoStack 위치에서 대기해 플레이어가 다음 적재를 직관적으로 인지하게 한다.
 		ScriptedCargoMeshComponent->SetStaticMesh(CargoType->CargoMesh);
 		ApplyScriptedCargoDisplayTransform(CargoType);
 		ScriptedCargoMeshComponent->SetVisibility(true, true);
@@ -317,24 +290,6 @@ UPGCargoTypeDefinition* UPGCargoStackComponent::ResolveDefaultCargoType() const
 	return CachedCargoSettings.DefaultCargoType.LoadSynchronous();
 }
 
-void UPGCargoStackComponent::ApplyFallbackAnchorLocation()
-{
-	if (!GetRelativeLocation().IsNearlyZero())
-	{
-		return;
-	}
-
-	const FVector FallbackLocation = CachedCargoSettings.CargoAnchorFallbackRelativeLocation;
-	if (FallbackLocation.IsNearlyZero())
-	{
-		return;
-	}
-
-	// BP에서 명시적으로 앵커를 배치하지 않은 초기 프로토타입에서도 계란이 캡슐 루트 근처에 생기지 않게 한다.
-	SetRelativeLocation(FallbackLocation);
-	UE_LOG(LogPGCargoStack, Warning, TEXT("CargoStackComponent was at origin. Applied fallback relative location: %s. Move the component in BP_PlayerRunner to tune the cargo spawn/hold position."), *FallbackLocation.ToCompactString());
-}
-
 bool UPGCargoStackComponent::IsValidCargoTypeForSpawn(const UPGCargoTypeDefinition* CargoType, const TCHAR* Context) const
 {
 	if (!CargoType)
@@ -397,7 +352,7 @@ void UPGCargoStackComponent::ApplyCargoPhysicsForces(float DeltaSeconds, float B
 			continue;
 		}
 
-		// BP 바구니 충돌에만 의존하면 흔들림 체감이 약할 수 있어, 중심 입력 기반의 약한 보조 힘을 계란에 더한다.
+		// BP 받침 충돌에만 의존하면 흔들림 체감이 약할 수 있어, 중심 입력 기반의 약한 보조 힘을 적재물에 더한다.
 		const float IdleShake = FMath::Sin(ShakePhase + CargoIndex * 1.73f) * CachedCargoSettings.CargoIdleShakeForce;
 		const float BalanceForce = BalanceInput * CachedCargoSettings.CargoBalanceForce;
 		CargoActor->GetCargoMeshComponent()->AddForce(RightVector * (IdleShake + BalanceForce), NAME_None, true);
@@ -462,7 +417,7 @@ void UPGCargoStackComponent::ApplyLaneJumpCargoAssist()
 
 		if (RelativeVelocity.Z > MaxUpwardRelativeSpeed)
 		{
-			// 라인 점프 중 바구니가 급격히 움직여 계란이 위로 튕겨나가는 성분만 제한한다.
+			// 라인 점프 중 받침이 급격히 움직여 적재물이 위로 튕겨나가는 성분만 제한한다.
 			RelativeVelocity.Z = MaxUpwardRelativeSpeed;
 		}
 
@@ -472,7 +427,7 @@ void UPGCargoStackComponent::ApplyLaneJumpCargoAssist()
 
 void UPGCargoStackComponent::CheckCargoLoss()
 {
-	if (bIsInitialCargoIntroActive || InitialCargoSettleRemainingTime > 0.0f)
+	if (bIsInitialCargoLockActive || InitialCargoSettleRemainingTime > 0.0f)
 	{
 		return;
 	}

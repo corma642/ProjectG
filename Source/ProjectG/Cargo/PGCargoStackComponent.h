@@ -29,12 +29,6 @@ public:
 	// 적재물이 CargoStack 기준 손실 범위를 벗어났을 때 발생하는 이벤트입니다.
 	FPGCargoLostSignature OnCargoLost;
 
-	// 시작 적재물 인트로 연출이 시작될 때 BP 카메라/시퀀스가 구독할 수 있는 이벤트입니다.
-	FPGCargoSignalSignature OnInitialCargoIntroStarted;
-
-	// 시작 적재물 인트로가 끝나고 실제 물리 적재물로 전환됐을 때 발생하는 이벤트입니다.
-	FPGCargoSignalSignature OnInitialCargoIntroFinished;
-
 	// 추가 적재물이 물리 전환 전 대기 위치에 표시될 때 발생하는 이벤트입니다.
 	FPGCargoSignalSignature OnCargoDropHoldStarted;
 
@@ -45,7 +39,7 @@ public:
 	void InitializeCargoStack(const FPGCargoSettings& InCargoSettings);
 
 	// 중심 입력, 추가 적재 대기 타이머, 적재물 물리 보정 및 손실 판정을 갱신합니다.
-	void UpdateCargoReaction(float DeltaSeconds, float BalanceInput, float VisualJumpOffset, bool bIsChangingLane);
+	void UpdateCargoReaction(float DeltaSeconds, float BalanceInput, bool bIsChangingLane);
 
 	// 기본 적재물 타입으로 새 적재물 추가 대기 흐름을 시작합니다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Cargo")
@@ -55,48 +49,41 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Cargo")
 	bool AddCargoByType(UPGCargoTypeDefinition* CargoType);
 
-	// 가장 마지막 적재물을 손실 처리합니다. 디버그 테스트용으로 사용합니다.
-	UFUNCTION(BlueprintCallable, Category = "ProjectG | Cargo")
-	bool RemoveCargo();
-
 	// 현재 살아 있는 물리 적재물 수입니다.
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
 	int32 GetCurrentCargoCount() const { return CargoActors.Num(); }
 
 	// 현재 적재 중이거나 낙하 예약된 적재물까지 포함한 개수입니다. 자동 적재 이벤트 예산 판단에 사용합니다.
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
-	int32 GetReservedCargoCount() const { return CargoActors.Num() + (bHasPendingCargoDrop ? 1 : 0) + (bIsInitialCargoIntroActive ? PendingInitialCargoCount : 0); }
+	int32 GetReservedCargoCount() const { return CargoActors.Num() + (bHasPendingCargoDrop ? 1 : 0) + (bIsInitialCargoLockActive ? PendingInitialCargoCount : 0); }
 
 	// Project Settings 기준 최대 적재 개수입니다.
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
 	int32 GetMaxCargoCount() const { return CachedCargoSettings.MaxCargoCount; }
 
-	// 시작 적재물 인트로가 진행 중인지 반환합니다.
+	// 시작 적재물 투입 전 입력 잠금이 진행 중인지 반환합니다.
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
-	bool IsInitialCargoIntroActive() const { return bIsInitialCargoIntroActive; }
+	bool IsInitialCargoLockActive() const { return bIsInitialCargoLockActive; }
 
 	// 추가 적재물이 대기 위치에 머무르는 남은 시간입니다.
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
 	float GetCargoDropHoldRemainingTime() const { return CargoDropHoldRemainingTime; }
 
 private:
-	// BP에서 앵커 위치를 지정하지 않은 경우 설정값 기반 기본 위치를 적용합니다.
-	void ApplyFallbackAnchorLocation();
-
 	// 지정한 적재물 타입이 스폰 가능한지 확인하고 실패 원인을 로그로 남깁니다.
 	bool IsValidCargoTypeForSpawn(const UPGCargoTypeDefinition* CargoType, const TCHAR* Context) const;
 
-	// 시작 적재물을 설정에 따라 즉시 스폰하거나 인트로 흐름으로 넘깁니다.
+	// 시작 적재물을 설정에 따라 즉시 스폰하거나 입력 잠금 후 투입합니다.
 	void SpawnInitialCargo();
 
-	// 시작 인트로 잠금을 시작하고 종료 시 첫 적재물을 실제 물리 Actor로 투입합니다.
-	void StartInitialCargoIntro(UPGCargoTypeDefinition* CargoType, int32 InitialCount);
+	// 시작 입력 잠금을 시작하고 종료 시 첫 적재물을 실제 물리 Actor로 투입합니다.
+	void StartInitialCargoLock(UPGCargoTypeDefinition* CargoType, int32 InitialCount);
 
-	// 시작 인트로 잠금 시간과 안정화 시간을 갱신합니다.
-	void UpdateInitialCargoIntro(float DeltaSeconds);
+	// 시작 입력 잠금 시간과 안정화 시간을 갱신합니다.
+	void UpdateInitialCargoLock(float DeltaSeconds);
 
-	// 시작 인트로 잠금을 종료하고 첫 적재물을 생성합니다.
-	void FinishInitialCargoIntro();
+	// 시작 입력 잠금을 종료하고 첫 적재물을 생성합니다.
+	void FinishInitialCargoLock();
 
 	// 적재물 추가 요청 시 플레이어를 따라가는 대기 상태로 전환합니다.
 	bool StartCargoDropHold(UPGCargoTypeDefinition* CargoType);
@@ -143,7 +130,7 @@ private:
 	// BeginPlay에서 캐시된 적재 설정입니다.
 	FPGCargoSettings CachedCargoSettings;
 
-	// 추가 적재 대기와 시작 인트로 낙하 연출에 사용하는 비물리 메시입니다.
+	// 추가 적재 대기 상태에 사용하는 비물리 메시입니다.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UStaticMeshComponent> ScriptedCargoMeshComponent;
 
@@ -155,21 +142,21 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UPGCargoTypeDefinition> PendingCargoType;
 
-	// 시작 인트로 종료 후 물리 Actor로 전환할 적재물 타입입니다.
+	// 시작 입력 잠금 종료 후 물리 Actor로 전환할 적재물 타입입니다.
 	UPROPERTY(Transient)
 	TObjectPtr<UPGCargoTypeDefinition> PendingInitialCargoType;
 
 	// 현재 추가 적재 대기가 진행 중인지 여부입니다.
 	bool bHasPendingCargoDrop = false;
 
-	// 시작 적재물 인트로가 진행 중인지 여부입니다.
-	bool bIsInitialCargoIntroActive = false;
+	// 시작 적재물 투입 전 입력 잠금이 진행 중인지 여부입니다.
+	bool bIsInitialCargoLockActive = false;
 
-	// 시작 인트로 종료 후 생성할 적재물 개수입니다.
+	// 시작 입력 잠금 종료 후 생성할 적재물 개수입니다.
 	int32 PendingInitialCargoCount = 0;
 
-	// 시작 인트로 잠금이 끝날 때까지 남은 시간입니다.
-	float InitialCargoIntroRemainingTime = 0.0f;
+	// 시작 입력 잠금이 끝날 때까지 남은 시간입니다.
+	float InitialCargoLockRemainingTime = 0.0f;
 
 	// 첫 적재물 투입 직후 손실 판정을 잠시 늦추는 안정화 시간입니다.
 	float InitialCargoSettleRemainingTime = 0.0f;

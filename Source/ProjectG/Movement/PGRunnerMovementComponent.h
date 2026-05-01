@@ -36,10 +36,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner Movement")
 	bool IsChangingLane() const { return bIsChangingLane || bIsWaitingForLaneJumpLanding; }
 
-	// 적재물 등 보조 연출에 사용할 라인 점프 높이
-	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner Movement")
-	float GetVisualJumpOffset() const { return VisualJumpOffset; }
-
 	// 착지 직후 자이로 입력을 완화해야 하는 남은 시간
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner Movement")
 	float GetLandingStabilizeRemainingTime() const { return LandingStabilizeRemainingTime; }
@@ -155,9 +151,6 @@ private:
 
 	// 착지 직후 자이로 입력을 완화하는 남은 안정화 시간
 	float LandingStabilizeRemainingTime = 0.0f;
-
-	// 메시 점프 연출에 사용할 현재 높이
-	float VisualJumpOffset = 0.0f;
 
 	// 라인 이동 점프가 진행 중인지 여부
 	bool bIsChangingLane = false;

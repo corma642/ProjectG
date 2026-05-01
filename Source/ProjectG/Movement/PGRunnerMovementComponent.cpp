@@ -34,7 +34,6 @@ void UPGRunnerMovementComponent::InitializeRunnerMovement(const FPGLaneSettings&
 	LaneMoveElapsed = 0.0f;
 	BufferedLaneInputRemainingTime = 0.0f;
 	LandingStabilizeRemainingTime = 0.0f;
-	VisualJumpOffset = 0.0f;
 	bIsChangingLane = false;
 	bIsWaitingForLaneJumpLanding = false;
 }
@@ -96,8 +95,6 @@ void UPGRunnerMovementComponent::UpdateLaneMovement(float DeltaSeconds)
 
 	if (!bIsChangingLane)
 	{
-		VisualJumpOffset = 0.0f;
-
 		const float BalancedLaneOffset = GetLaneOffset(CurrentLaneIndex) + BalanceOffset;
 		const FVector CurrentLocation = UpdatedComponent->GetComponentLocation();
 		FVector TargetLocation = GetLocationAtLaneOffset(BalancedLaneOffset);
@@ -128,7 +125,6 @@ void UPGRunnerMovementComponent::UpdateLaneMovement(float DeltaSeconds)
 	const float Alpha = FMath::Clamp(LaneMoveElapsed / Duration, 0.0f, 1.0f);
 	const float SmoothAlpha = FMath::InterpEaseInOut(0.0f, 1.0f, Alpha, 2.0f);
 	const float CurrentLaneOffset = FMath::Lerp(LaneStartOffset, LaneTargetOffset, SmoothAlpha) + BalanceOffset;
-	VisualJumpOffset = FMath::Sin(Alpha * UE_PI) * CachedLaneSettings.LaneJumpHeight;
 
 	const FVector CurrentLocation = UpdatedComponent->GetComponentLocation();
 	FVector TargetLocation = GetLocationAtLaneOffset(CurrentLaneOffset);
@@ -158,7 +154,6 @@ void UPGRunnerMovementComponent::UpdateLaneMovement(float DeltaSeconds)
 		}
 
 		bIsChangingLane = false;
-		VisualJumpOffset = 0.0f;
 
 		if (IsMovingOnGround())
 		{

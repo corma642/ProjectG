@@ -10,7 +10,7 @@ class UStaticMesh;
 
 /**
  * 물리 적재물 1종의 표시 메시와 물리 반응값을 정의하는 데이터 에셋입니다.
- * 현재 기획에서는 모든 적재물이 핵심 계란으로 취급되며, 하나라도 손실되면 런 실패로 이어집니다.
+ * 현재 기획에서는 모든 적재물이 핵심 적재물로 취급되며, 하나라도 손실되면 런 실패로 이어집니다.
  */
 UCLASS(BlueprintType)
 class PROJECTG_API UPGCargoTypeDefinition : public UPrimaryDataAsset
@@ -34,15 +34,15 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo | Visual")
 	FRotator MeshRotation = FRotator::ZeroRotator;
 
-	// 계란 물리 질량. 0보다 크면 Static Mesh 기본 질량 대신 이 값을 사용한다.
+	// 적재물 물리 질량. 0보다 크면 Static Mesh 기본 질량 대신 이 값을 사용한다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
 	float MassInKg = 0.05f;
 
-	// 계란의 선형 속도 감쇠. 값이 높을수록 바구니 안에서 덜 미끄러진다.
+	// 적재물의 선형 속도 감쇠. 값이 높을수록 받침 안에서 덜 미끄러진다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "10.0"))
 	float LinearDamping = 0.15f;
 
-	// 계란의 회전 속도 감쇠. 값이 높을수록 굴러다니는 속도가 빨리 줄어든다.
+	// 적재물의 회전 속도 감쇠. 값이 높을수록 굴러다니는 속도가 빨리 줄어든다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "10.0"))
 	float AngularDamping = 0.4f;
 

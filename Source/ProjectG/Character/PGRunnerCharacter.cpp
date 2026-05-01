@@ -72,11 +72,10 @@ void APGRunnerCharacter::BeginPlay()
 
 	if (CargoStackComponent)
 	{
-		// CargoStackComponent는 플레이어에 붙은 계란 스폰/손실 판정 앵커로 사용한다.
+		// CargoStackComponent는 플레이어에 붙은 적재물 스폰/대기/속도 보정 앵커로 사용한다.
 		CargoStackComponent->OnCargoLost.AddUObject(this, &APGRunnerCharacter::HandleCargoLost);
-		CargoStackComponent->OnInitialCargoIntroStarted.AddUObject(this, &APGRunnerCharacter::HandleInitialCargoIntroStarted);
-		CargoStackComponent->OnInitialCargoIntroFinished.AddUObject(this, &APGRunnerCharacter::HandleInitialCargoIntroFinished);
 		CargoStackComponent->InitializeCargoStack(CachedCargoSettings);
+		bIsPlayerInputLockedByInitialCargo = CargoStackComponent->IsInitialCargoLockActive();
 	}
 
 	if (RunnerEnvironmentComponent)
@@ -89,7 +88,7 @@ void APGRunnerCharacter::BeginPlay()
 	{
 		if (APGGameModeBase* GameMode = World->GetAuthGameMode<APGGameModeBase>())
 		{
-			// 추락, 계란 손실 등 모든 실패 사유는 동일한 런 실패 이벤트로 수렴한다.
+			// 추락, 적재물 손실 등 모든 실패 사유는 동일한 런 실패 이벤트로 수렴한다.
 			GameMode->OnRunFailed.AddDynamic(this, &APGRunnerCharacter::HandleRunFailed);
 		}
 	}
@@ -97,7 +96,6 @@ void APGRunnerCharacter::BeginPlay()
 	if (USkeletalMeshComponent* MeshComponent = GetMesh())
 	{
 		InitialMeshRelativeRotation = MeshComponent->GetRelativeRotation();
-		InitialMeshRelativeLocation = MeshComponent->GetRelativeLocation();
 	}
 }
 
@@ -110,13 +108,15 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 		return;
 	}
 
+	bIsPlayerInputLockedByInitialCargo = CargoStackComponent && CargoStackComponent->IsInitialCargoLockActive();
+
 	CheckFallFailure();
 	if (!bIsRunActive)
 	{
 		return;
 	}
 
-	if (bIsPlayerInputLockedByCargoIntro)
+	if (bIsPlayerInputLockedByInitialCargo)
 	{
 		BaseInstabilityInput = 0.0f;
 	}
@@ -126,21 +126,19 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 	}
 	if (RunnerEnvironmentComponent)
 	{
-		RunnerEnvironmentComponent->UpdateEnvironment(DeltaSeconds, bIsPlayerInputLockedByCargoIntro ? 0.0f : BalanceInput);
+		RunnerEnvironmentComponent->UpdateEnvironment(DeltaSeconds, bIsPlayerInputLockedByInitialCargo ? 0.0f : BalanceInput);
 	}
 	if (RunnerMovementComponent)
 	{
-		const float PlayerCorrectionInput = bIsPlayerInputLockedByCargoIntro ? 0.0f : (RunnerEnvironmentComponent ? RunnerEnvironmentComponent->GetProcessedBalanceInput() : BalanceInput);
+		const float PlayerCorrectionInput = bIsPlayerInputLockedByInitialCargo ? 0.0f : (RunnerEnvironmentComponent ? RunnerEnvironmentComponent->GetProcessedBalanceInput() : BalanceInput);
 		RunnerMovementComponent->SetBalanceMovementInput(BaseInstabilityInput, PlayerCorrectionInput);
 	}
 
 	UpdateForwardMovement();
-	const float VisualJumpOffset = RunnerMovementComponent ? RunnerMovementComponent->GetVisualJumpOffset() : 0.0f;
-	SetMeshJumpOffset(0.0f);
 	if (CargoStackComponent)
 	{
 		const bool bIsChangingLane = RunnerMovementComponent && RunnerMovementComponent->IsChangingLane();
-		CargoStackComponent->UpdateCargoReaction(DeltaSeconds, GetEffectiveBalanceInput(), VisualJumpOffset, bIsChangingLane);
+		CargoStackComponent->UpdateCargoReaction(DeltaSeconds, GetEffectiveBalanceInput(), bIsChangingLane);
 	}
 	UpdateBodyLean(DeltaSeconds);
 	DrawDebugLanes();
@@ -148,7 +146,7 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 
 void APGRunnerCharacter::RequestLaneChange(int32 Direction)
 {
-	if (!bIsRunActive || bIsPlayerInputLockedByCargoIntro || Direction == 0)
+	if (!bIsRunActive || bIsPlayerInputLockedByInitialCargo || Direction == 0)
 	{
 		return;
 	}
@@ -167,7 +165,7 @@ void APGRunnerCharacter::SetBalanceInput(float InBalanceInput)
 		return;
 	}
 
-	if (bIsPlayerInputLockedByCargoIntro)
+	if (bIsPlayerInputLockedByInitialCargo)
 	{
 		BalanceInput = 0.0f;
 		return;
@@ -218,7 +216,7 @@ void APGRunnerCharacter::HandleCargoLost(int32 CargoIndex)
 	{
 		if (APGGameModeBase* GameMode = World->GetAuthGameMode<APGGameModeBase>())
 		{
-			// 모든 계란은 핵심 적재물이므로 하나라도 손실되면 즉시 실패한다.
+			// 현재 적재물은 모두 핵심 적재물이므로 하나라도 손실되면 즉시 실패한다.
 			GameMode->RequestRunFailed(TEXT("CargoLost"));
 		}
 	}
@@ -233,7 +231,7 @@ void APGRunnerCharacter::HandleRunFailed(FName FailureReason)
 
 	// 실패가 확정되면 추가 입력/전진/환경 효과가 누적되지 않도록 러너 상태를 즉시 고정한다.
 	bIsRunActive = false;
-	bIsPlayerInputLockedByCargoIntro = false;
+	bIsPlayerInputLockedByInitialCargo = false;
 	BalanceInput = 0.0f;
 	BaseInstabilityInput = 0.0f;
 	BalanceElapsedTime = 0.0f;
@@ -249,25 +247,7 @@ void APGRunnerCharacter::HandleRunFailed(FName FailureReason)
 		Movement->StopMovementImmediately();
 	}
 
-	SetMeshJumpOffset(0.0f);
 	UpdateBodyLean(0.0f);
-}
-
-void APGRunnerCharacter::HandleInitialCargoIntroStarted()
-{
-	if (!bIsRunActive)
-	{
-		return;
-	}
-
-	// 시작 연출 중에는 러너의 자동 전진은 유지하고 플레이어 조작만 막아 첫 실패 원인을 제거한다.
-	bIsPlayerInputLockedByCargoIntro = true;
-	BalanceInput = 0.0f;
-}
-
-void APGRunnerCharacter::HandleInitialCargoIntroFinished()
-{
-	bIsPlayerInputLockedByCargoIntro = false;
 }
 
 void APGRunnerCharacter::ApplyGameSettings()
@@ -404,14 +384,4 @@ void APGRunnerCharacter::DrawDebugLanes() const
 		DrawDebugLine(GetWorld(), Start, End, LaneColor, false, 0.0f, 0, 2.0f);
 	}
 #endif
-}
-
-void APGRunnerCharacter::SetMeshJumpOffset(float JumpOffset)
-{
-	if (USkeletalMeshComponent* MeshComponent = GetMesh())
-	{
-		FVector MeshLocation = InitialMeshRelativeLocation;
-		MeshLocation.Z += JumpOffset;
-		MeshComponent->SetRelativeLocation(MeshLocation);
-	}
 }

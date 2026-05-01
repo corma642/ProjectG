@@ -38,7 +38,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Environment")
 	void ApplySnowstorm(float Duration, float InputLagScale);
 
-	// 새 적재물 추가 프리뷰를 요청합니다.
+	// 새 적재물 추가 대기/투입 흐름을 요청합니다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Environment")
 	bool RequestCargoDrop();
 

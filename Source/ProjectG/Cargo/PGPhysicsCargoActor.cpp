@@ -12,7 +12,7 @@ APGPhysicsCargoActor::APGPhysicsCargoActor()
 	CargoMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CargoMesh"));
 	SetRootComponent(CargoMeshComponent);
 
-	// 계란은 바구니/월드와만 물리 충돌하고, 캐릭터 캡슐과는 충돌하지 않는다.
+	// 적재물은 받침/월드와만 물리 충돌하고, 캐릭터 캡슐과는 충돌하지 않는다.
 	CargoMeshComponent->SetMobility(EComponentMobility::Movable);
 	CargoMeshComponent->SetSimulatePhysics(true);
 	CargoMeshComponent->SetEnableGravity(true);
@@ -74,7 +74,7 @@ void APGPhysicsCargoActor::LimitImpactBounceVelocity() const
 		return;
 	}
 
-	// 계란이 바구니 바닥에 닿은 직후 튀어오르는 성분만 줄여, 낙하/좌우 물리감은 유지한다.
+	// 적재물이 받침에 닿은 직후 튀어오르는 성분만 줄여, 낙하/좌우 물리감은 유지한다.
 	const float BounceScale = FMath::Clamp(CargoType->ImpactBounceVelocityScale, 0.0f, 1.0f);
 	const float MaxUpwardSpeed = FMath::Max(0.0f, CargoType->MaxUpwardBounceSpeed);
 	LinearVelocity.Z = FMath::Min(LinearVelocity.Z * BounceScale, MaxUpwardSpeed);
@@ -102,6 +102,6 @@ void APGPhysicsCargoActor::LimitAngularVelocity() const
 		return;
 	}
 
-	// 작은 계란 메시가 충돌 순간 과도하게 회전해 튕겨나가는 현상을 막는다.
+	// 작은 적재물 메시가 충돌 순간 과도하게 회전해 튕겨나가는 현상을 막는다.
 	CargoMeshComponent->SetPhysicsAngularVelocityInRadians(AngularVelocity.GetSafeNormal() * MaxAngularSpeedRadians);
 }

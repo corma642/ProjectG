@@ -241,10 +241,6 @@ struct FPGCargoSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "1", UIMin = "1", UIMax = "5"))
 	int32 MaxCargoCount = 3;
 
-	// BP에서 적재물 생성/대기 앵커 위치를 옮기지 않았을 때 사용할 기본 머리 위 위치
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn")
-	FVector CargoAnchorFallbackRelativeLocation = FVector(0.0f, 0.0f, 120.0f);
-
 	// 여러 적재물을 시작 배치할 때 CargoStackComponent 위치에서 위로 띄우는 간격
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "80.0"))
 	float InitialCargoSpacing = 18.0f;
@@ -265,7 +261,7 @@ struct FPGCargoSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Physics")
 	FName CargoCollisionProfileName = TEXT("PhysicsActor");
 
-	// 중심 불균형이 적재물에 직접 가하는 보조 물리 힘. 바구니 회전만으로 부족할 때 체감 흔들림을 보강한다.
+	// 중심 불균형이 적재물에 직접 가하는 보조 물리 힘. 실제 물리 충돌만으로 부족할 때 체감 흔들림을 보강한다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1000.0"))
 	float CargoBalanceForce = 160.0f;
 

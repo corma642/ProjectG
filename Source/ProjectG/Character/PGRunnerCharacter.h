@@ -14,8 +14,8 @@ class UCameraComponent;
 class USpringArmComponent;
 
 /**
- * 자동 전진, 3라인 이동, 중심 보정, 바구니 적재 반응을 연결하는 러너 캐릭터입니다.
- * 실제 라인 이동은 전용 MovementComponent가 담당하고, 계란 물리는 CargoStackComponent가 담당합니다.
+ * 자동 전진, 3라인 이동, 중심 보정, 적재물 반응을 연결하는 러너 캐릭터입니다.
+ * 실제 라인 이동은 전용 MovementComponent가 담당하고, 적재물 물리는 CargoStackComponent가 담당합니다.
  */
 UCLASS()
 class PROJECTG_API APGRunnerCharacter : public ACharacter
@@ -64,7 +64,7 @@ public:
 	// 적재물 자동 연출/환경 이벤트 시스템이 현재 러너의 적재 상태에 접근할 때 사용합니다.
 	UPGCargoStackComponent* GetCargoStackComponent() const { return CargoStackComponent; }
 
-	// 물리 계란이 손실됐을 때 런 실패를 요청한다.
+	// 물리 적재물이 손실됐을 때 런 실패를 요청한다.
 	UFUNCTION()
 	void HandleCargoLost(int32 CargoIndex);
 
@@ -72,24 +72,16 @@ public:
 	UFUNCTION()
 	void HandleRunFailed(FName FailureReason);
 
-	// 시작 적재물 인트로 동안 라인/밸런스 입력만 잠근다.
-	UFUNCTION()
-	void HandleInitialCargoIntroStarted();
-
-	// 시작 적재물 인트로가 끝나면 플레이어 입력을 다시 허용한다.
-	UFUNCTION()
-	void HandleInitialCargoIntroFinished();
-
 protected:
 	// 3라인 이동 상태와 캡슐 lateral 이동을 담당하는 러너 전용 이동 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement")
 	TObjectPtr<UPGRunnerMovementComponent> RunnerMovementComponent;
 
-	// 머리 바구니와 물리 계란 적재 상태를 관리하는 컴포넌트
+	// 물리 적재물 생성/대기/손실 상태를 관리하는 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cargo")
 	TObjectPtr<UPGCargoStackComponent> CargoStackComponent;
 
-	// 바람, 얼음 길, 계란 추가 요청 같은 환경 이벤트 상태를 관리하는 컴포넌트
+	// 바람, 눈바람, 적재물 추가 요청 같은 환경 이벤트 상태를 관리하는 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Environment")
 	TObjectPtr<UPGRunnerEnvironmentComponent> RunnerEnvironmentComponent;
 
@@ -126,9 +118,6 @@ private:
 	// 디버그 옵션이 켜져 있을 때 러너 기준 3라인 위치를 월드에 표시한다.
 	void DrawDebugLanes() const;
 
-	// Skeletal Mesh 상대 높이를 보정한다. 현재 물리 계란 구조에서는 기본적으로 0을 적용한다.
-	void SetMeshJumpOffset(float JumpOffset);
-
 	// BeginPlay에서 캐시한 자동 전진/몸 기울기 설정
 	FPGRunnerSettings CachedRunnerSettings;
 
@@ -147,10 +136,10 @@ private:
 	// BeginPlay에서 캐시한 에디터 디버그 설정
 	FPGDebugSettings CachedDebugSettings;
 
-	// BeginPlay에서 캐시한 물리 계란/바구니 설정
+	// BeginPlay에서 캐시한 물리 적재물 설정
 	FPGCargoSettings CachedCargoSettings;
 
-	// BeginPlay에서 캐시한 바람/얼음 길 환경 이벤트 설정
+	// BeginPlay에서 캐시한 바람/눈바람 환경 이벤트 설정
 	FPGEnvironmentSettings CachedEnvironmentSettings;
 
 	// 현재 플레이어가 입력 중인 좌우 중심 보정값
@@ -165,8 +154,8 @@ private:
 	// 현재 러너가 조작 가능한 런 진행 상태인지 여부
 	bool bIsRunActive = true;
 
-	// 시작 적재물 인트로 중 플레이어 조작 입력을 막는 상태. 자동 전진은 유지한다.
-	bool bIsPlayerInputLockedByCargoIntro = false;
+	// 시작 적재물 투입 전 플레이어 조작 입력을 막는 상태. 자동 전진은 유지한다.
+	bool bIsPlayerInputLockedByInitialCargo = false;
 
 	// 추락 실패 판정 기준이 되는 시작 월드 Z 위치
 	float StartLocationZ = 0.0f;
@@ -185,7 +174,4 @@ private:
 
 	// 몸 기울기 연출을 더하기 위한 Skeletal Mesh 초기 상대 회전
 	FRotator InitialMeshRelativeRotation = FRotator::ZeroRotator;
-
-	// 점프 연출을 더하기 위한 Skeletal Mesh 초기 상대 위치
-	FVector InitialMeshRelativeLocation = FVector::ZeroVector;
 };
