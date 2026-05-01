@@ -12,10 +12,10 @@
 #include "Kismet/GameplayStatics.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
-#include "RunEvents/PGRunEventFeedbackWidget.h"
 #include "RunEvents/PGRunEventSubsystem.h"
 #include "Settings/PGGameSettings.h"
 #include "Sound/SoundBase.h"
+#include "UI/PGRunEventFeedbackWidget.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGRunEventFeedback, Log, All);
 

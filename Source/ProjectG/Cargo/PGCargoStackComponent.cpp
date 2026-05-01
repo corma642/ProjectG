@@ -32,8 +32,8 @@ void UPGCargoStackComponent::InitializeCargoStack(const FPGCargoSettings& InCarg
 	bHasPendingCargoDrop = false;
 	bIsInitialCargoIntroActive = false;
 	PendingInitialCargoCount = 0;
-	InitialCargoIntroElapsedTime = 0.0f;
-	InitialCargoIntroSettleRemainingTime = 0.0f;
+	InitialCargoIntroRemainingTime = 0.0f;
+	InitialCargoSettleRemainingTime = 0.0f;
 	CargoDropHoldRemainingTime = 0.0f;
 	CargoShakeElapsedTime = 0.0f;
 	PreviousAnchorLocation = GetComponentLocation();
@@ -103,7 +103,7 @@ void UPGCargoStackComponent::SpawnInitialCargo()
 		return;
 	}
 
-	if (CachedCargoSettings.bUseInitialCargoIntro)
+	if (CachedCargoSettings.InitialIntroLockDuration > KINDA_SMALL_NUMBER)
 	{
 		StartInitialCargoIntro(CargoType, InitialCount);
 		return;
@@ -125,23 +125,23 @@ void UPGCargoStackComponent::StartInitialCargoIntro(UPGCargoTypeDefinition* Carg
 	PendingInitialCargoType = CargoType;
 	PendingInitialCargoCount = FMath::Clamp(InitialCount, 1, CachedCargoSettings.MaxCargoCount);
 	bIsInitialCargoIntroActive = true;
-	InitialCargoIntroElapsedTime = 0.0f;
-	InitialCargoIntroSettleRemainingTime = 0.0f;
+	InitialCargoIntroRemainingTime = FMath::Max(0.0f, CachedCargoSettings.InitialIntroLockDuration);
+	InitialCargoSettleRemainingTime = 0.0f;
 
 	if (ScriptedCargoMeshComponent)
 	{
 		// 시작 인트로는 실제 물리 전환 전까지 스크립트 메시로만 보여줘 시작 억까를 막는다.
 		ScriptedCargoMeshComponent->SetStaticMesh(CargoType->CargoMesh);
-		ScriptedCargoMeshComponent->SetRelativeLocation(CachedCargoSettings.InitialCargoIntroStartLocalOffset);
+		ScriptedCargoMeshComponent->SetRelativeLocation(FVector::ZeroVector);
 		ScriptedCargoMeshComponent->SetRelativeRotation(CargoType->MeshRotation);
 		ScriptedCargoMeshComponent->SetRelativeScale3D(CargoType->MeshScale);
-		ScriptedCargoMeshComponent->SetVisibility(true, true);
-		ScriptedCargoMeshComponent->SetHiddenInGame(false, true);
+		ScriptedCargoMeshComponent->SetVisibility(false, true);
+		ScriptedCargoMeshComponent->SetHiddenInGame(true, true);
 	}
 
 	OnInitialCargoIntroStarted.Broadcast();
 
-	if (CachedCargoSettings.InitialCargoIntroDuration <= KINDA_SMALL_NUMBER)
+	if (InitialCargoIntroRemainingTime <= KINDA_SMALL_NUMBER)
 	{
 		FinishInitialCargoIntro();
 	}
@@ -151,27 +151,17 @@ void UPGCargoStackComponent::UpdateInitialCargoIntro(float DeltaSeconds)
 {
 	if (bIsInitialCargoIntroActive)
 	{
-		const float Duration = FMath::Max(CachedCargoSettings.InitialCargoIntroDuration, KINDA_SMALL_NUMBER);
-		InitialCargoIntroElapsedTime += FMath::Max(0.0f, DeltaSeconds);
-
-		const float Alpha = FMath::Clamp(InitialCargoIntroElapsedTime / Duration, 0.0f, 1.0f);
-		const float SmoothAlpha = Alpha * Alpha * (3.0f - 2.0f * Alpha);
-		const FVector IntroLocation = FMath::Lerp(CachedCargoSettings.InitialCargoIntroStartLocalOffset, CachedCargoSettings.InitialCargoIntroLandingLocalOffset, SmoothAlpha);
-		if (ScriptedCargoMeshComponent)
-		{
-			ScriptedCargoMeshComponent->SetRelativeLocation(IntroLocation);
-		}
-
-		if (Alpha >= 1.0f)
+		InitialCargoIntroRemainingTime = FMath::Max(0.0f, InitialCargoIntroRemainingTime - FMath::Max(0.0f, DeltaSeconds));
+		if (InitialCargoIntroRemainingTime <= 0.0f)
 		{
 			FinishInitialCargoIntro();
 		}
 		return;
 	}
 
-	if (InitialCargoIntroSettleRemainingTime > 0.0f)
+	if (InitialCargoSettleRemainingTime > 0.0f)
 	{
-		InitialCargoIntroSettleRemainingTime = FMath::Max(0.0f, InitialCargoIntroSettleRemainingTime - DeltaSeconds);
+		InitialCargoSettleRemainingTime = FMath::Max(0.0f, InitialCargoSettleRemainingTime - DeltaSeconds);
 	}
 }
 
@@ -188,8 +178,8 @@ void UPGCargoStackComponent::FinishInitialCargoIntro()
 	bIsInitialCargoIntroActive = false;
 	PendingInitialCargoType = nullptr;
 	PendingInitialCargoCount = 0;
-	InitialCargoIntroElapsedTime = 0.0f;
-	InitialCargoIntroSettleRemainingTime = CachedCargoSettings.bDisableCargoLossDuringInitialIntro ? FMath::Max(0.0f, CachedCargoSettings.InitialCargoIntroSettleDelay) : 0.0f;
+	InitialCargoIntroRemainingTime = 0.0f;
+	InitialCargoSettleRemainingTime = FMath::Max(0.0f, CachedCargoSettings.InitialCargoSettleDelay);
 
 	if (ScriptedCargoMeshComponent)
 	{
@@ -199,7 +189,7 @@ void UPGCargoStackComponent::FinishInitialCargoIntro()
 
 	for (int32 CargoIndex = 0; CargoIndex < SpawnCount; ++CargoIndex)
 	{
-		SpawnPhysicsCargo(CargoType, MakeCargoWorldTransform(CachedCargoSettings.InitialCargoIntroLandingLocalOffset, CargoIndex));
+		SpawnPhysicsCargo(CargoType, MakeCargoWorldTransform(CachedCargoSettings.InitialCargoDropSpawnLocalOffset, CargoIndex));
 	}
 
 	OnInitialCargoIntroFinished.Broadcast();
@@ -441,7 +431,7 @@ void UPGCargoStackComponent::ApplyLaneJumpCargoAssist()
 
 void UPGCargoStackComponent::CheckCargoLoss()
 {
-	if (CachedCargoSettings.bDisableCargoLossDuringInitialIntro && (bIsInitialCargoIntroActive || InitialCargoIntroSettleRemainingTime > 0.0f))
+	if (bIsInitialCargoIntroActive || InitialCargoSettleRemainingTime > 0.0f)
 	{
 		return;
 	}

@@ -49,6 +49,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner")
 	float GetBalanceInput() const { return BalanceInput; }
 
+	// 적재물 자동 연출/환경 이벤트 시스템이 현재 러너의 적재 상태에 접근할 때 사용합니다.
+	UPGCargoStackComponent* GetCargoStackComponent() const { return CargoStackComponent; }
+
 	// 물리 계란이 손실됐을 때 런 실패를 요청한다.
 	UFUNCTION()
 	void HandleCargoLost(int32 CargoIndex);

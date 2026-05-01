@@ -70,9 +70,9 @@ void APGRunnerCharacter::BeginPlay()
 	if (CargoStackComponent)
 	{
 		// CargoStackComponent는 플레이어에 붙은 계란 스폰/손실 판정 앵커로 사용한다.
-		CargoStackComponent->OnCargoLost.AddDynamic(this, &APGRunnerCharacter::HandleCargoLost);
-		CargoStackComponent->OnInitialCargoIntroStarted.AddDynamic(this, &APGRunnerCharacter::HandleInitialCargoIntroStarted);
-		CargoStackComponent->OnInitialCargoIntroFinished.AddDynamic(this, &APGRunnerCharacter::HandleInitialCargoIntroFinished);
+		CargoStackComponent->OnCargoLost.AddUObject(this, &APGRunnerCharacter::HandleCargoLost);
+		CargoStackComponent->OnInitialCargoIntroStarted.AddUObject(this, &APGRunnerCharacter::HandleInitialCargoIntroStarted);
+		CargoStackComponent->OnInitialCargoIntroFinished.AddUObject(this, &APGRunnerCharacter::HandleInitialCargoIntroFinished);
 		CargoStackComponent->InitializeCargoStack(CachedCargoSettings);
 	}
 
@@ -113,10 +113,13 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 		return;
 	}
 
-	UpdateBaseInstability(DeltaSeconds);
 	if (bIsPlayerInputLockedByCargoIntro)
 	{
 		BaseInstabilityInput = 0.0f;
+	}
+	else
+	{
+		UpdateBaseInstability(DeltaSeconds);
 	}
 	if (RunnerEnvironmentComponent)
 	{

@@ -8,6 +8,7 @@
 #include "PGPlayerController.generated.h"
 
 class APGRunnerCharacter;
+class UPGCargoFeedbackComponent;
 class UInputAction;
 class UInputMappingContext;
 class UPGRunEventFeedbackComponent;
@@ -144,6 +145,10 @@ private:
 	// 전역 런 이벤트의 UI/VFX/SFX를 로컬 플레이어 기준으로 자동 재생하는 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Run Event", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPGRunEventFeedbackComponent> RunEventFeedbackComponent;
+
+	// 적재물 추가/손실 UI/VFX/SFX를 로컬 플레이어 기준으로 자동 재생하는 컴포넌트
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cargo Feedback", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPGCargoFeedbackComponent> CargoFeedbackComponent;
 
 	// 에셋이 없을 때 사용하는 C++ 기본 입력 매핑 컨텍스트
 	UPROPERTY(Transient)

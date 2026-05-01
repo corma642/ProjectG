@@ -11,9 +11,8 @@ class APGPhysicsCargoActor;
 class UPGCargoTypeDefinition;
 class UStaticMeshComponent;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPGCargoLostSignature, int32, CargoIndex);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPGInitialCargoIntroSignature);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPGCargoDropHoldSignature);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPGCargoLostSignature, int32);
+DECLARE_MULTICAST_DELEGATE(FPGCargoSignalSignature);
 
 /**
  * 플레이어에 부착된 물리 적재물 스폰/손실 판정 앵커입니다.
@@ -28,24 +27,19 @@ public:
 	UPGCargoStackComponent();
 
 	// 적재물이 CargoStack 기준 손실 범위를 벗어났을 때 발생하는 이벤트입니다.
-	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Cargo")
 	FPGCargoLostSignature OnCargoLost;
 
 	// 시작 적재물 인트로 연출이 시작될 때 BP 카메라/시퀀스가 구독할 수 있는 이벤트입니다.
-	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Cargo")
-	FPGInitialCargoIntroSignature OnInitialCargoIntroStarted;
+	FPGCargoSignalSignature OnInitialCargoIntroStarted;
 
 	// 시작 적재물 인트로가 끝나고 실제 물리 적재물로 전환됐을 때 발생하는 이벤트입니다.
-	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Cargo")
-	FPGInitialCargoIntroSignature OnInitialCargoIntroFinished;
+	FPGCargoSignalSignature OnInitialCargoIntroFinished;
 
 	// 추가 적재물이 물리 전환 전 대기 위치에 표시될 때 발생하는 이벤트입니다.
-	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Cargo")
-	FPGCargoDropHoldSignature OnCargoDropHoldStarted;
+	FPGCargoSignalSignature OnCargoDropHoldStarted;
 
 	// 추가 적재물 대기가 끝나고 실제 물리 적재물로 전환됐을 때 발생하는 이벤트입니다.
-	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Cargo")
-	FPGCargoDropHoldSignature OnCargoDropHoldFinished;
+	FPGCargoSignalSignature OnCargoDropHoldFinished;
 
 	// Project Settings의 적재 설정을 적용하고 시작 적재물 흐름을 초기화합니다.
 	void InitializeCargoStack(const FPGCargoSettings& InCargoSettings);
@@ -81,6 +75,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
 	bool IsInitialCargoIntroActive() const { return bIsInitialCargoIntroActive; }
 
+	// 추가 적재물이 대기 위치에 머무르는 남은 시간입니다.
+	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
+	float GetCargoDropHoldRemainingTime() const { return CargoDropHoldRemainingTime; }
+
 private:
 	// BP에서 앵커 위치를 지정하지 않은 경우 설정값 기반 기본 위치를 적용합니다.
 	void ApplyFallbackAnchorLocation();
@@ -91,13 +89,13 @@ private:
 	// 시작 적재물을 설정에 따라 즉시 스폰하거나 인트로 흐름으로 넘깁니다.
 	void SpawnInitialCargo();
 
-	// 시작 적재물을 연출용 메시로 먼저 낙하시킨 뒤 물리 Actor로 전환합니다.
+	// 시작 인트로 잠금을 시작하고 종료 시 첫 적재물을 실제 물리 Actor로 투입합니다.
 	void StartInitialCargoIntro(UPGCargoTypeDefinition* CargoType, int32 InitialCount);
 
-	// 시작 인트로 메시 위치와 안정화 시간을 갱신합니다.
+	// 시작 인트로 잠금 시간과 안정화 시간을 갱신합니다.
 	void UpdateInitialCargoIntro(float DeltaSeconds);
 
-	// 시작 인트로를 종료하고 실제 물리 적재물을 생성합니다.
+	// 시작 인트로 잠금을 종료하고 첫 적재물을 생성합니다.
 	void FinishInitialCargoIntro();
 
 	// 적재물 추가 요청 시 플레이어를 따라가는 대기 상태로 전환합니다.
@@ -164,11 +162,11 @@ private:
 	// 시작 인트로 종료 후 생성할 적재물 개수입니다.
 	int32 PendingInitialCargoCount = 0;
 
-	// 시작 인트로 낙하 연출 경과 시간입니다.
-	float InitialCargoIntroElapsedTime = 0.0f;
+	// 시작 인트로 잠금이 끝날 때까지 남은 시간입니다.
+	float InitialCargoIntroRemainingTime = 0.0f;
 
-	// 시작 인트로 직후 손실 판정을 늦추는 추가 안정화 시간입니다.
-	float InitialCargoIntroSettleRemainingTime = 0.0f;
+	// 첫 적재물 투입 직후 손실 판정을 잠시 늦추는 안정화 시간입니다.
+	float InitialCargoSettleRemainingTime = 0.0f;
 
 	// 추가 적재 대기가 끝나기까지 남은 시간입니다.
 	float CargoDropHoldRemainingTime = 0.0f;

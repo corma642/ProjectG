@@ -7,6 +7,7 @@
 #include "PGGameSettings.generated.h"
 
 class UPGCargoTypeDefinition;
+class UPGCargoPresentationSet;
 class UPGRunEventPresentationSet;
 class UPGRunEventSet;
 
@@ -197,22 +198,22 @@ struct FPGDebugSettings
 };
 
 /**
- * 플레이어 기준 물리 계란 스폰/손실 판정 설정
+ * 플레이어 기준 물리 적재물 스폰/손실 판정 설정
  */
 USTRUCT(BlueprintType)
 struct FPGCargoSettings
 {
 	GENERATED_BODY()
 
-	// 시작/추가 적재물에 사용할 기본 계란 타입
+	// 시작/추가 적재물에 사용할 기본 적재물 타입
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")
 	TSoftObjectPtr<UPGCargoTypeDefinition> DefaultCargoType;
 
-	// 게임 시작 시 플레이어 기준 앵커에 생성할 계란 개수
+	// 게임 시작 시 플레이어 기준 앵커에 생성할 적재물 개수
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "0", UIMin = "0", UIMax = "5"))
 	int32 InitialCargoCount = 1;
 
-	// 동시에 유지할 수 있는 최대 계란 개수
+	// 동시에 유지할 수 있는 최대 적재물 개수
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "1", UIMin = "1", UIMax = "5"))
 	int32 MaxCargoCount = 3;
 
@@ -220,37 +221,25 @@ struct FPGCargoSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn")
 	FVector CargoAnchorFallbackRelativeLocation = FVector(0.0f, 0.0f, 120.0f);
 
-	// 시작 계란을 CargoStackComponent 앵커 기준 어디에 놓을지 정하는 상대 위치
+	// 인트로 잠금이 없을 때 시작 적재물을 CargoStackComponent 앵커 기준 어디에 놓을지 정하는 상대 위치
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn")
 	FVector InitialCargoLocalOffset = FVector(0.0f, 0.0f, 24.0f);
 
-	// 여러 계란을 시작 배치할 때 위로 띄우는 간격
+	// 여러 적재물을 시작 배치할 때 위로 띄우는 간격
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "80.0"))
 	float InitialCargoSpacing = 18.0f;
 
-	// 게임 시작 시 계란을 즉시 생성하지 않고 위에서 내려오는 인트로 연출로 시작할지 여부
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Intro")
-	bool bUseInitialCargoIntro = true;
-
-	// 시작 인트로 계란 메시가 내려오기 시작하는 CargoStackComponent 기준 상대 위치
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Intro")
-	FVector InitialCargoIntroStartLocalOffset = FVector(0.0f, 0.0f, 650.0f);
-
-	// 시작 인트로가 끝난 뒤 실제 물리 계란을 생성할 CargoStackComponent 기준 상대 위치
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Intro")
-	FVector InitialCargoIntroLandingLocalOffset = FVector(0.0f, 0.0f, 24.0f);
-
-	// 시작 계란 인트로 낙하 연출 시간
+	// 시작 시퀀스 동안 라인/밸런스/기본 흔들림과 적재물 손실 판정을 잠그는 시간
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Intro", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
-	float InitialCargoIntroDuration = 1.2f;
+	float InitialIntroLockDuration = 1.2f;
 
-	// 물리 계란으로 전환한 직후 손실 판정을 잠시 늦추는 안정화 시간
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Intro", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2.0"))
-	float InitialCargoIntroSettleDelay = 0.3f;
-
-	// 시작 인트로 중과 전환 직후 계란 손실 판정을 비활성화할지 여부
+	// 시작 인트로가 끝난 뒤 첫 적재물을 생성할 CargoStackComponent 기준 상대 위치
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Intro")
-	bool bDisableCargoLossDuringInitialIntro = true;
+	FVector InitialCargoDropSpawnLocalOffset = FVector(0.0f, 0.0f, 24.0f);
+
+	// 첫 적재물이 물리 Actor로 투입된 직후 손실 판정을 잠시 늦추는 안정화 시간
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Intro", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2.0"))
+	float InitialCargoSettleDelay = 0.3f;
 
 	// 추가 적재물이 물리 전환 전 잠시 머무르는 CargoStackComponent 기준 상대 위치
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn")
@@ -264,15 +253,15 @@ struct FPGCargoSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
 	float CargoDropHoldDuration = 3.0f;
 
-	// 계란 물리 오브젝트가 사용할 충돌 프로파일
+	// 적재물 물리 오브젝트가 사용할 충돌 프로파일
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Physics")
 	FName CargoCollisionProfileName = TEXT("PhysicsActor");
 
-	// 중심 불균형이 계란에 직접 가하는 보조 물리 힘. 바구니 회전만으로 부족할 때 체감 흔들림을 보강한다.
+	// 중심 불균형이 적재물에 직접 가하는 보조 물리 힘. 바구니 회전만으로 부족할 때 체감 흔들림을 보강한다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1000.0"))
 	float CargoBalanceForce = 160.0f;
 
-	// 직선 주행 중 계란에 가하는 약한 흔들림 힘
+	// 직선 주행 중 적재물에 가하는 약한 흔들림 힘
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "500.0"))
 	float CargoIdleShakeForce = 25.0f;
 
@@ -280,29 +269,42 @@ struct FPGCargoSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
 	float CargoIdleShakeFrequency = 1.15f;
 
-	// 라인 점프 중과 착지 직후 계란 이탈을 줄이기 위해 상대속도 제한을 유지하는 시간
+	// 라인 점프 중과 착지 직후 적재물 이탈을 줄이기 위해 상대속도 제한을 유지하는 시간
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0"))
 	float LaneJumpCargoAssistDuration = 0.2f;
 
-	// 라인 점프 보정 중 CargoStack 앵커 기준 계란 최대 상대속도
+	// 라인 점프 보정 중 CargoStack 앵커 기준 적재물 최대 상대속도
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1000.0"))
 	float LaneJumpMaxRelativeSpeed = 180.0f;
 
-	// 라인 점프 보정 중 CargoStack 앵커 기준 계란 최대 위쪽 상대속도
+	// 라인 점프 보정 중 CargoStack 앵커 기준 적재물 최대 위쪽 상대속도
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "500.0"))
 	float LaneJumpMaxUpwardRelativeSpeed = 60.0f;
 
-	// CargoStackComponent 앵커 기준 이 높이보다 아래로 계란이 떨어지면 손실로 처리한다.
+	// CargoStackComponent 앵커 기준 이 높이보다 아래로 적재물이 떨어지면 손실로 처리한다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Loss", meta = (ClampMin = "10.0", UIMin = "50.0", UIMax = "500.0"))
 	float CargoLossZOffset = 140.0f;
 
-	// CargoStackComponent 앵커 중심에서 이 수평 거리보다 멀어지면 계란 손실로 처리한다.
+	// CargoStackComponent 앵커 중심에서 이 수평 거리보다 멀어지면 적재물 손실로 처리한다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Loss", meta = (ClampMin = "10.0", UIMin = "50.0", UIMax = "500.0"))
 	float CargoLossHorizontalDistance = 180.0f;
 
 	// 개발 빌드에서 앵커 기준 손실 반경과 계란 위치를 표시할지 여부
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Debug")
 	bool bDrawCargoDebug = false;
+};
+
+/**
+ * 적재물 관련 로컬 UI/VFX/SFX 자동 연출 설정
+ */
+USTRUCT(BlueprintType)
+struct FPGCargoFeedbackSettings
+{
+	GENERATED_BODY()
+
+	// 추가 적재/손실 이벤트별 UI/VFX/SFX 리소스를 담은 기본 연출 DataAsset
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo Feedback")
+	TSoftObjectPtr<UPGCargoPresentationSet> DefaultPresentationSet;
 };
 
 /**
@@ -410,9 +412,13 @@ public:
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Debug")
 	FPGDebugSettings Debug;
 
-	// 플레이어 기준 물리 계란 스폰/손실 판정 설정
+	// 플레이어 기준 물리 적재물 스폰/손실 판정 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")
 	FPGCargoSettings Cargo;
+
+	// 적재물 추가/손실 로컬 연출 설정
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo Feedback")
+	FPGCargoFeedbackSettings CargoFeedback;
 
 	// 바람, 눈바람, 적재 증가 같은 환경 이벤트 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Environment")

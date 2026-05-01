@@ -3,6 +3,7 @@
 #include "Player/PGPlayerController.h"
 
 #include "Character/PGRunnerCharacter.h"
+#include "Cargo/PGCargoFeedbackComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/Engine.h"
@@ -18,6 +19,7 @@ APGPlayerController::APGPlayerController()
 	PrimaryActorTick.bCanEverTick = true;
 	bShowMouseCursor = false;
 	RunEventFeedbackComponent = CreateDefaultSubobject<UPGRunEventFeedbackComponent>(TEXT("RunEventFeedback"));
+	CargoFeedbackComponent = CreateDefaultSubobject<UPGCargoFeedbackComponent>(TEXT("CargoFeedback"));
 }
 
 void APGPlayerController::BeginPlay()
@@ -66,6 +68,10 @@ void APGPlayerController::OnPossess(APawn* InPawn)
 
 void APGPlayerController::OnUnPossess()
 {
+	if (CargoFeedbackComponent)
+	{
+		CargoFeedbackComponent->HandleRunnerUnpossessed();
+	}
 	CachedRunnerCharacter.Reset();
 	Super::OnUnPossess();
 }
@@ -113,6 +119,10 @@ void APGPlayerController::ApplyGameSettings()
 void APGPlayerController::CacheRunnerPawn(APawn* InPawn)
 {
 	CachedRunnerCharacter = Cast<APGRunnerCharacter>(InPawn);
+	if (CargoFeedbackComponent)
+	{
+		CargoFeedbackComponent->HandleRunnerPossessed(CachedRunnerCharacter.Get());
+	}
 }
 
 void APGPlayerController::EnsureInputAssets()
