@@ -35,7 +35,13 @@ void UPGRunEventSubsystem::Deinitialize()
 
 	BoundGameMode = nullptr;
 	bIsBoundToRunFailed = false;
-	ClearPendingEvent();
+	ClearPendingEvent(true);
+	if (ActiveEventType != EPGRunEventType::None)
+	{
+		OnRunEventCanceled.Broadcast(ActiveEventType);
+		ActiveEventType = EPGRunEventType::None;
+		ActiveEventEndTime = 0.0f;
+	}
 
 	Super::Deinitialize();
 }
@@ -83,7 +89,13 @@ float UPGRunEventSubsystem::GetDifficultyAlpha() const
 void UPGRunEventSubsystem::HandleRunFailed(FName FailureReason)
 {
 	bIsRunActive = false;
-	ClearPendingEvent();
+	ClearPendingEvent(true);
+	if (ActiveEventType != EPGRunEventType::None)
+	{
+		OnRunEventCanceled.Broadcast(ActiveEventType);
+		ActiveEventType = EPGRunEventType::None;
+		ActiveEventEndTime = 0.0f;
+	}
 	if (RunnerEnvironmentComponent)
 	{
 		RunnerEnvironmentComponent->ClearEnvironmentEffects();
@@ -173,6 +185,11 @@ void UPGRunEventSubsystem::ProcessRunEventTick(float DeltaSeconds)
 
 	RunElapsedTime += DeltaSeconds;
 
+	if (ActiveEventType != EPGRunEventType::None && ActiveEventEndTime > 0.0f && RunElapsedTime >= ActiveEventEndTime)
+	{
+		FinishActiveEvent();
+	}
+
 	if (!RunnerEnvironmentComponent || !CargoStackComponent)
 	{
 		InitializeRunnerReferences();
@@ -191,6 +208,7 @@ void UPGRunEventSubsystem::ProcessRunEventTick(float DeltaSeconds)
 	if (PendingEventState == EPGRunEventState::Scheduled && RunElapsedTime >= PendingEventFireTime - FMath::Max(0.0f, CachedRunEventSettings.PreviewLeadTime))
 	{
 		PendingEventState = EPGRunEventState::Preview;
+		OnRunEventPreviewStarted.Broadcast(PendingEventType, GetTimeUntilPendingEvent(), PendingEventDirection);
 	}
 
 	if (RunElapsedTime >= PendingEventFireTime)
@@ -204,7 +222,13 @@ void UPGRunEventSubsystem::ProcessRunEventTick(float DeltaSeconds)
 
 void UPGRunEventSubsystem::ScheduleNextEvent()
 {
-	ClearPendingEvent();
+	ClearPendingEvent(false);
+
+	if (ActiveEventType != EPGRunEventType::None)
+	{
+		NextScheduleRetryTime = ActiveEventEndTime > 0.0f ? ActiveEventEndTime : RunElapsedTime + 1.0f;
+		return;
+	}
 
 	if (RunElapsedTime < CachedRunEventSettings.SafeInitialRunTime)
 	{
@@ -225,6 +249,9 @@ void UPGRunEventSubsystem::ScheduleNextEvent()
 	PendingEventRule = SelectedRule;
 	PendingEventType = SelectedRule.EventType;
 	PendingEventState = EPGRunEventState::Scheduled;
+	PendingEventDirection = SelectedRule.EventType == EPGRunEventType::Wind
+		? (SelectedRule.bRandomizeDirection && RandomStream.RandRange(0, 1) == 0 ? -1.0f : 1.0f)
+		: 0.0f;
 	PendingEventFireTime = RunElapsedTime + FMath::Lerp(StartInterval, EndInterval, DifficultyAlpha);
 }
 
@@ -312,7 +339,7 @@ void UPGRunEventSubsystem::TriggerPendingEvent()
 {
 	if (PendingEventType == EPGRunEventType::None || !RunnerEnvironmentComponent)
 	{
-		ClearPendingEvent();
+		ClearPendingEvent(true);
 		return;
 	}
 
@@ -323,8 +350,7 @@ void UPGRunEventSubsystem::TriggerPendingEvent()
 	{
 	case EPGRunEventType::Wind:
 	{
-		const float Direction = PendingEventRule.bRandomizeDirection && RandomStream.RandRange(0, 1) == 0 ? -1.0f : 1.0f;
-		RunnerEnvironmentComponent->ApplyWind(Direction, PendingEventRule.Strength, PendingEventRule.Duration);
+		RunnerEnvironmentComponent->ApplyWind(PendingEventDirection, PendingEventRule.Strength, PendingEventRule.Duration);
 		break;
 	}
 	case EPGRunEventType::Snowstorm:
@@ -341,15 +367,55 @@ void UPGRunEventSubsystem::TriggerPendingEvent()
 	if (bTriggered)
 	{
 		LastTriggeredTimeByEvent.FindOrAdd(PendingEventType) = RunElapsedTime;
+		OnRunEventTriggered.Broadcast(PendingEventType, PendingEventRule.Duration, PendingEventDirection);
+		StartActiveEvent(PendingEventType, PendingEventRule.Duration);
 	}
 }
 
-void UPGRunEventSubsystem::ClearPendingEvent()
+void UPGRunEventSubsystem::ClearPendingEvent(bool bBroadcastCancel)
 {
+	const EPGRunEventType PreviousEventType = PendingEventType;
+	const bool bWasPendingOrPreview = PendingEventType != EPGRunEventType::None && PendingEventState != EPGRunEventState::Triggered;
 	PendingEventRule = FPGRunEventRule();
 	PendingEventType = EPGRunEventType::None;
 	PendingEventState = EPGRunEventState::Inactive;
+	PendingEventDirection = 0.0f;
 	PendingEventFireTime = 0.0f;
+
+	if (bBroadcastCancel && bWasPendingOrPreview)
+	{
+		OnRunEventCanceled.Broadcast(PreviousEventType);
+	}
+}
+
+void UPGRunEventSubsystem::StartActiveEvent(EPGRunEventType EventType, float Duration)
+{
+	if (EventType != EPGRunEventType::None && Duration > KINDA_SMALL_NUMBER)
+	{
+		ActiveEventType = EventType;
+		ActiveEventEndTime = RunElapsedTime + Duration;
+		return;
+	}
+
+	ActiveEventType = EPGRunEventType::None;
+	ActiveEventEndTime = 0.0f;
+	if (EventType != EPGRunEventType::None)
+	{
+		OnRunEventFinished.Broadcast(EventType);
+	}
+}
+
+void UPGRunEventSubsystem::FinishActiveEvent()
+{
+	if (ActiveEventType == EPGRunEventType::None)
+	{
+		return;
+	}
+
+	const EPGRunEventType FinishedEventType = ActiveEventType;
+	ActiveEventType = EPGRunEventType::None;
+	ActiveEventEndTime = 0.0f;
+	OnRunEventFinished.Broadcast(FinishedEventType);
 }
 
 void UPGRunEventSubsystem::DrawRunEventDebug() const

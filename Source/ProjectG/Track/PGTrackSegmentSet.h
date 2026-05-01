@@ -47,7 +47,7 @@ struct FPGTrackSegmentEntry
 
 /**
  * 무한 러닝에서 사용할 트랙 세그먼트 후보 목록 DataAsset입니다.
- * 환경 이벤트는 RunEventDirector가 별도로 관리하므로 이 데이터는 길 선택만 담당합니다.
+ * 환경 이벤트는 RunEventSubsystem이 별도로 관리하므로 이 데이터는 길 선택만 담당합니다.
  */
 UCLASS(BlueprintType)
 class PROJECTG_API UPGTrackSegmentSet : public UPrimaryDataAsset

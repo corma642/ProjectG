@@ -7,6 +7,7 @@
 #include "PGGameSettings.generated.h"
 
 class UPGCargoTypeDefinition;
+class UPGRunEventPresentationSet;
 class UPGRunEventSet;
 
 /**
@@ -341,6 +342,10 @@ struct FPGRunEventSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event")
 	TSoftObjectPtr<UPGRunEventSet> DefaultRunEventSet;
 
+	// 이벤트별 UI/VFX/SFX 리소스를 담은 기본 연출 DataAsset
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event")
+	TSoftObjectPtr<UPGRunEventPresentationSet> DefaultPresentationSet;
+
 	// 이벤트 난이도가 1.0까지 도달하는 시간
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event | Difficulty", meta = (ClampMin = "1.0", UIMin = "30.0", UIMax = "300.0"))
 	float DifficultyRampDuration = 180.0f;
@@ -357,7 +362,7 @@ struct FPGRunEventSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event | Schedule", meta = (ClampMin = "0.5", UIMin = "2.0", UIMax = "30.0"))
 	float MinEventInterval = 4.0f;
 
-	// 이벤트 발동 전 BP/UMG가 예고 연출을 붙일 수 있는 시간
+	// 이벤트 발동 전 자동 전조 연출이 시작되는 시간
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event | Schedule", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
 	float PreviewLeadTime = 1.5f;
 

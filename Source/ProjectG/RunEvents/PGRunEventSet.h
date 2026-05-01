@@ -21,7 +21,7 @@ enum class EPGRunEventType : uint8
 
 /**
  * 전역 런 이벤트의 예약/예고/발동 상태입니다.
- * BP/UMG는 이 값을 읽어 이벤트 예고 UI와 연출을 구성할 수 있습니다.
+ * 로컬 연출 컴포넌트가 이 상태 전환을 받아 UI/VFX/SFX를 자동 실행합니다.
  */
 UENUM(BlueprintType)
 enum class EPGRunEventState : uint8

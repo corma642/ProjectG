@@ -13,6 +13,11 @@ class APGRunnerCharacter;
 class UPGCargoStackComponent;
 class UPGRunnerEnvironmentComponent;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FPGRunEventPreviewStartedSignature, EPGRunEventType, EventType, float, TimeUntilTrigger, float, Direction);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FPGRunEventTriggeredSignature, EPGRunEventType, EventType, float, Duration, float, Direction);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPGRunEventFinishedSignature, EPGRunEventType, EventType);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPGRunEventCanceledSignature, EPGRunEventType, EventType);
+
 /**
  * 러닝 시간 기반으로 전역 환경/적재 이벤트를 예약하고 발동하는 월드 서브시스템입니다.
  * 레벨 배치가 필요 없는 이벤트 총괄자이며, 트랙 세그먼트 생성 책임과 분리됩니다.
@@ -46,6 +51,22 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run Event")
 	float GetTimeUntilPendingEvent() const { return PendingEventType == EPGRunEventType::None ? 0.0f : FMath::Max(0.0f, PendingEventFireTime - RunElapsedTime); }
 
+	// 이벤트 전조가 시작될 때 로컬 연출 계층에 전달됩니다.
+	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run Event")
+	FPGRunEventPreviewStartedSignature OnRunEventPreviewStarted;
+
+	// 이벤트 실제 효과가 적용될 때 로컬 연출 계층에 전달됩니다.
+	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run Event")
+	FPGRunEventTriggeredSignature OnRunEventTriggered;
+
+	// 지속형 이벤트가 자연 종료될 때 로컬 연출 계층에 전달됩니다.
+	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run Event")
+	FPGRunEventFinishedSignature OnRunEventFinished;
+
+	// 런 실패나 월드 종료처럼 이벤트가 강제로 정리될 때 로컬 연출 계층에 전달됩니다.
+	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run Event")
+	FPGRunEventCanceledSignature OnRunEventCanceled;
+
 private:
 	UFUNCTION()
 	void HandleRunFailed(FName FailureReason);
@@ -61,7 +82,9 @@ private:
 	bool CanUseRule(const FPGRunEventRule& Rule) const;
 	bool HasCargoCapacity() const;
 	void TriggerPendingEvent();
-	void ClearPendingEvent();
+	void ClearPendingEvent(bool bBroadcastCancel);
+	void StartActiveEvent(EPGRunEventType EventType, float Duration);
+	void FinishActiveEvent();
 	void DrawRunEventDebug() const;
 
 	UPROPERTY(Transient)
@@ -86,6 +109,9 @@ private:
 	FPGRunEventRule PendingEventRule;
 	EPGRunEventType PendingEventType = EPGRunEventType::None;
 	EPGRunEventState PendingEventState = EPGRunEventState::Inactive;
+	EPGRunEventType ActiveEventType = EPGRunEventType::None;
+	float ActiveEventEndTime = 0.0f;
+	float PendingEventDirection = 0.0f;
 	float PendingEventFireTime = 0.0f;
 	float NextScheduleRetryTime = 0.0f;
 	float RunElapsedTime = 0.0f;

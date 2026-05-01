@@ -10,12 +10,14 @@
 #include "InputActionValue.h"
 #include "InputMappingContext.h"
 #include "InputCoreTypes.h"
+#include "RunEvents/PGRunEventFeedbackComponent.h"
 #include "Settings/PGGameSettings.h"
 
 APGPlayerController::APGPlayerController()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	bShowMouseCursor = false;
+	RunEventFeedbackComponent = CreateDefaultSubobject<UPGRunEventFeedbackComponent>(TEXT("RunEventFeedback"));
 }
 
 void APGPlayerController::BeginPlay()

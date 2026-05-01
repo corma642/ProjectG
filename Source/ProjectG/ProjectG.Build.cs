@@ -17,7 +17,9 @@ public class ProjectG : ModuleRules
             "Engine",
             "InputCore",
             "EnhancedInput",
-            "DeveloperSettings"
+            "DeveloperSettings",
+            "UMG",
+            "Niagara"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[] { });

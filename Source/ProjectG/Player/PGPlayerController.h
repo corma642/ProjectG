@@ -10,6 +10,7 @@
 class APGRunnerCharacter;
 class UInputAction;
 class UInputMappingContext;
+class UPGRunEventFeedbackComponent;
 struct FInputActionValue;
 
 /**
@@ -139,6 +140,10 @@ private:
 	// 입력 매핑 컨텍스트 등록 우선순위
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	int32 DefaultMappingPriority = 0;
+
+	// 전역 런 이벤트의 UI/VFX/SFX를 로컬 플레이어 기준으로 자동 재생하는 컴포넌트
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Run Event", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPGRunEventFeedbackComponent> RunEventFeedbackComponent;
 
 	// 에셋이 없을 때 사용하는 C++ 기본 입력 매핑 컨텍스트
 	UPROPERTY(Transient)
