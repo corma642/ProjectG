@@ -14,13 +14,13 @@ UPGCargoStackComponent::UPGCargoStackComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 
-	PreviewCargoMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CargoPreview"));
-	PreviewCargoMeshComponent->SetupAttachment(this);
-	PreviewCargoMeshComponent->SetMobility(EComponentMobility::Movable);
-	PreviewCargoMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	PreviewCargoMeshComponent->SetGenerateOverlapEvents(false);
-	PreviewCargoMeshComponent->SetVisibility(false, true);
-	PreviewCargoMeshComponent->SetHiddenInGame(true, true);
+	ScriptedCargoMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ScriptedCargoDisplay"));
+	ScriptedCargoMeshComponent->SetupAttachment(this);
+	ScriptedCargoMeshComponent->SetMobility(EComponentMobility::Movable);
+	ScriptedCargoMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	ScriptedCargoMeshComponent->SetGenerateOverlapEvents(false);
+	ScriptedCargoMeshComponent->SetVisibility(false, true);
+	ScriptedCargoMeshComponent->SetHiddenInGame(true, true);
 }
 
 void UPGCargoStackComponent::InitializeCargoStack(const FPGCargoSettings& InCargoSettings)
@@ -34,7 +34,7 @@ void UPGCargoStackComponent::InitializeCargoStack(const FPGCargoSettings& InCarg
 	PendingInitialCargoCount = 0;
 	InitialCargoIntroElapsedTime = 0.0f;
 	InitialCargoIntroSettleRemainingTime = 0.0f;
-	CargoPreviewRemainingTime = 0.0f;
+	CargoDropHoldRemainingTime = 0.0f;
 	CargoShakeElapsedTime = 0.0f;
 	PreviousAnchorLocation = GetComponentLocation();
 	AnchorVelocity = FVector::ZeroVector;
@@ -57,10 +57,10 @@ void UPGCargoStackComponent::UpdateCargoReaction(float DeltaSeconds, float Balan
 
 	if (bHasPendingCargoDrop)
 	{
-		CargoPreviewRemainingTime = FMath::Max(0.0f, CargoPreviewRemainingTime - DeltaSeconds);
-		if (CargoPreviewRemainingTime <= 0.0f)
+		CargoDropHoldRemainingTime = FMath::Max(0.0f, CargoDropHoldRemainingTime - DeltaSeconds);
+		if (CargoDropHoldRemainingTime <= 0.0f)
 		{
-			FinishCargoPreview();
+			FinishCargoDropHold();
 		}
 	}
 
@@ -70,12 +70,12 @@ void UPGCargoStackComponent::UpdateCargoReaction(float DeltaSeconds, float Balan
 
 bool UPGCargoStackComponent::AddCargo()
 {
-	return StartCargoPreview(ResolveDefaultCargoType());
+	return StartCargoDropHold(ResolveDefaultCargoType());
 }
 
 bool UPGCargoStackComponent::AddCargoByType(UPGCargoTypeDefinition* CargoType)
 {
-	return StartCargoPreview(CargoType);
+	return StartCargoDropHold(CargoType);
 }
 
 bool UPGCargoStackComponent::RemoveCargo()
@@ -128,15 +128,15 @@ void UPGCargoStackComponent::StartInitialCargoIntro(UPGCargoTypeDefinition* Carg
 	InitialCargoIntroElapsedTime = 0.0f;
 	InitialCargoIntroSettleRemainingTime = 0.0f;
 
-	if (PreviewCargoMeshComponent)
+	if (ScriptedCargoMeshComponent)
 	{
 		// 시작 인트로는 실제 물리 전환 전까지 스크립트 메시로만 보여줘 시작 억까를 막는다.
-		PreviewCargoMeshComponent->SetStaticMesh(CargoType->CargoMesh);
-		PreviewCargoMeshComponent->SetRelativeLocation(CachedCargoSettings.InitialCargoIntroStartLocalOffset);
-		PreviewCargoMeshComponent->SetRelativeRotation(CargoType->MeshRotation);
-		PreviewCargoMeshComponent->SetRelativeScale3D(CargoType->MeshScale);
-		PreviewCargoMeshComponent->SetVisibility(true, true);
-		PreviewCargoMeshComponent->SetHiddenInGame(false, true);
+		ScriptedCargoMeshComponent->SetStaticMesh(CargoType->CargoMesh);
+		ScriptedCargoMeshComponent->SetRelativeLocation(CachedCargoSettings.InitialCargoIntroStartLocalOffset);
+		ScriptedCargoMeshComponent->SetRelativeRotation(CargoType->MeshRotation);
+		ScriptedCargoMeshComponent->SetRelativeScale3D(CargoType->MeshScale);
+		ScriptedCargoMeshComponent->SetVisibility(true, true);
+		ScriptedCargoMeshComponent->SetHiddenInGame(false, true);
 	}
 
 	OnInitialCargoIntroStarted.Broadcast();
@@ -157,9 +157,9 @@ void UPGCargoStackComponent::UpdateInitialCargoIntro(float DeltaSeconds)
 		const float Alpha = FMath::Clamp(InitialCargoIntroElapsedTime / Duration, 0.0f, 1.0f);
 		const float SmoothAlpha = Alpha * Alpha * (3.0f - 2.0f * Alpha);
 		const FVector IntroLocation = FMath::Lerp(CachedCargoSettings.InitialCargoIntroStartLocalOffset, CachedCargoSettings.InitialCargoIntroLandingLocalOffset, SmoothAlpha);
-		if (PreviewCargoMeshComponent)
+		if (ScriptedCargoMeshComponent)
 		{
-			PreviewCargoMeshComponent->SetRelativeLocation(IntroLocation);
+			ScriptedCargoMeshComponent->SetRelativeLocation(IntroLocation);
 		}
 
 		if (Alpha >= 1.0f)
@@ -191,10 +191,10 @@ void UPGCargoStackComponent::FinishInitialCargoIntro()
 	InitialCargoIntroElapsedTime = 0.0f;
 	InitialCargoIntroSettleRemainingTime = CachedCargoSettings.bDisableCargoLossDuringInitialIntro ? FMath::Max(0.0f, CachedCargoSettings.InitialCargoIntroSettleDelay) : 0.0f;
 
-	if (PreviewCargoMeshComponent)
+	if (ScriptedCargoMeshComponent)
 	{
-		PreviewCargoMeshComponent->SetVisibility(false, true);
-		PreviewCargoMeshComponent->SetHiddenInGame(true, true);
+		ScriptedCargoMeshComponent->SetVisibility(false, true);
+		ScriptedCargoMeshComponent->SetHiddenInGame(true, true);
 	}
 
 	for (int32 CargoIndex = 0; CargoIndex < SpawnCount; ++CargoIndex)
@@ -205,9 +205,9 @@ void UPGCargoStackComponent::FinishInitialCargoIntro()
 	OnInitialCargoIntroFinished.Broadcast();
 }
 
-bool UPGCargoStackComponent::StartCargoPreview(UPGCargoTypeDefinition* CargoType)
+bool UPGCargoStackComponent::StartCargoDropHold(UPGCargoTypeDefinition* CargoType)
 {
-	if (!IsValidCargoTypeForSpawn(CargoType, TEXT("StartCargoPreview")))
+	if (!IsValidCargoTypeForSpawn(CargoType, TEXT("StartCargoDropHold")))
 	{
 		return false;
 	}
@@ -225,30 +225,30 @@ bool UPGCargoStackComponent::StartCargoPreview(UPGCargoTypeDefinition* CargoType
 
 	PendingCargoType = CargoType;
 	bHasPendingCargoDrop = true;
-	CargoPreviewRemainingTime = FMath::Max(0.0f, CachedCargoSettings.CargoPreviewDuration);
+	CargoDropHoldRemainingTime = FMath::Max(0.0f, CachedCargoSettings.CargoDropHoldDuration);
 
-	if (PreviewCargoMeshComponent)
+	if (ScriptedCargoMeshComponent)
 	{
-		// 프리뷰는 이 컴포넌트 하위에 남겨 플레이어가 전진해도 현재 플레이어 기준 위치를 따라가게 한다.
-		PreviewCargoMeshComponent->SetStaticMesh(CargoType->CargoMesh);
-		PreviewCargoMeshComponent->SetRelativeLocation(CachedCargoSettings.CargoPreviewLocalOffset);
-		PreviewCargoMeshComponent->SetRelativeRotation(CargoType->MeshRotation);
-		PreviewCargoMeshComponent->SetRelativeScale3D(CargoType->MeshScale * FMath::Max(0.1f, CachedCargoSettings.CargoPreviewScaleMultiplier));
-		PreviewCargoMeshComponent->SetVisibility(true, true);
-		PreviewCargoMeshComponent->SetHiddenInGame(false, true);
+		// 추가 적재물은 물리 전환 전까지 바구니 위에서 대기해 플레이어가 다음 적재를 직관적으로 인지하게 한다.
+		ScriptedCargoMeshComponent->SetStaticMesh(CargoType->CargoMesh);
+		ScriptedCargoMeshComponent->SetRelativeLocation(CachedCargoSettings.CargoDropHoldLocalOffset);
+		ScriptedCargoMeshComponent->SetRelativeRotation(CargoType->MeshRotation);
+		ScriptedCargoMeshComponent->SetRelativeScale3D(CargoType->MeshScale);
+		ScriptedCargoMeshComponent->SetVisibility(true, true);
+		ScriptedCargoMeshComponent->SetHiddenInGame(false, true);
 	}
 
-	OnCargoPreviewStarted.Broadcast();
+	OnCargoDropHoldStarted.Broadcast();
 
-	if (CargoPreviewRemainingTime <= 0.0f)
+	if (CargoDropHoldRemainingTime <= 0.0f)
 	{
-		FinishCargoPreview();
+		FinishCargoDropHold();
 	}
 
 	return true;
 }
 
-void UPGCargoStackComponent::FinishCargoPreview()
+void UPGCargoStackComponent::FinishCargoDropHold()
 {
 	if (!bHasPendingCargoDrop)
 	{
@@ -258,17 +258,17 @@ void UPGCargoStackComponent::FinishCargoPreview()
 	UPGCargoTypeDefinition* CargoType = PendingCargoType;
 	PendingCargoType = nullptr;
 	bHasPendingCargoDrop = false;
-	CargoPreviewRemainingTime = 0.0f;
+	CargoDropHoldRemainingTime = 0.0f;
 
-	if (PreviewCargoMeshComponent)
+	if (ScriptedCargoMeshComponent)
 	{
-		PreviewCargoMeshComponent->SetVisibility(false, true);
-		PreviewCargoMeshComponent->SetHiddenInGame(true, true);
+		ScriptedCargoMeshComponent->SetVisibility(false, true);
+		ScriptedCargoMeshComponent->SetHiddenInGame(true, true);
 	}
 
-	// 프리뷰는 눈에 잘 보이는 예고 위치, 실제 투입은 바구니 근처의 안정 위치를 사용합니다.
+	// 대기 표시는 높은 위치, 실제 투입은 바구니 근처의 안정 위치를 사용합니다.
 	SpawnPhysicsCargo(CargoType, MakeCargoWorldTransform(CachedCargoSettings.CargoDropSpawnLocalOffset));
-	OnCargoPreviewFinished.Broadcast();
+	OnCargoDropHoldFinished.Broadcast();
 }
 
 APGPhysicsCargoActor* UPGCargoStackComponent::SpawnPhysicsCargo(UPGCargoTypeDefinition* CargoType, const FTransform& SpawnTransform)

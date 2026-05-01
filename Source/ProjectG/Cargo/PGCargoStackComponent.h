@@ -13,7 +13,7 @@ class UStaticMeshComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPGCargoLostSignature, int32, CargoIndex);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPGInitialCargoIntroSignature);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPGCargoPreviewSignature);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPGCargoDropHoldSignature);
 
 /**
  * 플레이어에 부착된 물리 적재물 스폰/손실 판정 앵커입니다.
@@ -39,25 +39,25 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Cargo")
 	FPGInitialCargoIntroSignature OnInitialCargoIntroFinished;
 
-	// 추가 적재 프리뷰가 시작될 때 BP/UMG 연출이 구독할 수 있는 이벤트입니다.
+	// 추가 적재물이 물리 전환 전 대기 위치에 표시될 때 발생하는 이벤트입니다.
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Cargo")
-	FPGCargoPreviewSignature OnCargoPreviewStarted;
+	FPGCargoDropHoldSignature OnCargoDropHoldStarted;
 
-	// 추가 적재 프리뷰가 끝나고 실제 물리 적재물로 전환됐을 때 발생하는 이벤트입니다.
+	// 추가 적재물 대기가 끝나고 실제 물리 적재물로 전환됐을 때 발생하는 이벤트입니다.
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Cargo")
-	FPGCargoPreviewSignature OnCargoPreviewFinished;
+	FPGCargoDropHoldSignature OnCargoDropHoldFinished;
 
 	// Project Settings의 적재 설정을 적용하고 시작 적재물 흐름을 초기화합니다.
 	void InitializeCargoStack(const FPGCargoSettings& InCargoSettings);
 
-	// 중심 입력, 프리뷰 타이머, 적재물 물리 보정 및 손실 판정을 갱신합니다.
+	// 중심 입력, 추가 적재 대기 타이머, 적재물 물리 보정 및 손실 판정을 갱신합니다.
 	void UpdateCargoReaction(float DeltaSeconds, float BalanceInput, float VisualJumpOffset, bool bIsChangingLane);
 
-	// 기본 적재물 타입으로 새 적재물 추가 프리뷰를 시작합니다.
+	// 기본 적재물 타입으로 새 적재물 추가 대기 흐름을 시작합니다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Cargo")
 	bool AddCargo();
 
-	// 지정한 적재물 타입으로 새 적재물 추가 프리뷰를 시작합니다.
+	// 지정한 적재물 타입으로 새 적재물 추가 대기 흐름을 시작합니다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Cargo")
 	bool AddCargoByType(UPGCargoTypeDefinition* CargoType);
 
@@ -100,11 +100,11 @@ private:
 	// 시작 인트로를 종료하고 실제 물리 적재물을 생성합니다.
 	void FinishInitialCargoIntro();
 
-	// 적재물 추가 요청 시 플레이어를 따라가는 프리뷰 상태로 전환합니다.
-	bool StartCargoPreview(UPGCargoTypeDefinition* CargoType);
+	// 적재물 추가 요청 시 플레이어를 따라가는 대기 상태로 전환합니다.
+	bool StartCargoDropHold(UPGCargoTypeDefinition* CargoType);
 
-	// 프리뷰 시간이 끝난 뒤 앵커 근처의 투입 위치에서 실제 물리 적재물을 생성합니다.
-	void FinishCargoPreview();
+	// 대기 시간이 끝난 뒤 앵커 근처의 투입 위치에서 실제 물리 적재물을 생성합니다.
+	void FinishCargoDropHold();
 
 	// 지정한 Transform에 물리 적재물 Actor를 생성합니다.
 	APGPhysicsCargoActor* SpawnPhysicsCargo(UPGCargoTypeDefinition* CargoType, const FTransform& SpawnTransform);
@@ -139,15 +139,15 @@ private:
 	// BeginPlay에서 캐시된 적재 설정입니다.
 	FPGCargoSettings CachedCargoSettings;
 
-	// 추가 적재 프리뷰와 시작 인트로 낙하 연출에 사용하는 비물리 메시입니다.
+	// 추가 적재 대기와 시작 인트로 낙하 연출에 사용하는 비물리 메시입니다.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UStaticMeshComponent> PreviewCargoMeshComponent;
+	TObjectPtr<UStaticMeshComponent> ScriptedCargoMeshComponent;
 
 	// 현재 월드에 살아 있는 물리 적재물 Actor 목록입니다.
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<APGPhysicsCargoActor>> CargoActors;
 
-	// 추가 적재 프리뷰 종료 후 스폰할 적재물 타입입니다.
+	// 추가 적재 대기 종료 후 스폰할 적재물 타입입니다.
 	UPROPERTY(Transient)
 	TObjectPtr<UPGCargoTypeDefinition> PendingCargoType;
 
@@ -155,7 +155,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UPGCargoTypeDefinition> PendingInitialCargoType;
 
-	// 현재 추가 적재 프리뷰가 진행 중인지 여부입니다.
+	// 현재 추가 적재 대기가 진행 중인지 여부입니다.
 	bool bHasPendingCargoDrop = false;
 
 	// 시작 적재물 인트로가 진행 중인지 여부입니다.
@@ -170,8 +170,8 @@ private:
 	// 시작 인트로 직후 손실 판정을 늦추는 추가 안정화 시간입니다.
 	float InitialCargoIntroSettleRemainingTime = 0.0f;
 
-	// 추가 적재 프리뷰가 끝나기까지 남은 시간입니다.
-	float CargoPreviewRemainingTime = 0.0f;
+	// 추가 적재 대기가 끝나기까지 남은 시간입니다.
+	float CargoDropHoldRemainingTime = 0.0f;
 
 	// 물리 흔들림 계산에 사용하는 경과 시간입니다.
 	float CargoShakeElapsedTime = 0.0f;

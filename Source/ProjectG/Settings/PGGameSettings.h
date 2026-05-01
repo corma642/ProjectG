@@ -252,21 +252,17 @@ struct FPGCargoSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Intro")
 	bool bDisableCargoLossDuringInitialIntro = true;
 
-	// 새 계란 프리뷰 위치. 실제 물리 스폰 위치와 분리해 예고를 더 잘 보이게 한다.
+	// 추가 적재물이 물리 전환 전 잠시 머무르는 CargoStackComponent 기준 상대 위치
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn")
-	FVector CargoPreviewLocalOffset = FVector(0.0f, 0.0f, 180.0f);
+	FVector CargoDropHoldLocalOffset = FVector(0.0f, 0.0f, 220.0f);
 
-	// 새 계란 프리뷰 종료 후 실제 물리 Actor로 전환할 CargoStackComponent 기준 상대 위치
+	// 추가 적재물 대기 종료 후 실제 물리 Actor로 전환할 CargoStackComponent 기준 상대 위치
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn")
 	FVector CargoDropSpawnLocalOffset = FVector(0.0f, 0.0f, 24.0f);
 
-	// 프리뷰 메시만 더 잘 보이도록 적용하는 크기 배율
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn", meta = (ClampMin = "0.1", UIMin = "0.5", UIMax = "3.0"))
-	float CargoPreviewScaleMultiplier = 1.25f;
-
-	// 홀로그램으로 대기한 뒤 실제 계란을 떨어뜨리기까지의 시간
+	// 추가 적재물이 위에서 대기한 뒤 실제 물리 적재물로 전환되기까지의 시간
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
-	float CargoPreviewDuration = 1.25f;
+	float CargoDropHoldDuration = 3.0f;
 
 	// 계란 물리 오브젝트가 사용할 충돌 프로파일
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Physics")
