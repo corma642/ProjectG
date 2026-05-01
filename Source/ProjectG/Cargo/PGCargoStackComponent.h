@@ -79,14 +79,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
 	float GetCargoDropHoldRemainingTime() const { return CargoDropHoldRemainingTime; }
 
-	// 추가 적재물이 물리 전환 전 대기 중인지 반환합니다.
-	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
-	bool IsCargoDropHoldActive() const { return bHasPendingCargoDrop; }
-
-	// 추가 적재물 대기/물리 전환에 사용하는 월드 위치를 반환합니다.
-	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
-	FVector GetCargoDropHoldWorldLocation() const { return GetComponentLocation(); }
-
 private:
 	// BP에서 앵커 위치를 지정하지 않은 경우 설정값 기반 기본 위치를 적용합니다.
 	void ApplyFallbackAnchorLocation();

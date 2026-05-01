@@ -222,17 +222,8 @@ bool UPGCargoStackComponent::StartCargoDropHold(UPGCargoTypeDefinition* CargoTyp
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	if (CargoDropHoldRemainingTime <= KINDA_SMALL_NUMBER)
 	{
-		UE_LOG(LogPGCargoStack, Warning, TEXT("CargoDrop Hold duration is %.3fs. Cargo will transition to physics immediately. Location=%s, Mesh=%s"),
+		UE_LOG(LogPGCargoStack, Warning, TEXT("CargoDrop Hold duration is %.3fs. Cargo will transition to physics immediately. Mesh=%s"),
 			CachedCargoSettings.CargoDropHoldDuration,
-			*GetCargoDropHoldWorldLocation().ToCompactString(),
-			*GetNameSafe(CargoType->CargoMesh));
-	}
-	else
-	{
-		UE_LOG(LogPGCargoStack, Display, TEXT("CargoDrop Hold started. Duration=%.3fs, Remaining=%.3fs, Location=%s, Mesh=%s"),
-			CachedCargoSettings.CargoDropHoldDuration,
-			CargoDropHoldRemainingTime,
-			*GetCargoDropHoldWorldLocation().ToCompactString(),
 			*GetNameSafe(CargoType->CargoMesh));
 	}
 #endif
@@ -244,7 +235,6 @@ bool UPGCargoStackComponent::StartCargoDropHold(UPGCargoTypeDefinition* CargoTyp
 		ApplyScriptedCargoDisplayTransform(CargoType);
 		ScriptedCargoMeshComponent->SetVisibility(true, true);
 		ScriptedCargoMeshComponent->SetHiddenInGame(false, true);
-		ScriptedCargoMeshComponent->MarkRenderStateDirty();
 	}
 
 	OnCargoDropHoldStarted.Broadcast();
@@ -267,9 +257,7 @@ void UPGCargoStackComponent::FinishCargoDropHold()
 	if (CargoDropHoldRemainingTime > KINDA_SMALL_NUMBER)
 	{
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-		UE_LOG(LogPGCargoStack, Warning, TEXT("FinishCargoDropHold was ignored because hold is still active. Remaining=%.3fs, Location=%s"),
-			CargoDropHoldRemainingTime,
-			*GetCargoDropHoldWorldLocation().ToCompactString());
+		UE_LOG(LogPGCargoStack, Warning, TEXT("FinishCargoDropHold was ignored because hold is still active. Remaining=%.3fs"), CargoDropHoldRemainingTime);
 #endif
 		return;
 	}
@@ -279,18 +267,10 @@ void UPGCargoStackComponent::FinishCargoDropHold()
 	bHasPendingCargoDrop = false;
 	CargoDropHoldRemainingTime = 0.0f;
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	UE_LOG(LogPGCargoStack, Display, TEXT("CargoDrop Hold finished. Spawning physics cargo at Location=%s, Mesh=%s, CurrentPhysicsCargoCount=%d"),
-		*GetCargoDropHoldWorldLocation().ToCompactString(),
-		CargoType ? *GetNameSafe(CargoType->CargoMesh) : TEXT("None"),
-		CargoActors.Num());
-#endif
-
 	if (ScriptedCargoMeshComponent)
 	{
 		ScriptedCargoMeshComponent->SetVisibility(false, true);
 		ScriptedCargoMeshComponent->SetHiddenInGame(true, true);
-		ScriptedCargoMeshComponent->MarkRenderStateDirty();
 	}
 
 	// 대기 메시와 실제 물리 전환은 모두 CargoStackComponent 위치를 사용합니다.
@@ -390,16 +370,6 @@ void UPGCargoStackComponent::ApplyScriptedCargoDisplayTransform(const UPGCargoTy
 
 	ScriptedCargoMeshComponent->SetWorldLocationAndRotation(SpawnTransform.GetLocation(), DisplayRotation);
 	ScriptedCargoMeshComponent->SetWorldScale3D(CargoType->MeshScale);
-
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	if (CachedCargoSettings.bDrawCargoDebug)
-	{
-		UE_LOG(LogPGCargoStack, VeryVerbose, TEXT("CargoDrop Hold display transform updated. Anchor=%s, Display=%s, Mesh=%s"),
-			*GetCargoDropHoldWorldLocation().ToCompactString(),
-			*ScriptedCargoMeshComponent->GetComponentLocation().ToCompactString(),
-			*GetNameSafe(CargoType->CargoMesh));
-	}
-#endif
 }
 
 FVector UPGCargoStackComponent::GetLossOriginLocation() const
@@ -579,10 +549,8 @@ void UPGCargoStackComponent::DrawCargoDebug() const
 
 	if (bHasPendingCargoDrop)
 	{
-		const FVector HoldLocation = GetCargoDropHoldWorldLocation();
+		const FVector HoldLocation = GetComponentLocation();
 		DrawDebugSphere(World, HoldLocation, 18.0f, 16, FColor::Purple, false, 0.0f, 0, 2.0f);
-		const FString HoldDebugText = FString::Printf(TEXT("CargoDrop Hold %.2fs"), CargoDropHoldRemainingTime);
-		DrawDebugString(World, HoldLocation + FVector::UpVector * 36.0f, HoldDebugText, nullptr, FColor::Purple, 0.0f, true);
 	}
 
 	for (const APGPhysicsCargoActor* CargoActor : CargoActors)
