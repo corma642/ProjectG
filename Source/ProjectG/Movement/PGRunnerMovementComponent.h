@@ -52,6 +52,9 @@ public:
 	// 기본 흔들림과 플레이어 보정 입력을 받아 실제 캡슐 좌우 밀림에 반영한다.
 	void SetBalanceMovementInput(float InBaseInstabilityInput, float InPlayerCorrectionInput);
 
+	// 런 실패가 확정되면 이동 모드를 끄고 라인/밸런스 잔여 상태를 정리한다.
+	void StopRunnerMovementForFailure();
+
 	// 현재 라인 중심에서 실제 캡슐이 밀려난 좌우 거리
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner Movement")
 	float GetBalanceOffset() const { return BalanceOffset; }

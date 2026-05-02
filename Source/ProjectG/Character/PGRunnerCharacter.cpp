@@ -4,6 +4,7 @@
 
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/Engine.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -244,7 +245,21 @@ void APGRunnerCharacter::HandleRunFailed(FName FailureReason)
 
 	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
 	{
-		Movement->StopMovementImmediately();
+		if (UPGRunnerMovementComponent* RunnerMovement = Cast<UPGRunnerMovementComponent>(Movement))
+		{
+			RunnerMovement->StopRunnerMovementForFailure();
+		}
+		else
+		{
+			Movement->StopMovementImmediately();
+			Movement->DisableMovement();
+		}
+	}
+
+	if (USkeletalMeshComponent* MeshComponent = GetMesh())
+	{
+		MeshComponent->SetHiddenInGame(true, true);
+		MeshComponent->SetVisibility(false, true);
 	}
 
 	UpdateBodyLean(0.0f);

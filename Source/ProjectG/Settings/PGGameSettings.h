@@ -11,6 +11,7 @@ class UPGCargoPresentationSet;
 class UPGRunEventPresentationSet;
 class UPGRunEventSet;
 class UCameraShakeBase;
+class UNiagaraSystem;
 class USoundBase;
 class UUserWidget;
 
@@ -215,6 +216,10 @@ struct FPGRunResultSettings
 	// 런 실패 시 한 번 재생할 사운드
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | SFX")
 	TSoftObjectPtr<USoundBase> GameOverSound;
+
+	// 런 실패 시 러너 위치에 한 번 재생할 Niagara VFX
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | VFX")
+	TSoftObjectPtr<UNiagaraSystem> GameOverVFX;
 
 	// 런 실패 시 로컬 플레이어 카메라에 적용할 카메라 쉐이크
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | Camera")

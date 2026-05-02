@@ -1,15 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "UI/PGRunResultFeedbackComponent.h"
+#include "RunResults/PGRunResultFeedbackComponent.h"
 
 #include "Blueprint/UserWidget.h"
 #include "Camera/CameraShakeBase.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Character/PGRunnerCharacter.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "GameFramework/PlayerController.h"
 #include "GameModes/PGGameModeBase.h"
 #include "Kismet/GameplayStatics.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
 #include "Settings/PGGameSettings.h"
 #include "Sound/SoundBase.h"
 #include "UI/PGRunResultWidget.h"
@@ -90,6 +93,14 @@ void UPGRunResultFeedbackComponent::HandleRunFailed(FName FailureReason)
 		UGameplayStatics::PlaySound2D(PlayerController, GameOverSound);
 	}
 
+	if (UNiagaraSystem* GameOverVFX = Settings->RunResult.GameOverVFX.Get())
+	{
+		const APlayerCameraManager* CameraManager = PlayerController->PlayerCameraManager;
+		const FVector VFXLocation = RunnerCharacter ? RunnerCharacter->GetActorLocation() : (CameraManager ? CameraManager->GetCameraLocation() : FVector::ZeroVector);
+		const FRotator VFXRotation = RunnerCharacter ? RunnerCharacter->GetActorRotation() : (CameraManager ? CameraManager->GetCameraRotation() : FRotator::ZeroRotator);
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(PlayerController, GameOverVFX, VFXLocation, VFXRotation);
+	}
+
 	if (TSubclassOf<UCameraShakeBase> CameraShakeClass = Settings->RunResult.GameOverCameraShake.Get())
 	{
 		PlayerController->ClientStartCameraShake(CameraShakeClass);
@@ -115,6 +126,10 @@ void UPGRunResultFeedbackComponent::StartPreloadingResources()
 	if (!Settings->RunResult.GameOverSound.IsNull())
 	{
 		ResourcePaths.Add(Settings->RunResult.GameOverSound.ToSoftObjectPath());
+	}
+	if (!Settings->RunResult.GameOverVFX.IsNull())
+	{
+		ResourcePaths.Add(Settings->RunResult.GameOverVFX.ToSoftObjectPath());
 	}
 	if (!Settings->RunResult.GameOverCameraShake.IsNull())
 	{
@@ -154,6 +169,10 @@ void UPGRunResultFeedbackComponent::HandleResourcesLoaded()
 	if (!Settings->RunResult.GameOverSound.IsNull() && !Settings->RunResult.GameOverSound.Get())
 	{
 		UE_LOG(LogPGRunResultFeedback, Warning, TEXT("RunResult.GameOverSound could not be preloaded."));
+	}
+	if (!Settings->RunResult.GameOverVFX.IsNull() && !Settings->RunResult.GameOverVFX.Get())
+	{
+		UE_LOG(LogPGRunResultFeedback, Warning, TEXT("RunResult.GameOverVFX could not be preloaded."));
 	}
 	if (!Settings->RunResult.GameOverCameraShake.IsNull() && !Settings->RunResult.GameOverCameraShake.Get())
 	{

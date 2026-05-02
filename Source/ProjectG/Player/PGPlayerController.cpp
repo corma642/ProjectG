@@ -13,7 +13,7 @@
 #include "InputCoreTypes.h"
 #include "RunEvents/PGRunEventFeedbackComponent.h"
 #include "Settings/PGGameSettings.h"
-#include "UI/PGRunResultFeedbackComponent.h"
+#include "RunResults/PGRunResultFeedbackComponent.h"
 
 APGPlayerController::APGPlayerController()
 {

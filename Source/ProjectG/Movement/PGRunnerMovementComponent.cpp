@@ -68,9 +68,31 @@ void UPGRunnerMovementComponent::SetBalanceMovementInput(float InBaseInstability
 	PlayerCorrectionInput = FMath::Clamp(InPlayerCorrectionInput, -1.0f, 1.0f);
 }
 
+void UPGRunnerMovementComponent::StopRunnerMovementForFailure()
+{
+	StopMovementImmediately();
+	DisableMovement();
+
+	BufferedLaneDirection = 0;
+	BufferedLaneInputRemainingTime = 0.0f;
+	LaneMoveElapsed = 0.0f;
+	LandingStabilizeRemainingTime = 0.0f;
+	bIsChangingLane = false;
+	bIsWaitingForLaneJumpLanding = false;
+
+	BalanceVelocity = 0.0f;
+	BaseInstabilityInput = 0.0f;
+	PlayerCorrectionInput = 0.0f;
+}
+
 void UPGRunnerMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	if (MovementMode == MOVE_None)
+	{
+		return;
+	}
 
 	UpdateBalanceMovement(DeltaTime);
 	UpdateLaneMovement(DeltaTime);
