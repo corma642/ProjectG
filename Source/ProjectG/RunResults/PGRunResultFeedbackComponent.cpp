@@ -68,7 +68,13 @@ void UPGRunResultFeedbackComponent::HandleRunFailed(FName FailureReason)
 	const float DistanceMeters = RunnerCharacter ? RunnerCharacter->GetRunDistanceMeters() : 0.0f;
 	const int32 Score = RunnerCharacter ? RunnerCharacter->GetRunScore() : 0;
 
-	if (TSubclassOf<UUserWidget> WidgetClass = Settings->RunResult.GameOverWidgetClass.Get())
+	TSubclassOf<UUserWidget> WidgetClass = Settings->RunResult.GameOverWidgetClass.Get();
+	if (!WidgetClass)
+	{
+		WidgetClass = UPGRunResultWidget::StaticClass();
+	}
+
+	if (WidgetClass)
 	{
 		ResultWidget = CreateWidget<UUserWidget>(PlayerController, WidgetClass);
 		if (ResultWidget)
@@ -82,10 +88,6 @@ void UPGRunResultFeedbackComponent::HandleRunFailed(FName FailureReason)
 			PlayerController->SetInputMode(FInputModeUIOnly());
 			PlayerController->SetShowMouseCursor(true);
 		}
-	}
-	else
-	{
-		UE_LOG(LogPGRunResultFeedback, Warning, TEXT("RunResult.GameOverWidgetClass is not assigned or not loaded. FailureReason=%s"), *FailureReason.ToString());
 	}
 
 	if (USoundBase* GameOverSound = Settings->RunResult.GameOverSound.Get())

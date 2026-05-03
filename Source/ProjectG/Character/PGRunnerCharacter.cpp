@@ -198,7 +198,9 @@ float APGRunnerCharacter::GetRunDistanceMeters() const
 
 int32 APGRunnerCharacter::GetRunScore() const
 {
-	return FMath::RoundToInt(GetRunDistanceMeters());
+	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
+	const int32 ScorePerSecond = Settings ? Settings->RunResult.ScorePerSecond : 100;
+	return FMath::RoundToInt(GetRunElapsedTime() * static_cast<float>(ScorePerSecond));
 }
 
 int32 APGRunnerCharacter::GetCurrentLaneIndex() const

@@ -19,6 +19,8 @@ public class ProjectG : ModuleRules
             "EnhancedInput",
             "DeveloperSettings",
             "UMG",
+            "Slate",
+            "SlateCore",
             "Niagara"
         });
 

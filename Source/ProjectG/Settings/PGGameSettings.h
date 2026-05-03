@@ -213,6 +213,18 @@ struct FPGRunResultSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | UI")
 	TSoftClassPtr<UUserWidget> GameOverWidgetClass;
 
+	// 임시 점수 계산에 사용하는 초당 점수. 이후 전용 점수 시스템으로 분리한다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | Score", meta = (ClampMin = "0", UIMin = "0", UIMax = "1000"))
+	int32 ScorePerSecond = 100;
+
+	// 코인 시스템 도입 전 결과 화면에 표시할 임시 코인 수
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | Score", meta = (ClampMin = "0", UIMin = "0", UIMax = "99999"))
+	int32 TemporaryCoins = 2366;
+
+	// 주문 시스템 도입 전 결과 화면에 표시할 임시 배달 완료 수
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | Score", meta = (ClampMin = "0", UIMin = "0", UIMax = "999"))
+	int32 TemporaryOrdersDelivered = 3;
+
 	// 런 실패 시 한 번 재생할 사운드
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | SFX")
 	TSoftObjectPtr<USoundBase> GameOverSound;
