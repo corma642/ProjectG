@@ -119,6 +119,17 @@ struct FPGLaneSettings
 };
 
 /**
+ * 모바일 기울임 입력에서 중심 보정에 사용할 센서 축
+ */
+UENUM(BlueprintType)
+enum class EPGTiltInputAxis : uint8
+{
+	X UMETA(DisplayName = "X"),
+	Y UMETA(DisplayName = "Y"),
+	Z UMETA(DisplayName = "Z")
+};
+
+/**
  * 모바일 자이로 중심 제어 설정
  */
 USTRUCT(BlueprintType)
@@ -126,13 +137,17 @@ struct FPGGyroSettings
 {
 	GENERATED_BODY()
 
+	// 중심 보정 입력으로 사용할 모바일 기울임 센서 축
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Gyro")
+	EPGTiltInputAxis TiltInputAxis = EPGTiltInputAxis::X;
+
 	// 자이로 좌우 기울기 입력 민감도
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Gyro", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
-	float TiltSensitivity = 1.0f;
+	float TiltSensitivity = 4.0f;
 
 	// 미세 흔들림을 무시하는 입력 데드존
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Gyro", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "0.2"))
-	float TiltDeadZone = 0.03f;
+	float TiltDeadZone = 0.01f;
 
 	// 정규화된 자이로 입력의 최대 절댓값
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Gyro", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
@@ -149,6 +164,10 @@ struct FPGGyroSettings
 	// 착지 직후 조작 안정화를 보조하는 시간
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Gyro", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "0.5"))
 	float LandingStabilizeTime = 0.15f;
+
+	// 기기별 센서 축이 반대로 들어오는 경우 좌우 기울기 입력을 반전한다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Gyro")
+	bool bInvertTiltInput = false;
 };
 
 /**
@@ -188,9 +207,21 @@ struct FPGDebugSettings
 {
 	GENERATED_BODY()
 
-	// 모바일 입력이 없는 에디터 테스트에서 키보드 대체 입력을 허용할지 여부
+	// 에디터에서 마우스 위치를 스마트폰 좌우 기울임처럼 변환해 테스트할지 여부
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Debug")
-	bool bUseKeyboardFallbackInEditor = true;
+	bool bUseMouseTiltSimulationInEditor = true;
+
+	// 마우스가 화면 가장자리로 이동했을 때 사용할 가상 Raw Tilt 최대값
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Debug", meta = (ClampMin = "0.01", UIMin = "0.05", UIMax = "1.0"))
+	float MouseTiltMaxRaw = 0.35f;
+
+	// 화면 중앙에서 이 비율만큼 떨어졌을 때 최대 기울임으로 해석한다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Debug", meta = (ClampMin = "0.05", ClampMax = "1.0", UIMin = "0.1", UIMax = "1.0"))
+	float MouseTiltScreenRangeRatio = 0.45f;
+
+	// 마우스 기반 가상 기울임 값이 목표값을 따라가는 보간 속도
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Debug", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "30.0"))
+	float MouseTiltSmoothingSpeed = 12.0f;
 
 	// 라인 위치 디버그 표시 여부
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Debug")

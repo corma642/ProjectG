@@ -8,15 +8,15 @@
 #include "PGPlayerController.generated.h"
 
 class APGRunnerCharacter;
-class UPGCargoFeedbackComponent;
 class UInputAction;
 class UInputMappingContext;
+class UPGCargoFeedbackComponent;
 class UPGRunEventFeedbackComponent;
 class UPGRunResultFeedbackComponent;
 struct FInputActionValue;
 
 /**
- * Enhanced Input 기반 모바일 터치/자이로 입력을 러너 캐릭터로 전달하는 컨트롤러
+ * 모바일 터치/기울임 입력과 에디터 테스트 입력을 러너 캐릭터에 전달하는 컨트롤러입니다.
  */
 UCLASS()
 class PROJECTG_API APGPlayerController : public APlayerController
@@ -26,96 +26,83 @@ class PROJECTG_API APGPlayerController : public APlayerController
 public:
 	APGPlayerController();
 
-	// 로컬 플레이어에 Sprint 1 기본 입력 매핑 컨텍스트를 등록한다.
+	// 로컬 플레이어에 기본 입력 매핑과 프로젝트 설정을 적용합니다.
 	virtual void BeginPlay() override;
 
-	// 등록한 입력 매핑 컨텍스트를 정리한다.
+	// 등록된 입력 매핑 컨텍스트를 정리합니다.
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	// 새 Pawn을 소유할 때 러너 캐릭터 참조를 캐시한다.
+	// 소유한 러너 캐릭터 참조를 갱신합니다.
 	virtual void OnPossess(APawn* InPawn) override;
 
-	// Pawn 소유가 해제되면 캐시된 러너 캐릭터 참조를 비운다.
+	// 소유 해제 시 러너 캐릭터 참조와 피드백 바인딩을 정리합니다.
 	virtual void OnUnPossess() override;
 
-	// 매 프레임 자이로 입력을 읽어 러너 캐릭터의 중심 입력으로 전달한다.
+	// 매 프레임 기울임 입력을 계산해 러너 캐릭터에 전달합니다.
 	virtual void PlayerTick(float DeltaTime) override;
 
-	// Enhanced Input 액션을 모바일 터치/에디터 키보드 검증 입력에 바인딩한다.
+	// Enhanced Input 액션을 바인딩합니다.
 	virtual void SetupInputComponent() override;
 
 private:
-	// 입력 에셋이 지정되지 않은 경우 C++ 기본 액션과 매핑 컨텍스트를 생성한다.
+	// 입력 에셋이 지정되지 않은 경우 C++ 기본 액션과 매핑 컨텍스트를 생성합니다.
 	void EnsureInputAssets();
 
-	// Project Settings의 입력/디버그 관련 설정을 시작 시 한 번 캐시한다.
+	// Project Settings의 입력/디버그 설정을 캐시합니다.
 	void ApplyGameSettings();
 
-	// 현재 Pawn이 러너 캐릭터라면 약한 참조로 캐시한다.
+	// 현재 Pawn이 러너 캐릭터라면 약한 참조로 캐시합니다.
 	void CacheRunnerPawn(APawn* InPawn);
 
-	// 실제 등록에 사용할 입력 매핑 컨텍스트를 반환한다.
+	// 실제 등록에 사용할 입력 매핑 컨텍스트를 반환합니다.
 	UInputMappingContext* GetResolvedMappingContext() const;
 
-	// 블루프린트에서 지정한 Enhanced Input 에셋 세트가 모두 준비됐는지 확인한다.
+	// 블루프린트에서 지정한 필수 입력 에셋이 모두 준비됐는지 확인합니다.
 	bool HasCompleteConfiguredInputAssets() const;
 
-	// 실제 바인딩에 사용할 터치 라인 이동 액션을 반환한다.
+	// 실제 바인딩에 사용할 터치 라인 이동 액션을 반환합니다.
 	UInputAction* GetResolvedTouchLaneAction() const;
 
-	// 실제 바인딩에 사용할 왼쪽 라인 이동 액션을 반환한다.
+	// 실제 바인딩에 사용할 왼쪽 라인 이동 액션을 반환합니다.
 	UInputAction* GetResolvedLaneLeftAction() const;
 
-	// 실제 바인딩에 사용할 오른쪽 라인 이동 액션을 반환한다.
+	// 실제 바인딩에 사용할 오른쪽 라인 이동 액션을 반환합니다.
 	UInputAction* GetResolvedLaneRightAction() const;
 
-	// 실제 바인딩에 사용할 왼쪽 중심 입력 액션을 반환한다.
-	UInputAction* GetResolvedBalanceLeftAction() const;
-
-	// 실제 바인딩에 사용할 오른쪽 중심 입력 액션을 반환한다.
-	UInputAction* GetResolvedBalanceRightAction() const;
-
-	// 실제 바인딩에 사용할 자이로 캘리브레이션 액션을 반환한다.
+	// 실제 바인딩에 사용할 자이로 캘리브레이션 액션을 반환합니다.
 	UInputAction* GetResolvedGyroCalibrationAction() const;
 
-	// 화면 좌/우 터치 위치를 라인 이동 방향으로 변환한다.
+	// 화면 터치 위치를 좌/우 라인 이동 요청으로 변환합니다.
 	void HandleTouchLaneStarted(const FInputActionValue& ActionValue);
 
-	// 왼쪽 인접 라인으로 이동을 요청한다.
+	// 왼쪽 라인 이동을 요청합니다.
 	void HandleLaneLeftStarted(const FInputActionValue& ActionValue);
 
-	// 오른쪽 인접 라인으로 이동을 요청한다.
+	// 오른쪽 라인 이동을 요청합니다.
 	void HandleLaneRightStarted(const FInputActionValue& ActionValue);
 
-	// 에디터 테스트용 왼쪽 중심 입력을 시작한다.
-	void HandleBalanceLeftStarted(const FInputActionValue& ActionValue);
-
-	// 에디터 테스트용 왼쪽 중심 입력을 종료한다.
-	void HandleBalanceLeftCompleted(const FInputActionValue& ActionValue);
-
-	// 에디터 테스트용 오른쪽 중심 입력을 시작한다.
-	void HandleBalanceRightStarted(const FInputActionValue& ActionValue);
-
-	// 에디터 테스트용 오른쪽 중심 입력을 종료한다.
-	void HandleBalanceRightCompleted(const FInputActionValue& ActionValue);
-
-	// 현재 기기 기울기를 새로운 자이로 기준값으로 보정한다.
+	// 현재 기기 기울기를 새로운 자이로 기준값으로 보정합니다.
 	void HandleGyroCalibrationStarted(const FInputActionValue& ActionValue);
 
-	// 현재 Pawn이 러너 캐릭터일 때 라인 이동 요청을 전달한다.
+	// 현재 Pawn이 러너 캐릭터라면 라인 이동 요청을 전달합니다.
 	void SendLaneChange(int32 Direction);
 
-	// 자이로 값을 읽고 보정/정규화한 뒤 러너 캐릭터에 전달한다.
+	// 자이로 또는 에디터 마우스 시뮬레이션 값을 중심 입력으로 변환해 전달합니다.
 	void UpdateGyroInput(float DeltaTime);
 
-	// 원본 자이로 기울기 값을 -1~1 범위의 중심 입력으로 변환한다.
+	// Raw 기울임 값을 -1~1 범위의 중심 입력으로 변환합니다.
 	float NormalizeTiltInput(float RawTilt) const;
 
-	// 기본으로 등록할 입력 매핑 컨텍스트. 비워두면 C++ 기본 매핑을 사용한다.
+#if WITH_EDITOR
+	// 에디터에서 화면 중앙 대비 마우스 위치를 가상 기울임 Raw 값으로 변환합니다.
+	bool TryGetMouseTiltSimulationRaw(float DeltaTime, float& OutRawTilt);
+#endif
+
+	// 기본으로 등록할 입력 매핑 컨텍스트. 비어 있으면 C++ 기본 매핑을 사용합니다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputMappingContext> DefaultMappingContext;
 
-	// 화면 터치 시작을 감지해 좌/우 라인 이동으로 변환하는 액션
+	// 화면 터치 시작을 감지하고 좌/우 라인 이동으로 변환하는 액션
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> TouchLaneAction;
 
@@ -126,14 +113,6 @@ private:
 	// 오른쪽 라인 이동 액션
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> LaneRightAction;
-
-	// 에디터 검증용 왼쪽 중심 입력 액션
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UInputAction> BalanceLeftAction;
-
-	// 에디터 검증용 오른쪽 중심 입력 액션
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UInputAction> BalanceRightAction;
 
 	// 자이로 캘리브레이션 액션
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
@@ -147,7 +126,7 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Run Event", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPGRunEventFeedbackComponent> RunEventFeedbackComponent;
 
-	// 런 실패 후 결과 화면 UI/SFX/CameraShake를 자동 재생하는 컴포넌트
+	// 런 실패 결과 화면 UI/SFX/CameraShake를 자동 재생하는 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Run Result", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPGRunResultFeedbackComponent> RunResultFeedbackComponent;
 
@@ -171,34 +150,23 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> NativeLaneRightAction;
 
-	// 에셋이 없을 때 사용하는 C++ 기본 왼쪽 중심 입력 액션
-	UPROPERTY(Transient)
-	TObjectPtr<UInputAction> NativeBalanceLeftAction;
-
-	// 에셋이 없을 때 사용하는 C++ 기본 오른쪽 중심 입력 액션
-	UPROPERTY(Transient)
-	TObjectPtr<UInputAction> NativeBalanceRightAction;
-
 	// 에셋이 없을 때 사용하는 C++ 기본 캘리브레이션 액션
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> NativeGyroCalibrationAction;
 
-	// 마지막으로 읽은 보정 전 자이로 좌우 기울기 값
+	// 마지막으로 읽은 Raw 좌우 기울임 값
 	float LastRawTilt = 0.0f;
 
-	// 현재 적용 중인 자이로 기준 기울기 값
+	// 현재 적용 중인 기울임 기준값
 	float CalibrationTilt = 0.0f;
 
 	// 보간 캘리브레이션이 도달해야 할 목표 기준값
 	float TargetCalibrationTilt = 0.0f;
 
-	// 에디터에서 자이로 없이 중심 입력을 테스트하기 위한 키보드 값
-	float KeyboardBalanceInput = 0.0f;
-
 	// BeginPlay에서 캐시한 자이로 중심 제어 설정
 	FPGGyroSettings CachedGyroSettings;
 
-	// BeginPlay에서 캐시한 에디터 디버그 설정
+	// BeginPlay에서 캐시한 에디터/디버그 설정
 	FPGDebugSettings CachedDebugSettings;
 
 	// 매 프레임 Pawn Cast를 반복하지 않기 위한 러너 캐릭터 참조
@@ -210,9 +178,14 @@ private:
 	// 캘리브레이션 기준값을 부드럽게 보간 중인지 여부
 	bool bIsCalibrating = false;
 
-	// 에디터 왼쪽 중심 입력 키가 눌려 있는지 여부
-	bool bIsKeyboardBalanceLeftHeld = false;
+#if WITH_EDITOR
+	// 에디터 마우스 기울임 시뮬레이션의 보간된 Raw Tilt 값
+	float SmoothedMouseTiltRaw = 0.0f;
 
-	// 에디터 오른쪽 중심 입력 키가 눌려 있는지 여부
-	bool bIsKeyboardBalanceRightHeld = false;
+	// 최근 마우스 기울임 시뮬레이션에 사용한 뷰포트 X 좌표
+	float LastMouseTiltX = -1.0f;
+
+	// 최근 프레임에 마우스 위치를 정상적으로 읽었는지 여부
+	bool bLastMouseTiltPositionAvailable = false;
+#endif
 };
