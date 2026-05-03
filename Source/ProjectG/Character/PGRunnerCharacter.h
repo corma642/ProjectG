@@ -11,6 +11,7 @@
 #include "PGRunnerCharacter.generated.h"
 
 class UCameraComponent;
+class UPGRunProgressComponent;
 class USpringArmComponent;
 
 /**
@@ -84,6 +85,10 @@ protected:
 	// 바람, 눈바람, 적재물 추가 요청 같은 환경 이벤트 상태를 관리하는 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Environment")
 	TObjectPtr<UPGRunnerEnvironmentComponent> RunnerEnvironmentComponent;
+
+	// 런 중 진행 거리와 점수를 추적하는 컴포넌트
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Run Progress")
+	TObjectPtr<UPGRunProgressComponent> RunProgressComponent;
 
 	// 캐릭터를 뒤쪽 위에서 따라가는 추적 카메라 암
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")

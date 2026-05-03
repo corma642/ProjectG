@@ -10,6 +10,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameModes/PGGameModeBase.h"
+#include "RunProgress/PGRunProgressComponent.h"
 #include "Settings/PGGameSettings.h"
 
 APGRunnerCharacter::APGRunnerCharacter(const FObjectInitializer& ObjectInitializer)
@@ -35,6 +36,8 @@ APGRunnerCharacter::APGRunnerCharacter(const FObjectInitializer& ObjectInitializ
 	RunnerEnvironmentComponent = CreateDefaultSubobject<UPGRunnerEnvironmentComponent>(TEXT("RunnerEnvironment"));
 	RunnerEnvironmentComponent->SetupAttachment(RootComponent);
 
+	RunProgressComponent = CreateDefaultSubobject<UPGRunProgressComponent>(TEXT("RunProgress"));
+
 	RunnerMovementComponent = CastChecked<UPGRunnerMovementComponent>(GetCharacterMovement());
 	UCharacterMovementComponent* Movement = RunnerMovementComponent;
 	// 러너는 항상 전방을 바라보며 이동하므로 입력 방향 회전을 사용하지 않는다.
@@ -59,6 +62,12 @@ void APGRunnerCharacter::BeginPlay()
 	RunStartForwardVector = GetActorForwardVector().GetSafeNormal();
 	RunStartTimeSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 	bIsRunActive = true;
+
+	if (RunProgressComponent)
+	{
+		const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
+		RunProgressComponent->InitializeRunProgress(Settings ? Settings->RunProgress : FPGRunProgressSettings(), RunStartLocation, RunStartForwardVector, RunStartTimeSeconds);
+	}
 
 	if (!RunnerMovementComponent)
 	{
@@ -115,6 +124,11 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 	if (!bIsRunActive)
 	{
 		return;
+	}
+
+	if (RunProgressComponent)
+	{
+		RunProgressComponent->UpdateRunProgress(GetActorLocation());
 	}
 
 	if (bIsPlayerInputLockedByInitialCargo)
@@ -185,12 +199,22 @@ void APGRunnerCharacter::SetBalanceInput(float InBalanceInput)
 
 float APGRunnerCharacter::GetRunElapsedTime() const
 {
+	if (RunProgressComponent)
+	{
+		return RunProgressComponent->GetElapsedTimeSeconds();
+	}
+
 	const UWorld* World = GetWorld();
 	return World ? FMath::Max(0.0f, World->GetTimeSeconds() - RunStartTimeSeconds) : 0.0f;
 }
 
 float APGRunnerCharacter::GetRunDistanceMeters() const
 {
+	if (RunProgressComponent)
+	{
+		return RunProgressComponent->GetDisplayedDistanceMeters();
+	}
+
 	const FVector RunDelta = GetActorLocation() - RunStartLocation;
 	const float DistanceCm = FVector::DotProduct(RunDelta, RunStartForwardVector);
 	return FMath::Max(0.0f, DistanceCm * 0.01f);
@@ -198,9 +222,7 @@ float APGRunnerCharacter::GetRunDistanceMeters() const
 
 int32 APGRunnerCharacter::GetRunScore() const
 {
-	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
-	const int32 ScorePerSecond = Settings ? Settings->RunResult.ScorePerSecond : 100;
-	return FMath::RoundToInt(GetRunElapsedTime() * static_cast<float>(ScorePerSecond));
+	return RunProgressComponent ? RunProgressComponent->GetScore() : 0;
 }
 
 int32 APGRunnerCharacter::GetCurrentLaneIndex() const
@@ -215,6 +237,11 @@ int32 APGRunnerCharacter::GetTargetLaneIndex() const
 
 void APGRunnerCharacter::HandleCargoLost(int32 CargoIndex)
 {
+	if (RunProgressComponent)
+	{
+		RunProgressComponent->StopRunProgress(GetActorLocation());
+	}
+
 	if (UWorld* World = GetWorld())
 	{
 		if (APGGameModeBase* GameMode = World->GetAuthGameMode<APGGameModeBase>())
@@ -233,6 +260,11 @@ void APGRunnerCharacter::HandleRunFailed(FName FailureReason)
 	}
 
 	// 실패가 확정되면 추가 입력/전진/환경 효과가 누적되지 않도록 러너 상태를 즉시 고정한다.
+	if (RunProgressComponent)
+	{
+		RunProgressComponent->StopRunProgress(GetActorLocation());
+	}
+
 	bIsRunActive = false;
 	bIsPlayerInputLockedByInitialCargo = false;
 	BalanceInput = 0.0f;
@@ -309,6 +341,11 @@ void APGRunnerCharacter::CheckFallFailure()
 		if (APGGameModeBase* GameMode = World->GetAuthGameMode<APGGameModeBase>())
 		{
 			// 추락 실패도 GameMode의 단일 실패 흐름으로 전달해 UI/정산 확장 지점을 하나로 유지한다.
+			if (RunProgressComponent)
+			{
+				RunProgressComponent->StopRunProgress(GetActorLocation());
+			}
+
 			GameMode->RequestRunFailed(TEXT("Fall"));
 		}
 	}

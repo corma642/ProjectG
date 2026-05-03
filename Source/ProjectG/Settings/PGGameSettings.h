@@ -202,6 +202,27 @@ struct FPGDebugSettings
 };
 
 /**
+ * 러닝 중 진행 거리와 거리 기반 점수 계산 설정
+ */
+USTRUCT(BlueprintType)
+struct FPGRunProgressSettings
+{
+	GENERATED_BODY()
+
+	// 결과와 HUD에 표시할 거리 갱신 단위. 기본값은 5m 단위 표시다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Progress | Distance", meta = (ClampMin = "1.0", UIMin = "1.0", UIMax = "20.0"))
+	float DistanceUpdateStepMeters = 5.0f;
+
+	// 표시 거리 1m당 획득하는 기본 점수
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Progress | Score", meta = (ClampMin = "0", UIMin = "0", UIMax = "1000"))
+	int32 ScorePerMeter = 10;
+
+	// 거리 기반 점수에 곱하는 배율. 이후 콤보/부스터 시스템이 생기면 이 값을 확장한다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Progress | Score", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "10.0"))
+	float ScoreMultiplier = 1.0f;
+};
+
+/**
  * 런 실패 후 결과 화면에 사용할 로컬 UI/SFX/카메라 연출 설정
  */
 USTRUCT(BlueprintType)
@@ -213,7 +234,7 @@ struct FPGRunResultSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | UI")
 	TSoftClassPtr<UUserWidget> GameOverWidgetClass;
 
-	// 임시 점수 계산에 사용하는 초당 점수. 이후 전용 점수 시스템으로 분리한다.
+	// 이전 임시 점수 계산에 사용하던 값입니다. 현재 점수는 RunProgress 설정의 거리 기반 점수를 사용합니다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | Score", meta = (ClampMin = "0", UIMin = "0", UIMax = "1000"))
 	int32 ScorePerSecond = 100;
 
@@ -436,6 +457,10 @@ public:
 	// 런 실패 후 결과 화면 자동 표시 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result")
 	FPGRunResultSettings RunResult;
+
+	// 러닝 중 거리와 점수 진행 설정
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Progress")
+	FPGRunProgressSettings RunProgress;
 
 	// 플레이어 기준 물리 적재물 스폰/손실 판정 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")
