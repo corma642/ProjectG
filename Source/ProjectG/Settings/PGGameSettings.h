@@ -207,22 +207,6 @@ struct FPGDebugSettings
 {
 	GENERATED_BODY()
 
-	// 에디터에서 마우스 위치를 스마트폰 좌우 기울임처럼 변환해 테스트할지 여부
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Debug")
-	bool bUseMouseTiltSimulationInEditor = true;
-
-	// 마우스가 화면 가장자리로 이동했을 때 사용할 가상 Raw Tilt 최대값
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Debug", meta = (ClampMin = "0.01", UIMin = "0.05", UIMax = "1.0"))
-	float MouseTiltMaxRaw = 0.35f;
-
-	// 화면 중앙에서 이 비율만큼 떨어졌을 때 최대 기울임으로 해석한다.
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Debug", meta = (ClampMin = "0.05", ClampMax = "1.0", UIMin = "0.1", UIMax = "1.0"))
-	float MouseTiltScreenRangeRatio = 0.45f;
-
-	// 마우스 기반 가상 기울임 값이 목표값을 따라가는 보간 속도
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Debug", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "30.0"))
-	float MouseTiltSmoothingSpeed = 12.0f;
-
 	// 라인 위치 디버그 표시 여부
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Debug")
 	bool bDrawLaneDebug = false;

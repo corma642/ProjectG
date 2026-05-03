@@ -72,6 +72,12 @@ private:
 	// 실제 바인딩에 사용할 자이로 캘리브레이션 액션을 반환합니다.
 	UInputAction* GetResolvedGyroCalibrationAction() const;
 
+	// 데스크탑 테스트용 왼쪽 중심 보정 액션을 반환합니다.
+	UInputAction* GetResolvedBalanceLeftAction() const;
+
+	// 데스크탑 테스트용 오른쪽 중심 보정 액션을 반환합니다.
+	UInputAction* GetResolvedBalanceRightAction() const;
+
 	// 화면 터치 위치를 좌/우 라인 이동 요청으로 변환합니다.
 	void HandleTouchLaneStarted(const FInputActionValue& ActionValue);
 
@@ -84,6 +90,18 @@ private:
 	// 현재 기기 기울기를 새로운 자이로 기준값으로 보정합니다.
 	void HandleGyroCalibrationStarted(const FInputActionValue& ActionValue);
 
+	// Q를 누르는 동안 왼쪽 중심 보정 입력을 유지합니다.
+	void HandleBalanceLeftStarted(const FInputActionValue& ActionValue);
+
+	// Q에서 손을 떼면 왼쪽 중심 보정 입력을 해제합니다.
+	void HandleBalanceLeftCompleted(const FInputActionValue& ActionValue);
+
+	// E를 누르는 동안 오른쪽 중심 보정 입력을 유지합니다.
+	void HandleBalanceRightStarted(const FInputActionValue& ActionValue);
+
+	// E에서 손을 떼면 오른쪽 중심 보정 입력을 해제합니다.
+	void HandleBalanceRightCompleted(const FInputActionValue& ActionValue);
+
 	// 현재 Pawn이 러너 캐릭터라면 라인 이동 요청을 전달합니다.
 	void SendLaneChange(int32 Direction);
 
@@ -93,10 +111,11 @@ private:
 	// Raw 기울임 값을 -1~1 범위의 중심 입력으로 변환합니다.
 	float NormalizeTiltInput(float RawTilt) const;
 
-#if WITH_EDITOR
-	// 에디터에서 화면 중앙 대비 마우스 위치를 가상 기울임 Raw 값으로 변환합니다.
-	bool TryGetMouseTiltSimulationRaw(float DeltaTime, float& OutRawTilt);
-#endif
+	// 데스크탑 테스트용 Q/E 중심 보정 입력을 -1~1 범위로 반환합니다.
+	float GetKeyboardBalanceInput() const;
+
+	// 데스크탑에서는 Q/E, 모바일에서는 자이로 값을 최종 중심 입력으로 사용합니다.
+	float ResolveFinalBalanceInput(float MotionBalanceInput) const;
 
 	// 기본으로 등록할 입력 매핑 컨텍스트. 비어 있으면 C++ 기본 매핑을 사용합니다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
@@ -117,6 +136,14 @@ private:
 	// 자이로 캘리브레이션 액션
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> GyroCalibrationAction;
+
+	// 데스크탑 테스트용 왼쪽 중심 보정 액션
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> BalanceLeftAction;
+
+	// 데스크탑 테스트용 오른쪽 중심 보정 액션
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> BalanceRightAction;
 
 	// 입력 매핑 컨텍스트 등록 우선순위
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
@@ -154,6 +181,14 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> NativeGyroCalibrationAction;
 
+	// 에셋이 없을 때 사용하는 C++ 기본 왼쪽 중심 보정 액션
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> NativeBalanceLeftAction;
+
+	// 에셋이 없을 때 사용하는 C++ 기본 오른쪽 중심 보정 액션
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> NativeBalanceRightAction;
+
 	// 마지막으로 읽은 Raw 좌우 기울임 값
 	float LastRawTilt = 0.0f;
 
@@ -178,14 +213,9 @@ private:
 	// 캘리브레이션 기준값을 부드럽게 보간 중인지 여부
 	bool bIsCalibrating = false;
 
-#if WITH_EDITOR
-	// 에디터 마우스 기울임 시뮬레이션의 보간된 Raw Tilt 값
-	float SmoothedMouseTiltRaw = 0.0f;
+	// Q를 누르고 있는 동안 true가 되어 왼쪽 중심 보정을 적용합니다.
+	bool bIsBalanceLeftHeld = false;
 
-	// 최근 마우스 기울임 시뮬레이션에 사용한 뷰포트 X 좌표
-	float LastMouseTiltX = -1.0f;
-
-	// 최근 프레임에 마우스 위치를 정상적으로 읽었는지 여부
-	bool bLastMouseTiltPositionAvailable = false;
-#endif
+	// E를 누르고 있는 동안 true가 되어 오른쪽 중심 보정을 적용합니다.
+	bool bIsBalanceRightHeld = false;
 };

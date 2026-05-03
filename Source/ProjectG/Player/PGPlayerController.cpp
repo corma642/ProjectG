@@ -65,7 +65,7 @@ void APGPlayerController::BeginPlay()
 	EnsureInputAssets();
 	CacheRunnerPawn(GetPawn());
 
-	if ((DefaultMappingContext || TouchLaneAction || LaneLeftAction || LaneRightAction || GyroCalibrationAction) && !HasCompleteConfiguredInputAssets())
+	if ((DefaultMappingContext || TouchLaneAction || LaneLeftAction || LaneRightAction || GyroCalibrationAction || BalanceLeftAction || BalanceRightAction) && !HasCompleteConfiguredInputAssets())
 	{
 		// 입력 에셋은 일부만 지정하면 액션/매핑 불일치가 생기므로 안전한 C++ 기본 매핑으로 되돌린다.
 		UE_LOG(LogTemp, Warning, TEXT("PGPlayerController input assets are incomplete. Falling back to native Sprint 1 input mapping."));
@@ -79,22 +79,8 @@ void APGPlayerController::BeginPlay()
 		}
 	}
 
-#if WITH_EDITOR
-	if (CachedDebugSettings.bUseMouseTiltSimulationInEditor)
-	{
-		// 클릭 없이도 마우스 위치를 읽어야 하므로 에디터 테스트에서는 커서 좌표를 유지하는 입력 모드를 쓴다.
-		FInputModeGameAndUI InputMode;
-		InputMode.SetHideCursorDuringCapture(false);
-		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-		SetInputMode(InputMode);
-		bShowMouseCursor = true;
-	}
-	else
-#endif
-	{
-		SetInputMode(FInputModeGameOnly());
-		bShowMouseCursor = false;
-	}
+	SetInputMode(FInputModeGameOnly());
+	bShowMouseCursor = false;
 }
 
 void APGPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -151,6 +137,12 @@ void APGPlayerController::SetupInputComponent()
 	EnhancedInputComponent->BindAction(GetResolvedLaneLeftAction(), ETriggerEvent::Started, this, &APGPlayerController::HandleLaneLeftStarted);
 	EnhancedInputComponent->BindAction(GetResolvedLaneRightAction(), ETriggerEvent::Started, this, &APGPlayerController::HandleLaneRightStarted);
 	EnhancedInputComponent->BindAction(GetResolvedGyroCalibrationAction(), ETriggerEvent::Started, this, &APGPlayerController::HandleGyroCalibrationStarted);
+	EnhancedInputComponent->BindAction(GetResolvedBalanceLeftAction(), ETriggerEvent::Started, this, &APGPlayerController::HandleBalanceLeftStarted);
+	EnhancedInputComponent->BindAction(GetResolvedBalanceLeftAction(), ETriggerEvent::Completed, this, &APGPlayerController::HandleBalanceLeftCompleted);
+	EnhancedInputComponent->BindAction(GetResolvedBalanceLeftAction(), ETriggerEvent::Canceled, this, &APGPlayerController::HandleBalanceLeftCompleted);
+	EnhancedInputComponent->BindAction(GetResolvedBalanceRightAction(), ETriggerEvent::Started, this, &APGPlayerController::HandleBalanceRightStarted);
+	EnhancedInputComponent->BindAction(GetResolvedBalanceRightAction(), ETriggerEvent::Completed, this, &APGPlayerController::HandleBalanceRightCompleted);
+	EnhancedInputComponent->BindAction(GetResolvedBalanceRightAction(), ETriggerEvent::Canceled, this, &APGPlayerController::HandleBalanceRightCompleted);
 }
 
 void APGPlayerController::ApplyGameSettings()
@@ -195,6 +187,18 @@ void APGPlayerController::EnsureInputAssets()
 		NativeGyroCalibrationAction->ValueType = EInputActionValueType::Boolean;
 	}
 
+	if (!NativeBalanceLeftAction)
+	{
+		NativeBalanceLeftAction = NewObject<UInputAction>(this, TEXT("IA_PG_NativeBalanceLeft"));
+		NativeBalanceLeftAction->ValueType = EInputActionValueType::Boolean;
+	}
+
+	if (!NativeBalanceRightAction)
+	{
+		NativeBalanceRightAction = NewObject<UInputAction>(this, TEXT("IA_PG_NativeBalanceRight"));
+		NativeBalanceRightAction->ValueType = EInputActionValueType::Boolean;
+	}
+
 	if (!NativeMappingContext)
 	{
 		NativeMappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_PG_NativeDefault"));
@@ -206,6 +210,8 @@ void APGPlayerController::EnsureInputAssets()
 		NativeMappingContext->MapKey(NativeLaneRightAction.Get(), EKeys::D);
 		NativeMappingContext->MapKey(NativeLaneRightAction.Get(), EKeys::Right);
 		NativeMappingContext->MapKey(NativeGyroCalibrationAction.Get(), EKeys::C);
+		NativeMappingContext->MapKey(NativeBalanceLeftAction.Get(), EKeys::Q);
+		NativeMappingContext->MapKey(NativeBalanceRightAction.Get(), EKeys::E);
 	}
 }
 
@@ -216,7 +222,7 @@ UInputMappingContext* APGPlayerController::GetResolvedMappingContext() const
 
 bool APGPlayerController::HasCompleteConfiguredInputAssets() const
 {
-	return DefaultMappingContext && TouchLaneAction && LaneLeftAction && LaneRightAction && GyroCalibrationAction;
+	return DefaultMappingContext && TouchLaneAction && LaneLeftAction && LaneRightAction && GyroCalibrationAction && BalanceLeftAction && BalanceRightAction;
 }
 
 UInputAction* APGPlayerController::GetResolvedTouchLaneAction() const
@@ -237,6 +243,16 @@ UInputAction* APGPlayerController::GetResolvedLaneRightAction() const
 UInputAction* APGPlayerController::GetResolvedGyroCalibrationAction() const
 {
 	return HasCompleteConfiguredInputAssets() ? GyroCalibrationAction.Get() : NativeGyroCalibrationAction.Get();
+}
+
+UInputAction* APGPlayerController::GetResolvedBalanceLeftAction() const
+{
+	return HasCompleteConfiguredInputAssets() ? BalanceLeftAction.Get() : NativeBalanceLeftAction.Get();
+}
+
+UInputAction* APGPlayerController::GetResolvedBalanceRightAction() const
+{
+	return HasCompleteConfiguredInputAssets() ? BalanceRightAction.Get() : NativeBalanceRightAction.Get();
 }
 
 void APGPlayerController::HandleTouchLaneStarted(const FInputActionValue& ActionValue)
@@ -286,6 +302,26 @@ void APGPlayerController::HandleGyroCalibrationStarted(const FInputActionValue& 
 	bIsCalibrating = true;
 }
 
+void APGPlayerController::HandleBalanceLeftStarted(const FInputActionValue& ActionValue)
+{
+	bIsBalanceLeftHeld = true;
+}
+
+void APGPlayerController::HandleBalanceLeftCompleted(const FInputActionValue& ActionValue)
+{
+	bIsBalanceLeftHeld = false;
+}
+
+void APGPlayerController::HandleBalanceRightStarted(const FInputActionValue& ActionValue)
+{
+	bIsBalanceRightHeld = true;
+}
+
+void APGPlayerController::HandleBalanceRightCompleted(const FInputActionValue& ActionValue)
+{
+	bIsBalanceRightHeld = false;
+}
+
 void APGPlayerController::SendLaneChange(int32 Direction)
 {
 	if (APGRunnerCharacter* RunnerCharacter = CachedRunnerCharacter.Get())
@@ -304,24 +340,6 @@ void APGPlayerController::UpdateGyroInput(float DeltaTime)
 
 	// 프로젝트 설정에서 선택한 센서 축을 중심 제어 입력으로 사용한다.
 	LastRawTilt = SelectTiltAxisValue(Tilt, CachedGyroSettings.TiltInputAxis);
-
-#if WITH_EDITOR
-	bool bUsingMouseTiltSimulation = false;
-	bool bMousePositionAvailable = false;
-	float MouseTiltRaw = 0.0f;
-	if (CachedDebugSettings.bUseMouseTiltSimulationInEditor)
-	{
-		bMousePositionAvailable = TryGetMouseTiltSimulationRaw(DeltaTime, MouseTiltRaw);
-
-		// 마우스 시뮬레이션은 화면 중앙을 항상 중립으로 보므로 캘리브레이션 기준을 0으로 고정한다.
-		LastRawTilt = MouseTiltRaw;
-		CalibrationTilt = 0.0f;
-		TargetCalibrationTilt = 0.0f;
-		bHasCalibration = true;
-		bIsCalibrating = false;
-		bUsingMouseTiltSimulation = true;
-	}
-#endif
 
 	if (!bHasCalibration)
 	{
@@ -342,7 +360,8 @@ void APGPlayerController::UpdateGyroInput(float DeltaTime)
 		}
 	}
 
-	float FinalBalanceInput = NormalizeTiltInput(LastRawTilt);
+	const float MotionBalanceInput = NormalizeTiltInput(LastRawTilt);
+	const float FinalBalanceInput = ResolveFinalBalanceInput(MotionBalanceInput);
 
 	if (APGRunnerCharacter* RunnerCharacter = CachedRunnerCharacter.Get())
 	{
@@ -352,23 +371,23 @@ void APGPlayerController::UpdateGyroInput(float DeltaTime)
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	if (CachedDebugSettings.bDrawGyroDebug && GEngine)
 	{
-#if WITH_EDITOR
-		const TCHAR* InputSource = bUsingMouseTiltSimulation ? TEXT("Mouse") : TEXT("Motion");
+#if !PLATFORM_ANDROID
+		const TCHAR* InputSource = TEXT("Keyboard");
 		GEngine->AddOnScreenDebugMessage(
 			reinterpret_cast<uint64>(this),
 			0.0f,
 			FColor::Cyan,
 			FString::Printf(
-				TEXT("Source:%s Axis:%s | Tilt X/Y/Z: %.3f / %.3f / %.3f | Raw: %.3f | Balance: %.3f | MouseX: %.1f | MouseAvailable:%s"),
+				TEXT("Source:%s Axis:%s | Tilt X/Y/Z: %.3f / %.3f / %.3f | Raw: %.3f | Motion: %.3f | Keyboard/QE: %.3f | Balance: %.3f"),
 				InputSource,
 				GetTiltAxisDebugName(CachedGyroSettings.TiltInputAxis),
 				Tilt.X,
 				Tilt.Y,
 				Tilt.Z,
 				LastRawTilt,
-				FinalBalanceInput,
-				LastMouseTiltX,
-				bMousePositionAvailable ? TEXT("True") : TEXT("False")));
+				MotionBalanceInput,
+				GetKeyboardBalanceInput(),
+				FinalBalanceInput));
 #else
 		GEngine->AddOnScreenDebugMessage(
 			reinterpret_cast<uint64>(this),
@@ -402,50 +421,18 @@ float APGPlayerController::NormalizeTiltInput(float RawTilt) const
 	return FMath::Clamp(CenteredTilt * CachedGyroSettings.TiltSensitivity, -CachedGyroSettings.MaxTiltInput, CachedGyroSettings.MaxTiltInput);
 }
 
-#if WITH_EDITOR
-bool APGPlayerController::TryGetMouseTiltSimulationRaw(float DeltaTime, float& OutRawTilt)
+float APGPlayerController::GetKeyboardBalanceInput() const
 {
-	OutRawTilt = SmoothedMouseTiltRaw;
-	bLastMouseTiltPositionAvailable = false;
-	LastMouseTiltX = -1.0f;
-
-	int32 ViewportSizeX = 0;
-	int32 ViewportSizeY = 0;
-	GetViewportSize(ViewportSizeX, ViewportSizeY);
-	if (ViewportSizeX <= 0 || ViewportSizeY <= 0)
-	{
-		SmoothedMouseTiltRaw = FMath::FInterpTo(SmoothedMouseTiltRaw, 0.0f, DeltaTime, CachedDebugSettings.MouseTiltSmoothingSpeed);
-		OutRawTilt = SmoothedMouseTiltRaw;
-		return false;
-	}
-
-	float MouseX = 0.0f;
-	float MouseY = 0.0f;
-	if (!GetMousePosition(MouseX, MouseY))
-	{
-		SmoothedMouseTiltRaw = FMath::FInterpTo(SmoothedMouseTiltRaw, 0.0f, DeltaTime, CachedDebugSettings.MouseTiltSmoothingSpeed);
-		OutRawTilt = SmoothedMouseTiltRaw;
-		return false;
-	}
-
-	LastMouseTiltX = MouseX;
-	bLastMouseTiltPositionAvailable = true;
-
-	const float HalfWidth = static_cast<float>(ViewportSizeX) * 0.5f;
-	const float Range = FMath::Max(1.0f, HalfWidth * CachedDebugSettings.MouseTiltScreenRangeRatio);
-	const float NormalizedMouseOffset = FMath::Clamp((MouseX - HalfWidth) / Range, -1.0f, 1.0f);
-	const float TargetRawTilt = NormalizedMouseOffset * CachedDebugSettings.MouseTiltMaxRaw;
-
-	if (CachedDebugSettings.MouseTiltSmoothingSpeed <= 0.0f)
-	{
-		SmoothedMouseTiltRaw = TargetRawTilt;
-	}
-	else
-	{
-		SmoothedMouseTiltRaw = FMath::FInterpTo(SmoothedMouseTiltRaw, TargetRawTilt, DeltaTime, CachedDebugSettings.MouseTiltSmoothingSpeed);
-	}
-
-	OutRawTilt = SmoothedMouseTiltRaw;
-	return bLastMouseTiltPositionAvailable;
+	const float LeftInput = bIsBalanceLeftHeld ? -1.0f : 0.0f;
+	const float RightInput = bIsBalanceRightHeld ? 1.0f : 0.0f;
+	return FMath::Clamp(LeftInput + RightInput, -CachedGyroSettings.MaxTiltInput, CachedGyroSettings.MaxTiltInput);
 }
+
+float APGPlayerController::ResolveFinalBalanceInput(float MotionBalanceInput) const
+{
+#if PLATFORM_ANDROID
+	return MotionBalanceInput;
+#else
+	return GetKeyboardBalanceInput();
 #endif
+}
