@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -40,7 +40,7 @@ public:
 
 	// 적재물의 선형 속도 감쇠. 값이 높을수록 받침 안에서 덜 미끄러진다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "10.0"))
-	float LinearDamping = 0.15f;
+	float LinearDamping = 0.25f;
 
 	// 적재물의 회전 속도 감쇠. 값이 높을수록 굴러다니는 속도가 빨리 줄어든다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "10.0"))
@@ -48,11 +48,11 @@ public:
 
 	// 충돌 직후 위쪽 반발 속도에 곱하는 비율. 낮을수록 덜 튀어오른다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-	float ImpactBounceVelocityScale = 0.25f;
+	float ImpactBounceVelocityScale = 0.2f;
 
 	// 충돌 직후 허용할 최대 위쪽 속도
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "500.0"))
-	float MaxUpwardBounceSpeed = 80.0f;
+	float MaxUpwardBounceSpeed = 70.0f;
 
 	// 충돌 후 과도한 회전 튐을 막기 위한 최대 각속도
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3600.0"))
