@@ -85,7 +85,7 @@ void UPGRunResultWidget::ConfigureRunResult(FName FailureReason, float RunTimeSe
 	BuildDefaultLayout();
 
 	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
-	const int32 Coins = Settings ? Settings->RunResult.TemporaryCoins : 2366;
+	const int32 Receipts = Settings ? Settings->RunResult.TemporaryReceipts : 2366;
 	const int32 OrdersDelivered = Settings ? Settings->RunResult.TemporaryOrdersDelivered : 3;
 
 	if (ScoreValueText)
@@ -98,7 +98,7 @@ void UPGRunResultWidget::ConfigureRunResult(FName FailureReason, float RunTimeSe
 	}
 	if (ReceiptsValueText)
 	{
-		ReceiptsValueText->SetText(FormatNumber(Coins));
+		ReceiptsValueText->SetText(FormatNumber(Receipts));
 	}
 	if (OrdersValueText)
 	{
@@ -106,7 +106,7 @@ void UPGRunResultWidget::ConfigureRunResult(FName FailureReason, float RunTimeSe
 	}
 
 	StartBackdropAnimation();
-	OnRunResultConfigured(FailureReason, RunTimeSeconds, DistanceMeters, Score, Coins, OrdersDelivered);
+	OnRunResultConfigured(FailureReason, RunTimeSeconds, DistanceMeters, Score, Receipts, OrdersDelivered);
 }
 
 void UPGRunResultWidget::InitializeDefaultStyle()

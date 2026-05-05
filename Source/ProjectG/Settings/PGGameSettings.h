@@ -253,9 +253,9 @@ struct FPGRunResultSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | Score", meta = (ClampMin = "0", UIMin = "0", UIMax = "1000"))
 	int32 ScorePerSecond = 100;
 
-	// 코인 시스템 도입 전 결과 화면에 표시할 임시 코인 수
+	// 영수증 수집 시스템 도입 전 결과 화면에 표시할 임시 영수증 수
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | Score", meta = (ClampMin = "0", UIMin = "0", UIMax = "99999"))
-	int32 TemporaryCoins = 2366;
+	int32 TemporaryReceipts = 2366;
 
 	// 주문 시스템 도입 전 결과 화면에 표시할 임시 배달 완료 수
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | Score", meta = (ClampMin = "0", UIMin = "0", UIMax = "999"))
