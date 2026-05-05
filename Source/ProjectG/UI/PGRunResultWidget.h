@@ -41,7 +41,7 @@ protected:
 
 	// BP 상속 위젯에서 결과 데이터 수신 후 추가 연출이나 리소스 교체 후처리를 붙일 수 있는 확장 지점입니다.
 	UFUNCTION(BlueprintImplementableEvent, Category = "ProjectG | Run Result")
-	void OnRunResultConfigured(FName FailureReason, float RunTimeSeconds, float DistanceMeters, int32 Score, int32 Coins, int32 OrdersDelivered);
+	void OnRunResultConfigured(FName FailureReason, float RunTimeSeconds, float DistanceMeters, int32 Score, int32 Receipts, int32 OrdersDelivered);
 
 	// 게임오버 카드 배경 이미지입니다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Run Result | Style")
@@ -55,9 +55,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Run Result | Style")
 	FSlateBrush DistanceIconBrush;
 
-	// 코인 행 아이콘 이미지입니다.
+	// 영수증 행 아이콘 이미지입니다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Run Result | Style")
-	FSlateBrush CoinsIconBrush;
+	FSlateBrush ReceiptsIconBrush;
 
 	// 배달 완료 행 아이콘 이미지입니다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Run Result | Style")
@@ -293,7 +293,7 @@ private:
 	TObjectPtr<UTextBlock> DistanceValueText;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> CoinsValueText;
+	TObjectPtr<UTextBlock> ReceiptsValueText;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> OrdersValueText;

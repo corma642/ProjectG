@@ -96,9 +96,9 @@ void UPGRunResultWidget::ConfigureRunResult(FName FailureReason, float RunTimeSe
 	{
 		DistanceValueText->SetText(FText::Format(NSLOCTEXT("PGRunResult", "DistanceMetersFormat", "{0} m"), FormatNumber(FMath::RoundToInt(DistanceMeters))));
 	}
-	if (CoinsValueText)
+	if (ReceiptsValueText)
 	{
-		CoinsValueText->SetText(FormatNumber(Coins));
+		ReceiptsValueText->SetText(FormatNumber(Coins));
 	}
 	if (OrdersValueText)
 	{
@@ -114,7 +114,7 @@ void UPGRunResultWidget::InitializeDefaultStyle()
 	BackgroundBrush = MakeColorBrush(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f), FVector2D(600.0f, 1200.0f));
 	ScoreIconBrush = MakeColorBrush(FLinearColor(0.05f, 0.22f, 0.36f, 1.0f));
 	DistanceIconBrush = MakeColorBrush(FLinearColor(0.04f, 0.28f, 0.54f, 1.0f));
-	CoinsIconBrush = MakeColorBrush(FLinearColor(0.95f, 0.60f, 0.08f, 1.0f));
+	ReceiptsIconBrush = MakeColorBrush(FLinearColor(0.95f, 0.60f, 0.08f, 1.0f));
 	OrdersIconBrush = MakeColorBrush(FLinearColor(0.55f, 0.28f, 0.07f, 1.0f));
 	RetryIconBrush = MakeColorBrush(FLinearColor(0.72f, 0.18f, 0.05f, 1.0f));
 	HomeIconBrush = MakeColorBrush(FLinearColor(0.02f, 0.22f, 0.48f, 1.0f));
@@ -241,7 +241,7 @@ void UPGRunResultWidget::BuildDefaultLayout()
 
 	ScoreValueText = CreateResultRow(ResultRowsBox, ScoreIconBrush, NSLOCTEXT("PGRunResult", "ScoreLabel", "Score"));
 	DistanceValueText = CreateResultRow(ResultRowsBox, DistanceIconBrush, NSLOCTEXT("PGRunResult", "DistanceLabel", "Distance"));
-	CoinsValueText = CreateResultRow(ResultRowsBox, CoinsIconBrush, NSLOCTEXT("PGRunResult", "CoinsLabel", "Coins"));
+	ReceiptsValueText = CreateResultRow(ResultRowsBox, ReceiptsIconBrush, NSLOCTEXT("PGRunResult", "ReceiptsLabel", "Receipts"));
 	OrdersValueText = CreateResultRow(ResultRowsBox, OrdersIconBrush, NSLOCTEXT("PGRunResult", "OrdersLabel", "Orders Delivered"));
 
 	RetryButton = CreateActionButton(PanelBox, RetryIconBrush, NSLOCTEXT("PGRunResult", "RetryDelivery", "RETRY DELIVERY"), RetryButtonColor);
