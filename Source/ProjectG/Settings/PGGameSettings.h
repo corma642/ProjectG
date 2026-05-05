@@ -376,9 +376,13 @@ struct FPGEnvironmentSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Environment | Wind", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0"))
 	float WindBalanceBiasScale = 0.35f;
 
-	// 눈바람 중 중심 입력이 목표값을 따라가는 속도 비율. 낮을수록 더 늦게 반응한다.
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Environment | Snowstorm", meta = (ClampMin = "0.05", ClampMax = "1.0", UIMin = "0.1", UIMax = "1.0"))
-	float SnowstormInputLagScale = 0.35f;
+	// 눈바람 중 플레이어 기울임 입력을 증폭하는 비율. 입력이 0이면 추가 효과도 없다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Environment | Snowstorm", meta = (ClampMin = "1.0", UIMin = "1.0", UIMax = "6.0"))
+	float SnowstormInputSensitivityScale = 2.5f;
+
+	// 눈바람 중 플레이어 입력이 적재물 흔들림 힘으로 변환될 때 추가로 곱하는 비율
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Environment | Snowstorm", meta = (ClampMin = "1.0", UIMin = "1.0", UIMax = "8.0"))
+	float SnowstormCargoInputForceScale = 3.0f;
 
 	// 개발 빌드에서 현재 환경 효과 상태를 디버그 텍스트로 표시할지 여부
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Environment | Debug")

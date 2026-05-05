@@ -114,6 +114,9 @@ private:
 	// 기본 흔들림, 플레이어 입력, 환경 효과를 합산한 최종 중심 입력값을 반환한다.
 	float GetEffectiveBalanceInput() const;
 
+	// 적재물 물리 흔들림에 사용할 중심 입력값을 반환합니다. 눈바람 중에는 플레이어 입력 기여분만 추가 증폭합니다.
+	float GetCargoBalanceInputForPhysics() const;
+
 	// 중심 입력값을 캐릭터 메시의 좌우 기울기 연출로 변환한다.
 	void UpdateBodyLean(float DeltaSeconds);
 

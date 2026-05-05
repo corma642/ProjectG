@@ -138,7 +138,7 @@ void UPGRunEventSubsystem::InitializeDefaultRules()
 	SnowstormRule.DifficultyWeight = 1.0f;
 	SnowstormRule.CooldownSeconds = 7.0f;
 	SnowstormRule.Duration = 3.0f;
-	SnowstormRule.InputLagScale = 0.35f;
+	SnowstormRule.Strength = 1.0f;
 	DefaultRules.Add(SnowstormRule);
 
 	FPGRunEventRule CargoDropRule;
@@ -354,7 +354,7 @@ void UPGRunEventSubsystem::TriggerPendingEvent()
 		break;
 	}
 	case EPGRunEventType::Snowstorm:
-		RunnerEnvironmentComponent->ApplySnowstorm(PendingEventRule.Duration, PendingEventRule.InputLagScale);
+		RunnerEnvironmentComponent->ApplySnowstorm(PendingEventRule.Duration, PendingEventRule.Strength);
 		break;
 	case EPGRunEventType::CargoDrop:
 		bTriggered = RunnerEnvironmentComponent->RequestCargoDrop();

@@ -73,13 +73,9 @@ struct FPGRunEventRule
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Run Event | Effect", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "10.0"))
 	float Duration = 3.0f;
 
-	// 바람 이벤트 강도입니다.
+	// 바람/눈바람 이벤트 강도입니다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Run Event | Effect", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3.0"))
 	float Strength = 1.0f;
-
-	// 눈바람 입력 지연 비율입니다. 낮을수록 입력 반응이 더 둔해집니다.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Run Event | Effect", meta = (ClampMin = "0.05", ClampMax = "1.0", UIMin = "0.05", UIMax = "1.0"))
-	float InputLagScale = 0.35f;
 
 	// 바람 방향을 발동마다 좌/우 랜덤으로 정할지 여부입니다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Run Event | Effect")

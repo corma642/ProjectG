@@ -34,9 +34,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Environment")
 	void ApplyWind(float Direction, float Strength, float Duration);
 
-	// 눈바람으로 인한 입력 지연을 적용합니다. 중심 입력 반응을 늦춰 시야/환경 압박을 만듭니다.
+	// 눈바람으로 플레이어 기울임 입력을 과민하게 증폭합니다. 입력이 없으면 추가 효과도 없습니다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Environment")
-	void ApplySnowstorm(float Duration, float InputLagScale);
+	void ApplySnowstorm(float Duration, float Strength);
 
 	// 새 적재물 추가 대기/투입 흐름을 요청합니다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Environment")
@@ -49,6 +49,14 @@ public:
 	// 현재 환경 효과가 반영된 최종 중심 입력값입니다.
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Environment")
 	float GetProcessedBalanceInput() const { return ProcessedBalanceInput; }
+
+	// 눈바람 중 적재물 물리 반응에 사용할 입력값입니다. 기본 흔들림은 포함하지 않습니다.
+	UFUNCTION(BlueprintPure, Category = "ProjectG | Environment")
+	float GetProcessedCargoBalanceInput() const { return ProcessedCargoBalanceInput; }
+
+	// 눈바람이 현재 플레이어 입력 과민 효과를 적용 중인지 반환합니다.
+	UFUNCTION(BlueprintPure, Category = "ProjectG | Environment")
+	bool IsSnowstormActive() const { return SnowstormRemainingTime > 0.0f; }
 
 	// 바람 또는 눈바람 효과가 아직 적용 중인지 여부입니다.
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Environment")
@@ -80,12 +88,12 @@ private:
 	// 눈바람 효과가 남은 시간입니다.
 	float SnowstormRemainingTime = 0.0f;
 
-	// 눈바람 입력 지연 비율입니다.
-	float SnowstormInputLagScale = 1.0f;
-
-	// 눈바람 보간에 사용하는 지연 중심 입력값입니다.
-	float DelayedBalanceInput = 0.0f;
+	// 눈바람 입력 과민 효과 강도입니다.
+	float SnowstormStrength = 1.0f;
 
 	// 환경 효과가 적용된 최종 중심 입력값입니다.
 	float ProcessedBalanceInput = 0.0f;
+
+	// 적재물 물리 반응에 사용할 플레이어 입력 기반 중심값입니다.
+	float ProcessedCargoBalanceInput = 0.0f;
 };

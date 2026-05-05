@@ -32,30 +32,33 @@ float UPGRunnerEnvironmentComponent::UpdateEnvironment(float DeltaSeconds, float
 	if (!bIsRunActive)
 	{
 		ProcessedBalanceInput = 0.0f;
+		ProcessedCargoBalanceInput = 0.0f;
 		return ProcessedBalanceInput;
 	}
 
 	if (!HasActiveEnvironmentEffect())
 	{
-		DelayedBalanceInput = RawBalanceInput;
 		ProcessedBalanceInput = RawBalanceInput;
+		ProcessedCargoBalanceInput = RawBalanceInput;
 		return ProcessedBalanceInput;
 	}
 
 	float EnvironmentBalanceInput = RawBalanceInput;
+	float CargoBalanceInput = RawBalanceInput;
 
 	if (SnowstormRemainingTime > 0.0f)
 	{
 		SnowstormRemainingTime = FMath::Max(0.0f, SnowstormRemainingTime - DeltaSeconds);
 
-		// 눈바람은 노면을 바꾸지 않고, 차가운 바람과 시야 방해로 중심 보정 반응이 둔해지는 감각을 만든다.
-		const float InterpSpeed = 12.0f * FMath::Clamp(SnowstormInputLagScale, 0.05f, 1.0f);
-		DelayedBalanceInput = FMath::FInterpTo(DelayedBalanceInput, RawBalanceInput, DeltaSeconds, InterpSpeed);
-		EnvironmentBalanceInput = DelayedBalanceInput;
+		// 눈바람은 외력이 아니라 입력 과민 효과다. 입력이 0이면 증폭 결과도 0이다.
+		const float EventStrength = FMath::Max(0.0f, SnowstormStrength);
+		const float InputScale = FMath::Max(1.0f, CachedEnvironmentSettings.SnowstormInputSensitivityScale) * EventStrength;
+		EnvironmentBalanceInput = RawBalanceInput * InputScale;
+		CargoBalanceInput = EnvironmentBalanceInput * FMath::Max(1.0f, CachedEnvironmentSettings.SnowstormCargoInputForceScale);
 	}
 	else
 	{
-		DelayedBalanceInput = RawBalanceInput;
+		CargoBalanceInput = RawBalanceInput;
 	}
 
 	if (WindRemainingTime > 0.0f)
@@ -65,9 +68,11 @@ float UPGRunnerEnvironmentComponent::UpdateEnvironment(float DeltaSeconds, float
 		// 바람은 플레이어 입력 위에 외부 중심 영향을 더해 적재물과 몸 기울기에 같은 방향성을 만든다.
 		const float WindBias = WindDirection * WindStrength * CachedEnvironmentSettings.WindBalanceBiasScale;
 		EnvironmentBalanceInput += WindBias;
+		CargoBalanceInput += WindBias;
 	}
 
 	ProcessedBalanceInput = FMath::Clamp(EnvironmentBalanceInput, -1.0f, 1.0f);
+	ProcessedCargoBalanceInput = CargoBalanceInput;
 	DrawEnvironmentDebug();
 	return ProcessedBalanceInput;
 }
@@ -92,16 +97,22 @@ void UPGRunnerEnvironmentComponent::ApplyWind(float Direction, float Strength, f
 	WindRemainingTime = Duration;
 }
 
-void UPGRunnerEnvironmentComponent::ApplySnowstorm(float Duration, float InputLagScale)
+void UPGRunnerEnvironmentComponent::ApplySnowstorm(float Duration, float Strength)
 {
 	if (!bIsRunActive)
 	{
 		return;
 	}
 
-	SnowstormRemainingTime = FMath::Max(0.0f, Duration);
-	SnowstormInputLagScale = InputLagScale > 0.0f ? InputLagScale : CachedEnvironmentSettings.SnowstormInputLagScale;
-	SnowstormInputLagScale = FMath::Clamp(SnowstormInputLagScale, 0.05f, 1.0f);
+	if (Duration <= 0.0f || Strength <= 0.0f)
+	{
+		SnowstormRemainingTime = 0.0f;
+		SnowstormStrength = 0.0f;
+		return;
+	}
+
+	SnowstormRemainingTime = Duration;
+	SnowstormStrength = Strength;
 }
 
 bool UPGRunnerEnvironmentComponent::RequestCargoDrop()
@@ -120,9 +131,9 @@ void UPGRunnerEnvironmentComponent::ClearEnvironmentEffects()
 	WindDirection = 0.0f;
 	WindStrength = 0.0f;
 	SnowstormRemainingTime = 0.0f;
-	SnowstormInputLagScale = FMath::Clamp(CachedEnvironmentSettings.SnowstormInputLagScale, 0.05f, 1.0f);
-	DelayedBalanceInput = 0.0f;
+	SnowstormStrength = 0.0f;
 	ProcessedBalanceInput = 0.0f;
+	ProcessedCargoBalanceInput = 0.0f;
 }
 
 bool UPGRunnerEnvironmentComponent::HasActiveEnvironmentEffect() const
@@ -144,7 +155,7 @@ void UPGRunnerEnvironmentComponent::DrawEnvironmentDebug() const
 		return;
 	}
 
-	const FString DebugText = FString::Printf(TEXT("Wind %.2fs / Snowstorm %.2fs / Balance %.2f"), WindRemainingTime, SnowstormRemainingTime, ProcessedBalanceInput);
+	const FString DebugText = FString::Printf(TEXT("Wind %.2fs / Snowstorm %.2fs / Balance %.2f / Cargo %.2f"), WindRemainingTime, SnowstormRemainingTime, ProcessedBalanceInput, ProcessedCargoBalanceInput);
 	DrawDebugString(World, GetComponentLocation() + FVector::UpVector * 160.0f, DebugText, nullptr, FColor::Cyan, 0.0f, true);
 #endif
 }

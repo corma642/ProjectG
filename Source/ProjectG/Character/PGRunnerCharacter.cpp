@@ -153,7 +153,7 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 	if (CargoStackComponent)
 	{
 		const bool bIsChangingLane = RunnerMovementComponent && RunnerMovementComponent->IsChangingLane();
-		CargoStackComponent->UpdateCargoReaction(DeltaSeconds, GetEffectiveBalanceInput(), bIsChangingLane);
+		CargoStackComponent->UpdateCargoReaction(DeltaSeconds, GetCargoBalanceInputForPhysics(), bIsChangingLane);
 	}
 	UpdateBodyLean(DeltaSeconds);
 	DrawDebugLanes();
@@ -374,6 +374,17 @@ float APGRunnerCharacter::GetEffectiveBalanceInput() const
 
 	// 환경 효과와 기본 불안정성을 모두 합산한 뒤 자이로 최대 입력 설정으로 최종 제한한다.
 	return FMath::Clamp(FinalBalanceInput, -CachedGyroSettings.MaxTiltInput, CachedGyroSettings.MaxTiltInput);
+}
+
+float APGRunnerCharacter::GetCargoBalanceInputForPhysics() const
+{
+	if (RunnerEnvironmentComponent && RunnerEnvironmentComponent->IsSnowstormActive())
+	{
+		// 눈바람 중에는 기본 흔들림은 그대로 두고, 플레이어 입력으로 인한 적재물 반응만 더 민감하게 만든다.
+		return BaseInstabilityInput + RunnerEnvironmentComponent->GetProcessedCargoBalanceInput() * CachedBalanceSettings.PlayerCorrectionScale;
+	}
+
+	return GetEffectiveBalanceInput();
 }
 
 void APGRunnerCharacter::UpdateBodyLean(float DeltaSeconds)
