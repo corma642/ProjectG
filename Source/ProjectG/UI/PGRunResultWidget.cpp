@@ -35,7 +35,7 @@ constexpr float ButtonAnimationDuration = 0.28f;
 constexpr float ButtonAnimationDelay = 0.12f;
 constexpr float ButtonAnimationStartDelay = 0.55f;
 
-float EaseOutCubic(float Alpha)
+float RunResultEaseOutCubic(float Alpha)
 {
 	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
 	return 1.0f - FMath::Pow(1.0f - ClampedAlpha, 3.0f);
@@ -294,7 +294,7 @@ void UPGRunResultWidget::UpdateBackdropAnimation(float DeltaTime)
 
 	const float Duration = FMath::Max(BackdropAnimationDuration, KINDA_SMALL_NUMBER);
 	const float BackdropAlpha = FMath::Clamp(BackdropAnimationElapsed / Duration, 0.0f, 1.0f);
-	const float EasedAlpha = EaseOutCubic(BackdropAlpha);
+	const float EasedAlpha = RunResultEaseOutCubic(BackdropAlpha);
 
 	if (BackdropBlur)
 	{
@@ -457,14 +457,14 @@ void UPGRunResultWidget::UpdateEntryAnimation(float DeltaTime)
 {
 	EntryAnimationElapsed += DeltaTime;
 
-	const float PanelAlpha = EaseOutCubic(EntryAnimationElapsed / PanelAnimationDuration);
+	const float PanelAlpha = RunResultEaseOutCubic(EntryAnimationElapsed / PanelAnimationDuration);
 	ApplyWidgetAnimationState(BackgroundPanel, FVector2D(0.0f, FMath::Lerp(PanelStartYOffset, 0.0f, PanelAlpha)), PanelAlpha);
 
 	bool bAllRowsFinished = true;
 	for (int32 Index = 0; Index < AnimatedRows.Num(); ++Index)
 	{
 		const float RowTime = EntryAnimationElapsed - static_cast<float>(Index) * RowAnimationDelay;
-		const float RowAlpha = EaseOutCubic(RowTime / RowAnimationDuration);
+		const float RowAlpha = RunResultEaseOutCubic(RowTime / RowAnimationDuration);
 		bAllRowsFinished &= RowAlpha >= 1.0f;
 		ApplyWidgetAnimationState(AnimatedRows[Index].Get(), FVector2D(FMath::Lerp(RowStartXOffset, 0.0f, RowAlpha), 0.0f), RowAlpha);
 	}
@@ -473,7 +473,7 @@ void UPGRunResultWidget::UpdateEntryAnimation(float DeltaTime)
 	for (int32 Index = 0; Index < AnimatedButtons.Num(); ++Index)
 	{
 		const float ButtonTime = EntryAnimationElapsed - ButtonAnimationStartDelay - static_cast<float>(Index) * ButtonAnimationDelay;
-		const float ButtonAlpha = EaseOutCubic(ButtonTime / ButtonAnimationDuration);
+		const float ButtonAlpha = RunResultEaseOutCubic(ButtonTime / ButtonAnimationDuration);
 		bAllButtonsFinished &= ButtonAlpha >= 1.0f;
 		ApplyWidgetAnimationState(AnimatedButtons[Index].Get(), FVector2D(0.0f, FMath::Lerp(ButtonStartYOffset, 0.0f, ButtonAlpha)), ButtonAlpha);
 	}
