@@ -11,6 +11,7 @@ class APGRunnerCharacter;
 class UInputAction;
 class UInputMappingContext;
 class UPGCargoFeedbackComponent;
+class UPGHomeFlowComponent;
 class UPGRunEventFeedbackComponent;
 class UPGRunResultFeedbackComponent;
 struct FInputActionValue;
@@ -160,6 +161,10 @@ private:
 	// 적재물 추가/손실 UI/VFX/SFX를 로컬 플레이어 기준으로 자동 재생하는 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cargo Feedback", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPGCargoFeedbackComponent> CargoFeedbackComponent;
+
+	// 홈 화면 표시, 시작 버튼 처리, 카운트다운 UI/카메라 전환을 자동 관리하는 컴포넌트
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Home Flow", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPGHomeFlowComponent> HomeFlowComponent;
 
 	// 에셋이 없을 때 사용하는 C++ 기본 입력 매핑 컨텍스트
 	UPROPERTY(Transient)

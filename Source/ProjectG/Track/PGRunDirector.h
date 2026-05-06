@@ -53,6 +53,7 @@ public:
 	APGRunDirector();
 
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void Tick(float DeltaSeconds) override;
 
 	// 현재 시간 기반 난이도입니다. 0은 시작 직후, 1은 설정한 램프 시간이 지난 상태입니다.
@@ -110,6 +111,12 @@ protected:
 
 private:
 	UFUNCTION()
+	void HandleRunCountdownStarted(float Duration);
+
+	UFUNCTION()
+	void HandleRunStarted();
+
+	UFUNCTION()
 	void HandleRunFailed(FName FailureReason);
 
 	void InitializeRunnerReference();
@@ -137,7 +144,8 @@ private:
 	FVector RunOrigin = FVector::ZeroVector;
 	FVector RunForward = FVector::ForwardVector;
 	float RunElapsedTime = 0.0f;
-	bool bIsRunActive = true;
+	bool bIsRunActive = false;
+	bool bIsDifficultyActive = false;
 	int32 GeneratedSegmentCount = 0;
 	int32 LastSelectedEntryIndex = INDEX_NONE;
 	int32 ConsecutiveEntryCount = 0;

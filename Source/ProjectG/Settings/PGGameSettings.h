@@ -238,6 +238,39 @@ struct FPGRunProgressSettings
 };
 
 /**
+ * 홈 화면과 3-2-1-Go 카운트다운 시작 흐름 설정
+ */
+USTRUCT(BlueprintType)
+struct FPGHomeFlowSettings
+{
+	GENERATED_BODY()
+
+	// 앱 실행 직후 표시할 홈 화면 위젯 클래스
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Home Flow | UI")
+	TSoftClassPtr<UUserWidget> HomeScreenWidgetClass;
+
+	// START DELIVERY 이후 표시할 3-2-1-Go 카운트다운 위젯 클래스
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Home Flow | UI")
+	TSoftClassPtr<UUserWidget> RunCountdownWidgetClass;
+
+	// 홈 화면에서 사용할 CameraActor 태그
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Home Flow | Camera")
+	FName HomeCameraTag = TEXT("HomeCamera");
+
+	// 홈 카메라에서 러너 카메라로 전환하는 블렌드 시간
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Home Flow | Camera", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3.0"))
+	float HomeToRunnerCameraBlendTime = 0.6f;
+
+	// START DELIVERY 이후 홈 UI가 화면 밖으로 빠지는 시간
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Home Flow | Animation", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2.0"))
+	float HomeExitAnimationDuration = 0.35f;
+
+	// 3-2-1-Go 카운트다운 전체 시간
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Home Flow | Countdown", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "10.0"))
+	float RunStartCountdownDuration = 3.0f;
+};
+
+/**
  * 런 실패 후 결과 화면에 사용할 로컬 UI/SFX/카메라 연출 설정
  */
 USTRUCT(BlueprintType)
@@ -297,10 +330,6 @@ struct FPGCargoSettings
 	// 여러 적재물을 시작 배치할 때 CargoStackComponent 위치에서 위로 띄우는 간격
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "80.0"))
 	float InitialCargoSpacing = 18.0f;
-
-	// 시작 시퀀스 동안 라인/밸런스/기본 흔들림과 적재물 손실 판정을 잠그는 시간
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Intro", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
-	float InitialIntroLockDuration = 1.2f;
 
 	// 첫 적재물이 물리 Actor로 투입된 직후 손실 판정을 잠시 늦추는 안정화 시간
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Intro", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2.0"))
@@ -476,6 +505,10 @@ public:
 	// 런 실패 후 결과 화면 자동 표시 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result")
 	FPGRunResultSettings RunResult;
+
+	// 홈 화면과 러닝 시작 카운트다운 설정
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Home Flow")
+	FPGHomeFlowSettings HomeFlow;
 
 	// 러닝 중 거리와 점수 진행 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Progress")

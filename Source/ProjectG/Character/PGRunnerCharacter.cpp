@@ -61,13 +61,11 @@ void APGRunnerCharacter::BeginPlay()
 	RunStartLocation = GetActorLocation();
 	RunStartForwardVector = GetActorForwardVector().GetSafeNormal();
 	RunStartTimeSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-	bIsRunActive = true;
+	bIsRunActive = false;
+	bIsRunCountdownActive = false;
+	bIsGameplayInputLocked = true;
 
-	if (RunProgressComponent)
-	{
-		const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
-		RunProgressComponent->InitializeRunProgress(Settings ? Settings->RunProgress : FPGRunProgressSettings(), RunStartLocation, RunStartForwardVector, RunStartTimeSeconds);
-	}
+	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
 
 	if (!RunnerMovementComponent)
 	{
@@ -85,13 +83,12 @@ void APGRunnerCharacter::BeginPlay()
 		// CargoStackComponent는 플레이어에 붙은 적재물 스폰/대기/속도 보정 앵커로 사용한다.
 		CargoStackComponent->OnCargoLost.AddUObject(this, &APGRunnerCharacter::HandleCargoLost);
 		CargoStackComponent->InitializeCargoStack(CachedCargoSettings);
-		bIsPlayerInputLockedByInitialCargo = CargoStackComponent->IsInitialCargoLockActive();
 	}
 
 	if (RunnerEnvironmentComponent)
 	{
 		RunnerEnvironmentComponent->InitializeEnvironment(CachedEnvironmentSettings, CargoStackComponent);
-		RunnerEnvironmentComponent->SetRunActive(true);
+		RunnerEnvironmentComponent->SetRunActive(false);
 	}
 
 	if (UWorld* World = GetWorld())
@@ -99,7 +96,18 @@ void APGRunnerCharacter::BeginPlay()
 		if (APGGameModeBase* GameMode = World->GetAuthGameMode<APGGameModeBase>())
 		{
 			// 추락, 적재물 손실 등 모든 실패 사유는 동일한 런 실패 이벤트로 수렴한다.
+			GameMode->OnRunCountdownStarted.AddDynamic(this, &APGRunnerCharacter::HandleRunCountdownStarted);
+			GameMode->OnRunStarted.AddDynamic(this, &APGRunnerCharacter::HandleRunStarted);
 			GameMode->OnRunFailed.AddDynamic(this, &APGRunnerCharacter::HandleRunFailed);
+
+			if (GameMode->GetRunState() == EPGRunState::Countdown)
+			{
+				HandleRunCountdownStarted(Settings ? Settings->HomeFlow.RunStartCountdownDuration : 3.0f);
+			}
+			else if (GameMode->GetRunState() == EPGRunState::Running)
+			{
+				HandleRunStarted();
+			}
 		}
 	}
 
@@ -118,7 +126,20 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 		return;
 	}
 
-	bIsPlayerInputLockedByInitialCargo = CargoStackComponent && CargoStackComponent->IsInitialCargoLockActive();
+	if (bIsRunCountdownActive)
+	{
+		BaseInstabilityInput = 0.0f;
+		BalanceInput = 0.0f;
+		if (RunnerMovementComponent)
+		{
+			RunnerMovementComponent->SetBalanceMovementInput(0.0f, 0.0f);
+		}
+
+		UpdateForwardMovement();
+		UpdateBodyLean(DeltaSeconds);
+		DrawDebugLanes();
+		return;
+	}
 
 	CheckFallFailure();
 	if (!bIsRunActive)
@@ -131,21 +152,14 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 		RunProgressComponent->UpdateRunProgress(GetActorLocation());
 	}
 
-	if (bIsPlayerInputLockedByInitialCargo)
-	{
-		BaseInstabilityInput = 0.0f;
-	}
-	else
-	{
-		UpdateBaseInstability(DeltaSeconds);
-	}
+	UpdateBaseInstability(DeltaSeconds);
 	if (RunnerEnvironmentComponent)
 	{
-		RunnerEnvironmentComponent->UpdateEnvironment(DeltaSeconds, bIsPlayerInputLockedByInitialCargo ? 0.0f : BalanceInput);
+		RunnerEnvironmentComponent->UpdateEnvironment(DeltaSeconds, BalanceInput);
 	}
 	if (RunnerMovementComponent)
 	{
-		const float PlayerCorrectionInput = bIsPlayerInputLockedByInitialCargo ? 0.0f : (RunnerEnvironmentComponent ? RunnerEnvironmentComponent->GetProcessedBalanceInput() : BalanceInput);
+		const float PlayerCorrectionInput = RunnerEnvironmentComponent ? RunnerEnvironmentComponent->GetProcessedBalanceInput() : BalanceInput;
 		RunnerMovementComponent->SetBalanceMovementInput(BaseInstabilityInput, PlayerCorrectionInput);
 	}
 
@@ -161,7 +175,7 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 
 void APGRunnerCharacter::RequestLaneChange(int32 Direction)
 {
-	if (!bIsRunActive || bIsPlayerInputLockedByInitialCargo || Direction == 0)
+	if (!bIsRunActive || bIsGameplayInputLocked || Direction == 0)
 	{
 		return;
 	}
@@ -174,13 +188,7 @@ void APGRunnerCharacter::RequestLaneChange(int32 Direction)
 
 void APGRunnerCharacter::SetBalanceInput(float InBalanceInput)
 {
-	if (!bIsRunActive)
-	{
-		BalanceInput = 0.0f;
-		return;
-	}
-
-	if (bIsPlayerInputLockedByInitialCargo)
+	if (!bIsRunActive || bIsGameplayInputLocked)
 	{
 		BalanceInput = 0.0f;
 		return;
@@ -252,6 +260,64 @@ void APGRunnerCharacter::HandleCargoLost(int32 CargoIndex)
 	}
 }
 
+void APGRunnerCharacter::HandleRunCountdownStarted(float Duration)
+{
+	bIsRunActive = true;
+	bIsRunCountdownActive = true;
+	bIsGameplayInputLocked = true;
+	BalanceInput = 0.0f;
+	BaseInstabilityInput = 0.0f;
+	BalanceElapsedTime = 0.0f;
+	CurrentBodyRoll = 0.0f;
+	StartLocationZ = GetActorLocation().Z;
+
+	if (RunnerEnvironmentComponent)
+	{
+		RunnerEnvironmentComponent->SetRunActive(false);
+		RunnerEnvironmentComponent->ClearEnvironmentEffects();
+	}
+
+	if (RunnerMovementComponent)
+	{
+		RunnerMovementComponent->SetBalanceMovementInput(0.0f, 0.0f);
+	}
+
+	if (RunProgressComponent)
+	{
+		RunProgressComponent->StopRunProgress(GetActorLocation());
+	}
+}
+
+void APGRunnerCharacter::HandleRunStarted()
+{
+	bIsRunActive = true;
+	bIsRunCountdownActive = false;
+	bIsGameplayInputLocked = false;
+	BalanceInput = 0.0f;
+	BaseInstabilityInput = 0.0f;
+	BalanceElapsedTime = 0.0f;
+	StartLocationZ = GetActorLocation().Z;
+	RunStartLocation = GetActorLocation();
+	RunStartForwardVector = (RunnerMovementComponent ? RunnerMovementComponent->GetRunnerForwardVector() : GetActorForwardVector()).GetSafeNormal();
+	RunStartTimeSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+
+	if (RunProgressComponent)
+	{
+		const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
+		RunProgressComponent->InitializeRunProgress(Settings ? Settings->RunProgress : FPGRunProgressSettings(), RunStartLocation, RunStartForwardVector, RunStartTimeSeconds);
+	}
+
+	if (RunnerEnvironmentComponent)
+	{
+		RunnerEnvironmentComponent->SetRunActive(true);
+	}
+
+	if (CargoStackComponent)
+	{
+		CargoStackComponent->SpawnInitialCargo();
+	}
+}
+
 void APGRunnerCharacter::HandleRunFailed(FName FailureReason)
 {
 	if (!bIsRunActive)
@@ -266,7 +332,8 @@ void APGRunnerCharacter::HandleRunFailed(FName FailureReason)
 	}
 
 	bIsRunActive = false;
-	bIsPlayerInputLockedByInitialCargo = false;
+	bIsRunCountdownActive = false;
+	bIsGameplayInputLocked = true;
 	BalanceInput = 0.0f;
 	BaseInstabilityInput = 0.0f;
 	BalanceElapsedTime = 0.0f;

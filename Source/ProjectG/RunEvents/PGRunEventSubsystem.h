@@ -69,6 +69,9 @@ public:
 
 private:
 	UFUNCTION()
+	void HandleRunStarted();
+
+	UFUNCTION()
 	void HandleRunFailed(FName FailureReason);
 
 	void LoadSettings();
@@ -116,6 +119,6 @@ private:
 	float NextScheduleRetryTime = 0.0f;
 	float RunElapsedTime = 0.0f;
 	float TickAccumulator = 0.0f;
-	bool bIsRunActive = true;
-	bool bIsBoundToRunFailed = false;
+	bool bIsRunActive = false;
+	bool bIsBoundToGameMode = false;
 };

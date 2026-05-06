@@ -42,10 +42,31 @@ void APGRunDirector::BeginPlay()
 
 	if (APGGameModeBase* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APGGameModeBase>() : nullptr)
 	{
+		GameMode->OnRunCountdownStarted.AddDynamic(this, &APGRunDirector::HandleRunCountdownStarted);
+		GameMode->OnRunStarted.AddDynamic(this, &APGRunDirector::HandleRunStarted);
 		GameMode->OnRunFailed.AddDynamic(this, &APGRunDirector::HandleRunFailed);
+
+		if (GameMode->GetRunState() == EPGRunState::Countdown)
+		{
+			HandleRunCountdownStarted(0.0f);
+		}
+		else if (GameMode->GetRunState() == EPGRunState::Running)
+		{
+			HandleRunStarted();
+		}
+	}
+}
+
+void APGRunDirector::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (APGGameModeBase* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APGGameModeBase>() : nullptr)
+	{
+		GameMode->OnRunCountdownStarted.RemoveDynamic(this, &APGRunDirector::HandleRunCountdownStarted);
+		GameMode->OnRunStarted.RemoveDynamic(this, &APGRunDirector::HandleRunStarted);
+		GameMode->OnRunFailed.RemoveDynamic(this, &APGRunDirector::HandleRunFailed);
 	}
 
-	SpawnSegmentsIfNeeded();
+	Super::EndPlay(EndPlayReason);
 }
 
 void APGRunDirector::Tick(float DeltaSeconds)
@@ -66,7 +87,10 @@ void APGRunDirector::Tick(float DeltaSeconds)
 		}
 	}
 
-	RunElapsedTime += DeltaSeconds;
+	if (bIsDifficultyActive)
+	{
+		RunElapsedTime += DeltaSeconds;
+	}
 	RemovePassedSegments();
 	SpawnSegmentsIfNeeded();
 	DrawRunDirectorDebug();
@@ -77,9 +101,24 @@ float APGRunDirector::GetDifficultyAlpha() const
 	return DifficultyRampDuration > KINDA_SMALL_NUMBER ? FMath::Clamp(RunElapsedTime / DifficultyRampDuration, 0.0f, 1.0f) : 1.0f;
 }
 
+void APGRunDirector::HandleRunCountdownStarted(float Duration)
+{
+	bIsRunActive = true;
+	bIsDifficultyActive = false;
+	SpawnSegmentsIfNeeded();
+}
+
+void APGRunDirector::HandleRunStarted()
+{
+	bIsRunActive = true;
+	bIsDifficultyActive = true;
+	RunElapsedTime = 0.0f;
+}
+
 void APGRunDirector::HandleRunFailed(FName FailureReason)
 {
 	bIsRunActive = false;
+	bIsDifficultyActive = false;
 }
 
 void APGRunDirector::InitializeRunnerReference()

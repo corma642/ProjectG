@@ -4,6 +4,8 @@
 
 #include "Character/PGRunnerCharacter.h"
 #include "Player/PGPlayerController.h"
+#include "Settings/PGGameSettings.h"
+#include "TimerManager.h"
 
 APGGameModeBase::APGGameModeBase()
 {
@@ -15,7 +17,29 @@ void APGGameModeBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-	RunState = EPGRunState::Running;
+	RunState = EPGRunState::Home;
+}
+
+void APGGameModeBase::RequestStartDelivery()
+{
+	if (RunState != EPGRunState::Home)
+	{
+		return;
+	}
+
+	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
+	const float CountdownDuration = Settings ? FMath::Max(0.0f, Settings->HomeFlow.RunStartCountdownDuration) : 3.0f;
+
+	RunState = EPGRunState::Countdown;
+	OnRunCountdownStarted.Broadcast(CountdownDuration);
+
+	if (CountdownDuration <= KINDA_SMALL_NUMBER)
+	{
+		FinishRunCountdown();
+		return;
+	}
+
+	GetWorldTimerManager().SetTimer(RunCountdownTimerHandle, this, &APGGameModeBase::FinishRunCountdown, CountdownDuration, false);
 }
 
 void APGGameModeBase::RequestRunFailed(FName FailureReason)
@@ -26,5 +50,17 @@ void APGGameModeBase::RequestRunFailed(FName FailureReason)
 	}
 
 	RunState = EPGRunState::Failed;
+	GetWorldTimerManager().ClearTimer(RunCountdownTimerHandle);
 	OnRunFailed.Broadcast(FailureReason);
+}
+
+void APGGameModeBase::FinishRunCountdown()
+{
+	if (RunState != EPGRunState::Countdown)
+	{
+		return;
+	}
+
+	RunState = EPGRunState::Running;
+	OnRunStarted.Broadcast();
 }

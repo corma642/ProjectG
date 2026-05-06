@@ -7,6 +7,8 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/Engine.h"
+#include "GameModes/PGGameModeBase.h"
+#include "Home/PGHomeFlowComponent.h"
 #include "InputAction.h"
 #include "InputActionValue.h"
 #include "InputMappingContext.h"
@@ -55,6 +57,7 @@ APGPlayerController::APGPlayerController()
 	RunEventFeedbackComponent = CreateDefaultSubobject<UPGRunEventFeedbackComponent>(TEXT("RunEventFeedback"));
 	RunResultFeedbackComponent = CreateDefaultSubobject<UPGRunResultFeedbackComponent>(TEXT("RunResultFeedback"));
 	CargoFeedbackComponent = CreateDefaultSubobject<UPGCargoFeedbackComponent>(TEXT("CargoFeedback"));
+	HomeFlowComponent = CreateDefaultSubobject<UPGHomeFlowComponent>(TEXT("HomeFlow"));
 }
 
 void APGPlayerController::BeginPlay()
@@ -79,8 +82,12 @@ void APGPlayerController::BeginPlay()
 		}
 	}
 
-	SetInputMode(FInputModeGameOnly());
-	bShowMouseCursor = false;
+	const APGGameModeBase* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APGGameModeBase>() : nullptr;
+	if (!GameMode || GameMode->GetRunState() == EPGRunState::Running)
+	{
+		SetInputMode(FInputModeGameOnly());
+		bShowMouseCursor = false;
+	}
 }
 
 void APGPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)

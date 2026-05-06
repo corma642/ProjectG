@@ -29,11 +29,7 @@ void UPGCargoStackComponent::InitializeCargoStack(const FPGCargoSettings& InCarg
 	CachedCargoSettings = InCargoSettings;
 	CargoActors.Reset();
 	PendingCargoType = nullptr;
-	PendingInitialCargoType = nullptr;
 	bHasPendingCargoDrop = false;
-	bIsInitialCargoLockActive = false;
-	PendingInitialCargoCount = 0;
-	InitialCargoLockRemainingTime = 0.0f;
 	InitialCargoSettleRemainingTime = 0.0f;
 	CargoDropHoldRemainingTime = 0.0f;
 	CargoShakeElapsedTime = 0.0f;
@@ -44,14 +40,16 @@ void UPGCargoStackComponent::InitializeCargoStack(const FPGCargoSettings& InCarg
 	bHasPreviousAnchorLocation = true;
 
 	PreviousAnchorLocation = GetComponentLocation();
-	SpawnInitialCargo();
 }
 
 void UPGCargoStackComponent::UpdateCargoReaction(float DeltaSeconds, float BalanceInput, bool bIsChangingLane)
 {
 	CleanupInvalidCargoActors();
 	UpdateAnchorMotion(DeltaSeconds, bIsChangingLane);
-	UpdateInitialCargoLock(DeltaSeconds);
+	if (InitialCargoSettleRemainingTime > 0.0f)
+	{
+		InitialCargoSettleRemainingTime = FMath::Max(0.0f, InitialCargoSettleRemainingTime - DeltaSeconds);
+	}
 	ApplyCargoPhysicsForces(DeltaSeconds, BalanceInput);
 	ApplyLaneJumpCargoAssist();
 
@@ -81,6 +79,14 @@ bool UPGCargoStackComponent::AddCargoByType(UPGCargoTypeDefinition* CargoType)
 
 void UPGCargoStackComponent::SpawnInitialCargo()
 {
+	if (GetReservedCargoCount() > 0)
+	{
+		UE_LOG(LogPGCargoStack, Warning, TEXT("SpawnInitialCargo ignored because cargo already exists or is reserved. Current=%d Reserved=%d"),
+			GetCurrentCargoCount(),
+			GetReservedCargoCount());
+		return;
+	}
+
 	UPGCargoTypeDefinition* CargoType = ResolveDefaultCargoType();
 	if (!IsValidCargoTypeForSpawn(CargoType, TEXT("SpawnInitialCargo")))
 	{
@@ -93,69 +99,10 @@ void UPGCargoStackComponent::SpawnInitialCargo()
 		return;
 	}
 
-	if (CachedCargoSettings.InitialIntroLockDuration > KINDA_SMALL_NUMBER)
-	{
-		StartInitialCargoLock(CargoType, InitialCount);
-		return;
-	}
-
 	for (int32 CargoIndex = 0; CargoIndex < InitialCount; ++CargoIndex)
 	{
 		SpawnPhysicsCargo(CargoType, MakeCargoWorldTransform(CargoIndex));
 	}
-}
-
-void UPGCargoStackComponent::StartInitialCargoLock(UPGCargoTypeDefinition* CargoType, int32 InitialCount)
-{
-	if (!IsValidCargoTypeForSpawn(CargoType, TEXT("StartInitialCargoLock")) || InitialCount <= 0)
-	{
-		return;
-	}
-
-	PendingInitialCargoType = CargoType;
-	PendingInitialCargoCount = FMath::Clamp(InitialCount, 1, CachedCargoSettings.MaxCargoCount);
-	bIsInitialCargoLockActive = true;
-	InitialCargoLockRemainingTime = FMath::Max(0.0f, CachedCargoSettings.InitialIntroLockDuration);
-	InitialCargoSettleRemainingTime = 0.0f;
-
-	if (InitialCargoLockRemainingTime <= KINDA_SMALL_NUMBER)
-	{
-		FinishInitialCargoLock();
-	}
-}
-
-void UPGCargoStackComponent::UpdateInitialCargoLock(float DeltaSeconds)
-{
-	if (bIsInitialCargoLockActive)
-	{
-		InitialCargoLockRemainingTime = FMath::Max(0.0f, InitialCargoLockRemainingTime - FMath::Max(0.0f, DeltaSeconds));
-		if (InitialCargoLockRemainingTime <= 0.0f)
-		{
-			FinishInitialCargoLock();
-		}
-		return;
-	}
-
-	if (InitialCargoSettleRemainingTime > 0.0f)
-	{
-		InitialCargoSettleRemainingTime = FMath::Max(0.0f, InitialCargoSettleRemainingTime - DeltaSeconds);
-	}
-}
-
-void UPGCargoStackComponent::FinishInitialCargoLock()
-{
-	if (!bIsInitialCargoLockActive)
-	{
-		return;
-	}
-
-	UPGCargoTypeDefinition* CargoType = PendingInitialCargoType;
-	const int32 SpawnCount = PendingInitialCargoCount;
-
-	bIsInitialCargoLockActive = false;
-	PendingInitialCargoType = nullptr;
-	PendingInitialCargoCount = 0;
-	InitialCargoLockRemainingTime = 0.0f;
 	InitialCargoSettleRemainingTime = FMath::Max(0.0f, CachedCargoSettings.InitialCargoSettleDelay);
 
 	if (ScriptedCargoMeshComponent)
@@ -163,21 +110,11 @@ void UPGCargoStackComponent::FinishInitialCargoLock()
 		ScriptedCargoMeshComponent->SetVisibility(false, true);
 		ScriptedCargoMeshComponent->SetHiddenInGame(true, true);
 	}
-
-	for (int32 CargoIndex = 0; CargoIndex < SpawnCount; ++CargoIndex)
-	{
-		SpawnPhysicsCargo(CargoType, MakeCargoWorldTransform(CargoIndex));
-	}
 }
 
 bool UPGCargoStackComponent::StartCargoDropHold(UPGCargoTypeDefinition* CargoType)
 {
 	if (!IsValidCargoTypeForSpawn(CargoType, TEXT("StartCargoDropHold")))
-	{
-		return false;
-	}
-
-	if (bIsInitialCargoLockActive)
 	{
 		return false;
 	}
@@ -427,7 +364,7 @@ void UPGCargoStackComponent::ApplyLaneJumpCargoAssist()
 
 void UPGCargoStackComponent::CheckCargoLoss()
 {
-	if (bIsInitialCargoLockActive || InitialCargoSettleRemainingTime > 0.0f)
+	if (InitialCargoSettleRemainingTime > 0.0f)
 	{
 		return;
 	}

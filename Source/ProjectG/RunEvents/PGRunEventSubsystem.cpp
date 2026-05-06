@@ -23,18 +23,18 @@ void UPGRunEventSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	InitializeRunnerReferences();
 	BindGameMode();
-	ScheduleNextEvent();
 }
 
 void UPGRunEventSubsystem::Deinitialize()
 {
-	if (BoundGameMode && bIsBoundToRunFailed)
+	if (BoundGameMode && bIsBoundToGameMode)
 	{
+		BoundGameMode->OnRunStarted.RemoveDynamic(this, &UPGRunEventSubsystem::HandleRunStarted);
 		BoundGameMode->OnRunFailed.RemoveDynamic(this, &UPGRunEventSubsystem::HandleRunFailed);
 	}
 
 	BoundGameMode = nullptr;
-	bIsBoundToRunFailed = false;
+	bIsBoundToGameMode = false;
 	ClearPendingEvent(true);
 	if (ActiveEventType != EPGRunEventType::None)
 	{
@@ -84,6 +84,24 @@ float UPGRunEventSubsystem::GetDifficultyAlpha() const
 	return CachedRunEventSettings.DifficultyRampDuration > KINDA_SMALL_NUMBER
 		? FMath::Clamp(RunElapsedTime / CachedRunEventSettings.DifficultyRampDuration, 0.0f, 1.0f)
 		: 1.0f;
+}
+
+void UPGRunEventSubsystem::HandleRunStarted()
+{
+	bIsRunActive = true;
+	RunElapsedTime = 0.0f;
+	TickAccumulator = 0.0f;
+	NextScheduleRetryTime = 0.0f;
+	LastTriggeredTimeByEvent.Reset();
+	ClearPendingEvent(false);
+	if (ActiveEventType != EPGRunEventType::None)
+	{
+		OnRunEventCanceled.Broadcast(ActiveEventType);
+		ActiveEventType = EPGRunEventType::None;
+		ActiveEventEndTime = 0.0f;
+	}
+	InitializeRunnerReferences();
+	ScheduleNextEvent();
 }
 
 void UPGRunEventSubsystem::HandleRunFailed(FName FailureReason)
@@ -161,7 +179,7 @@ void UPGRunEventSubsystem::InitializeRunnerReferences()
 
 void UPGRunEventSubsystem::BindGameMode()
 {
-	if (bIsBoundToRunFailed || !GetWorld())
+	if (bIsBoundToGameMode || !GetWorld())
 	{
 		return;
 	}
@@ -169,8 +187,14 @@ void UPGRunEventSubsystem::BindGameMode()
 	BoundGameMode = GetWorld()->GetAuthGameMode<APGGameModeBase>();
 	if (BoundGameMode)
 	{
+		BoundGameMode->OnRunStarted.AddDynamic(this, &UPGRunEventSubsystem::HandleRunStarted);
 		BoundGameMode->OnRunFailed.AddDynamic(this, &UPGRunEventSubsystem::HandleRunFailed);
-		bIsBoundToRunFailed = true;
+		bIsBoundToGameMode = true;
+
+		if (BoundGameMode->GetRunState() == EPGRunState::Running)
+		{
+			HandleRunStarted();
+		}
 	}
 }
 
