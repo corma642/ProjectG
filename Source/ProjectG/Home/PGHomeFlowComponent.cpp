@@ -4,6 +4,7 @@
 
 #include "Camera/CameraActor.h"
 #include "Engine/World.h"
+#include "Engine/EngineBaseTypes.h"
 #include "EngineUtils.h"
 #include "GameModes/PGGameModeBase.h"
 #include "Player/PGPlayerController.h"
@@ -37,6 +38,12 @@ void UPGHomeFlowComponent::BeginPlay()
 
 	if (BoundGameMode && BoundGameMode->GetRunState() == EPGRunState::Home)
 	{
+		const FString StartFlowOption = GetWorld() ? GetWorld()->URL.GetOption(TEXT("StartFlow="), TEXT("")) : FString();
+		if (StartFlowOption.Equals(TEXT("RetryCountdown"), ESearchCase::IgnoreCase))
+		{
+			return;
+		}
+
 		SetHomeCameraViewTarget();
 		ShowHomeScreen();
 		ApplyHomeInputMode();

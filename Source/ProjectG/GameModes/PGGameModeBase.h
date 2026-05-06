@@ -7,7 +7,7 @@
 #include "PGGameModeBase.generated.h"
 
 /**
- * 현재 러너 플레이가 어느 단계에 있는지 나타내는 런 상태입니다.
+ * 현재 러너 플레이가 어느 단계에 있는지 나타내는 상태입니다.
  */
 UENUM(BlueprintType)
 enum class EPGRunState : uint8
@@ -16,6 +16,16 @@ enum class EPGRunState : uint8
 	Countdown,
 	Running,
 	Failed
+};
+
+/**
+ * 레벨 로드 직후 어떤 런 플로우로 시작할지 결정하는 모드입니다.
+ */
+UENUM(BlueprintType)
+enum class EPGInitialRunFlowMode : uint8
+{
+	Home,
+	RetryCountdown
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPGRunCountdownStartedSignature, float, Duration);
@@ -33,10 +43,10 @@ class PROJECTG_API APGGameModeBase : public AGameModeBase
 public:
 	APGGameModeBase();
 
-	// 게임 시작 시 홈 상태를 준비합니다.
+	// 게임 시작 직후 초기 런 상태를 준비합니다.
 	virtual void BeginPlay() override;
 
-	// 홈 화면에서 START DELIVERY를 눌렀을 때 카운트다운을 시작합니다.
+	// 홈 화면이나 Retry 플로우에서 START DELIVERY 카운트다운을 시작합니다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Run")
 	void RequestStartDelivery();
 
@@ -48,7 +58,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run")
 	EPGRunState GetRunState() const { return RunState; }
 
-	// 카운트다운 시작을 홈 UI, 카운트다운 UI, 러너 시스템에 전달합니다.
+	// 카운트다운 시작을 UI, 러너, 트랙 시스템에 전달합니다.
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run")
 	FPGRunCountdownStartedSignature OnRunCountdownStarted;
 
@@ -56,11 +66,12 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run")
 	FPGRunStartedSignature OnRunStarted;
 
-	// 런 실패 확정 시 결과 UI와 관련 시스템에 전달합니다.
+	// 런 실패 확정을 결과 UI와 관련 시스템에 전달합니다.
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run")
 	FPGRunFailedSignature OnRunFailed;
 
 private:
+	EPGInitialRunFlowMode ResolveInitialRunFlowMode() const;
 	void FinishRunCountdown();
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Run", meta = (AllowPrivateAccess = "true"))

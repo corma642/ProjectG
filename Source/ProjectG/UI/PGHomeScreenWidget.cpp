@@ -17,7 +17,7 @@ const FVector2D LogoExitOffset(0.0f, -600.0f);
 const FVector2D StartButtonExitOffset(-900.0f, 0.0f);
 const FVector2D SubButtonExitOffset(0.0f, 700.0f);
 
-float EaseInCubic(float Alpha)
+float EaseInCubicHome(float Alpha)
 {
 	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
 	return ClampedAlpha * ClampedAlpha * ClampedAlpha;
@@ -171,7 +171,7 @@ void UPGHomeScreenWidget::ApplyWidgetExitAnimation(UWidget* Widget, float Delay,
 
 	const float EffectiveDuration = FMath::Max(KINDA_SMALL_NUMBER, ExitAnimationDuration - Delay);
 	const float LocalAlpha = FMath::Clamp((AnimationTime - Delay) / EffectiveDuration, 0.0f, 1.0f);
-	const float EasedAlpha = EaseInCubic(LocalAlpha);
+	const float EasedAlpha = EaseInCubicHome(LocalAlpha);
 	const float Scale = FMath::Lerp(1.0f, 0.92f, EasedAlpha);
 
 	Widget->SetRenderTranslation(TargetOffset * EasedAlpha);

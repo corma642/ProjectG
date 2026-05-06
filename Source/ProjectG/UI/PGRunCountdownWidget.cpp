@@ -23,7 +23,7 @@ float EaseOutCubic(float Alpha)
 	return 1.0f - FMath::Pow(1.0f - ClampedAlpha, 3.0f);
 }
 
-float EaseInCubic(float Alpha)
+float EaseInCubicCountdown(float Alpha)
 {
 	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
 	return ClampedAlpha * ClampedAlpha * ClampedAlpha;
@@ -145,7 +145,7 @@ void UPGRunCountdownWidget::ApplyStepAnimation(float StepAlpha)
 	else
 	{
 		const float ExitAlpha = (StepAlpha - FadeOutStartAlpha) / FMath::Max(KINDA_SMALL_NUMBER, 1.0f - FadeOutStartAlpha);
-		Scale = FMath::Lerp(1.0f, 0.65f, EaseInCubic(ExitAlpha));
+		Scale = FMath::Lerp(1.0f, 0.65f, EaseInCubicCountdown(ExitAlpha));
 	}
 
 	const float FadeInAlpha = FMath::Clamp(StepAlpha / 0.12f, 0.0f, 1.0f);

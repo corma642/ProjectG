@@ -543,7 +543,7 @@ void UPGRunResultWidget::HandleRetryClicked()
 	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
 	if (!CurrentLevelName.IsEmpty())
 	{
-		UGameplayStatics::OpenLevel(this, FName(*CurrentLevelName));
+		UGameplayStatics::OpenLevel(this, FName(*CurrentLevelName), true, TEXT("StartFlow=RetryCountdown"));
 	}
 }
 
@@ -569,7 +569,11 @@ void UPGRunResultWidget::HandleRetryReleased()
 
 void UPGRunResultWidget::HandleHomeClicked()
 {
-	UE_LOG(LogPGRunResultWidget, Log, TEXT("TODO: Connect Run Result HOME button to the future home screen flow."));
+	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
+	if (!CurrentLevelName.IsEmpty())
+	{
+		UGameplayStatics::OpenLevel(this, FName(*CurrentLevelName));
+	}
 }
 
 void UPGRunResultWidget::HandleHomeHovered()

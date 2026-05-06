@@ -3,6 +3,7 @@
 #include "GameModes/PGGameModeBase.h"
 
 #include "Character/PGRunnerCharacter.h"
+#include "Engine/EngineBaseTypes.h"
 #include "Player/PGPlayerController.h"
 #include "Settings/PGGameSettings.h"
 #include "TimerManager.h"
@@ -18,6 +19,10 @@ void APGGameModeBase::BeginPlay()
 	Super::BeginPlay();
 
 	RunState = EPGRunState::Home;
+	if (ResolveInitialRunFlowMode() == EPGInitialRunFlowMode::RetryCountdown)
+	{
+		RequestStartDelivery();
+	}
 }
 
 void APGGameModeBase::RequestStartDelivery()
@@ -63,4 +68,21 @@ void APGGameModeBase::FinishRunCountdown()
 
 	RunState = EPGRunState::Running;
 	OnRunStarted.Broadcast();
+}
+
+EPGInitialRunFlowMode APGGameModeBase::ResolveInitialRunFlowMode() const
+{
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return EPGInitialRunFlowMode::Home;
+	}
+
+	const FString StartFlowOption = World->URL.GetOption(TEXT("StartFlow="), TEXT(""));
+	if (StartFlowOption.Equals(TEXT("RetryCountdown"), ESearchCase::IgnoreCase))
+	{
+		return EPGInitialRunFlowMode::RetryCountdown;
+	}
+
+	return EPGInitialRunFlowMode::Home;
 }
