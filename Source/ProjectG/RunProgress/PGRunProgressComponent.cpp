@@ -20,10 +20,12 @@ void UPGRunProgressComponent::InitializeRunProgress(const FPGRunProgressSettings
 	StartTimeSeconds = InStartTimeSeconds;
 	RawDistanceMeters = 0.0f;
 	DisplayedDistanceMeters = 0.0f;
+	BonusScore = 0;
 	Score = 0;
 	bIsProgressActive = true;
 
 	OnDisplayedDistanceChanged.Broadcast(DisplayedDistanceMeters);
+	OnScoreChanged.Broadcast(Score, TEXT("RunStarted"));
 }
 
 void UPGRunProgressComponent::UpdateRunProgress(const FVector& CurrentLocation)
@@ -38,7 +40,7 @@ void UPGRunProgressComponent::UpdateRunProgress(const FVector& CurrentLocation)
 	if (!FMath::IsNearlyEqual(NewDisplayedDistanceMeters, DisplayedDistanceMeters))
 	{
 		DisplayedDistanceMeters = NewDisplayedDistanceMeters;
-		RecalculateScore();
+		RecalculateScore(TEXT("Distance"));
 		OnDisplayedDistanceChanged.Broadcast(DisplayedDistanceMeters);
 	}
 }
@@ -50,6 +52,17 @@ void UPGRunProgressComponent::StopRunProgress(const FVector& CurrentLocation)
 		UpdateRunProgress(CurrentLocation);
 		bIsProgressActive = false;
 	}
+}
+
+void UPGRunProgressComponent::AddScore(int32 ScoreDelta, FName Reason)
+{
+	if (ScoreDelta <= 0)
+	{
+		return;
+	}
+
+	BonusScore += ScoreDelta;
+	RecalculateScore(Reason);
 }
 
 float UPGRunProgressComponent::GetElapsedTimeSeconds() const
@@ -71,8 +84,9 @@ float UPGRunProgressComponent::QuantizeDistanceMeters(float InRawDistanceMeters)
 	return FMath::FloorToFloat(InRawDistanceMeters / StepMeters) * StepMeters;
 }
 
-void UPGRunProgressComponent::RecalculateScore()
+void UPGRunProgressComponent::RecalculateScore(FName Reason)
 {
 	const float ScoreValue = DisplayedDistanceMeters * static_cast<float>(FMath::Max(0, CachedSettings.ScorePerMeter)) * FMath::Max(0.0f, CachedSettings.ScoreMultiplier);
-	Score = FMath::RoundToInt(ScoreValue);
+	Score = FMath::RoundToInt(ScoreValue) + BonusScore;
+	OnScoreChanged.Broadcast(Score, Reason);
 }

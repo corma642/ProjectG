@@ -10,7 +10,6 @@
 
 class APGGameModeBase;
 class APGRunnerCharacter;
-class UPGCargoStackComponent;
 class UPGRunnerEnvironmentComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FPGRunEventPreviewStartedSignature, EPGRunEventType, EventType, float, TimeUntilTrigger, float, Direction);
@@ -30,6 +29,7 @@ class PROJECTG_API UPGRunEventSubsystem : public UTickableWorldSubsystem
 public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
+	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 	virtual bool DoesSupportWorldType(EWorldType::Type WorldType) const override;
 	virtual void Tick(float DeltaTime) override;
 	virtual TStatId GetStatId() const override;
@@ -83,7 +83,6 @@ private:
 	bool SelectEventRule(FPGRunEventRule& OutRule);
 	const TArray<FPGRunEventRule>& GetEffectiveEventRules() const;
 	bool CanUseRule(const FPGRunEventRule& Rule) const;
-	bool HasCargoCapacity() const;
 	void TriggerPendingEvent();
 	void ClearPendingEvent(bool bBroadcastCancel);
 	void StartActiveEvent(EPGRunEventType EventType, float Duration);
@@ -95,9 +94,6 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPGRunnerEnvironmentComponent> RunnerEnvironmentComponent;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UPGCargoStackComponent> CargoStackComponent;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPGRunEventSet> LoadedEventSet;

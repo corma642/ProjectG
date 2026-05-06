@@ -7,6 +7,7 @@
 #include "PGGameSettings.generated.h"
 
 class UPGCargoTypeDefinition;
+class UPGCargoDropSet;
 class UPGCargoPresentationSet;
 class UPGRunEventPresentationSet;
 class UPGRunEventSet;
@@ -290,10 +291,6 @@ struct FPGRunResultSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | Score", meta = (ClampMin = "0", UIMin = "0", UIMax = "99999"))
 	int32 TemporaryReceipts = 2366;
 
-	// 주문 시스템 도입 전 결과 화면에 표시할 임시 배달 완료 수
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | Score", meta = (ClampMin = "0", UIMin = "0", UIMax = "999"))
-	int32 TemporaryOrdersDelivered = 3;
-
 	// 런 실패 시 한 번 재생할 사운드
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | SFX")
 	TSoftObjectPtr<USoundBase> GameOverSound;
@@ -315,27 +312,11 @@ struct FPGCargoSettings
 {
 	GENERATED_BODY()
 
-	// 시작/추가 적재물에 사용할 기본 적재물 타입
+	// CargoDropSet이 비어 있거나 후보를 고르지 못했을 때 사용할 fallback 적재물 타입
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")
 	TSoftObjectPtr<UPGCargoTypeDefinition> DefaultCargoType;
 
-	// 게임 시작 시 플레이어 기준 앵커에 생성할 적재물 개수
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "0", UIMin = "0", UIMax = "5"))
-	int32 InitialCargoCount = 1;
-
-	// 동시에 유지할 수 있는 최대 적재물 개수
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (ClampMin = "1", UIMin = "1", UIMax = "5"))
-	int32 MaxCargoCount = 3;
-
-	// 여러 적재물을 시작 배치할 때 CargoStackComponent 위치에서 위로 띄우는 간격
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "80.0"))
-	float InitialCargoSpacing = 18.0f;
-
-	// 첫 적재물이 물리 Actor로 투입된 직후 손실 판정을 잠시 늦추는 안정화 시간
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Intro", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2.0"))
-	float InitialCargoSettleDelay = 0.3f;
-
-	// 추가 적재물이 CargoStackComponent 위치에서 대기한 뒤 실제 물리 적재물로 전환되기까지의 시간
+	// 적재물이 CargoStackComponent 위치에서 대기한 뒤 실제 물리 적재물로 전환되기까지의 시간
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
 	float CargoDropHoldDuration = 3.0f;
 
@@ -378,6 +359,51 @@ struct FPGCargoSettings
 	// 개발 빌드에서 CargoStack 생성 앵커, 플레이어 기준 손실 반경, 적재물 위치를 표시할지 여부
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Debug")
 	bool bDrawCargoDebug = false;
+};
+
+/**
+ * 배달형 적재물 드롭 스케줄 설정
+ */
+USTRUCT(BlueprintType)
+struct FPGCargoDeliverySettings
+{
+	GENERATED_BODY()
+
+	// 러닝 중 랜덤으로 드롭할 적재물 후보 목록
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo Delivery")
+	TSoftObjectPtr<UPGCargoDropSet> DefaultCargoDropSet;
+
+	// Running 진입 후 첫 적재물 드롭까지 기다리는 시간. 0이면 즉시 드롭을 시도한다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo Delivery | Schedule", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "30.0"))
+	float FirstDropDelay = 0.0f;
+
+	// 난이도 0일 때 적재물 드롭 간격
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo Delivery | Schedule", meta = (ClampMin = "0.5", UIMin = "2.0", UIMax = "60.0"))
+	float BaseDropInterval = 14.0f;
+
+	// 난이도 1일 때 적재물 드롭 간격
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo Delivery | Schedule", meta = (ClampMin = "0.5", UIMin = "1.0", UIMax = "30.0"))
+	float MinDropInterval = 6.0f;
+
+	// 적재물 드롭 간격이 최소값에 가까워지는 시간
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo Delivery | Difficulty", meta = (ClampMin = "1.0", UIMin = "30.0", UIMax = "300.0"))
+	float DifficultyRampDuration = 180.0f;
+
+	// 같은 적재물 드롭 순서를 재현할 때 사용하는 시드
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo Delivery | Random")
+	int32 RandomSeed = 4117;
+
+	// 켜면 PIE/Game 시작마다 새 랜덤 시드를 사용한다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo Delivery | Random")
+	bool bUseRandomSeedEachRun = true;
+
+	// 개발 빌드에서 이 개수 이상 물리 적재물이 쌓이면 튜닝 경고를 출력한다. 제한은 걸지 않는다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo Delivery | Debug", meta = (ClampMin = "1", UIMin = "3", UIMax = "50"))
+	int32 ActiveCargoWarningCount = 12;
+
+	// 개발 빌드에서 드롭 스케줄과 활성 적재 수를 표시할지 여부
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo Delivery | Debug")
+	bool bDrawCargoDeliveryDebug = false;
 };
 
 /**
@@ -521,6 +547,10 @@ public:
 	// 적재물 추가/손실 로컬 연출 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo Feedback")
 	FPGCargoFeedbackSettings CargoFeedback;
+
+	// 배달형 적재물 드롭 스케줄 설정
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo Delivery")
+	FPGCargoDeliverySettings CargoDelivery;
 
 	// 바람, 눈바람, 적재 증가 같은 환경 이벤트 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Environment")

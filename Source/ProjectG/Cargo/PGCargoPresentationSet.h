@@ -21,6 +21,7 @@ enum class EPGCargoFeedbackType : uint8
 	None,
 	CargoDropHoldStarted,
 	CargoDropHoldFinished,
+	CargoDelivered,
 	CargoLost
 };
 

@@ -62,12 +62,19 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner")
 	int32 GetRunScore() const;
 
+	// 현재 런에서 배달 완료한 적재물 개수입니다.
+	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner")
+	int32 GetDeliveredCargoCount() const;
+
 	// 적재물 자동 연출/환경 이벤트 시스템이 현재 러너의 적재 상태에 접근할 때 사용합니다.
 	UPGCargoStackComponent* GetCargoStackComponent() const { return CargoStackComponent; }
 
 	// 물리 적재물이 손실됐을 때 런 실패를 요청한다.
 	UFUNCTION()
 	void HandleCargoLost(int32 CargoIndex);
+
+	// 적재물 배달 완료 시 점수 보상을 반영합니다.
+	void HandleCargoDelivered(int32 CargoInstanceId, int32 Score);
 
 	// 런 실패 이벤트를 받으면 자동 전진과 입력 반응을 정지한다.
 	UFUNCTION()

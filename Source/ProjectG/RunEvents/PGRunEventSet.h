@@ -15,8 +15,7 @@ enum class EPGRunEventType : uint8
 {
 	None UMETA(DisplayName = "None"),
 	Wind UMETA(DisplayName = "Wind"),
-	Snowstorm UMETA(DisplayName = "Snowstorm"),
-	CargoDrop UMETA(DisplayName = "Cargo Drop")
+	Snowstorm UMETA(DisplayName = "Snowstorm")
 };
 
 /**
@@ -64,10 +63,6 @@ struct FPGRunEventRule
 	// 같은 이벤트가 다시 발동되기 전 필요한 시간입니다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Run Event", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "60.0"))
 	float CooldownSeconds = 6.0f;
-
-	// 현재 적재 수가 최대치면 후보에서 제외할지 여부입니다.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Run Event")
-	bool bRequiresCargoCapacity = false;
 
 	// 바람/눈바람 효과 지속 시간입니다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Run Event | Effect", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "10.0"))

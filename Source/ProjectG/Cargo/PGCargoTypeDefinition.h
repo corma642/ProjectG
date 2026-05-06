@@ -7,10 +7,11 @@
 #include "PGCargoTypeDefinition.generated.h"
 
 class UStaticMesh;
+class UTexture2D;
 
 /**
- * 물리 적재물 1종의 표시 메시와 물리 반응값을 정의하는 데이터 에셋입니다.
- * 현재 기획에서는 모든 적재물이 핵심 적재물로 취급되며, 하나라도 손실되면 런 실패로 이어집니다.
+ * 물리 적재물 1종의 표시 메시, 배달 보상, 물리 반응값을 정의하는 데이터 에셋입니다.
+ * 모든 적재물은 핵심 배달물이며, 배달 완료 전 하나라도 손실되면 런 실패로 이어집니다.
  */
 UCLASS(BlueprintType)
 class PROJECTG_API UPGCargoTypeDefinition : public UPrimaryDataAsset
@@ -25,6 +26,18 @@ public:
 	// 실제 월드에 물리 오브젝트로 스폰할 적재물 Static Mesh
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo")
 	TObjectPtr<UStaticMesh> CargoMesh;
+
+	// HUD에서 적재물 상태를 표시할 때 사용할 썸네일 이미지
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo | Delivery")
+	TObjectPtr<UTexture2D> CargoThumbnail;
+
+	// 물리 Actor로 전환된 뒤 이 시간만큼 버티면 배달 완료로 처리한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo | Delivery", meta = (ClampMin = "0.0", UIMin = "1.0", UIMax = "60.0"))
+	float DeliveryDuration = 12.0f;
+
+	// 배달 완료 시 추가로 획득하는 점수
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo | Delivery", meta = (ClampMin = "0", UIMin = "0", UIMax = "10000"))
+	int32 DeliveryScore = 500;
 
 	// 메시 피벗이나 모델 크기가 맞지 않을 때 적용할 시각 스케일
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo | Visual")

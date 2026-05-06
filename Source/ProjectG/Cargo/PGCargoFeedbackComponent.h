@@ -41,6 +41,7 @@ public:
 private:
 	void HandleCargoDropHoldStarted();
 	void HandleCargoDropHoldFinished();
+	void HandleCargoDelivered(int32 CargoInstanceId, int32 Score);
 	void HandleCargoLost(int32 CargoIndex);
 
 	void StartLoadingPresentationSet();

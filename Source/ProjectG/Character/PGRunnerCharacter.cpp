@@ -82,12 +82,13 @@ void APGRunnerCharacter::BeginPlay()
 	{
 		// CargoStackComponent는 플레이어에 붙은 적재물 스폰/대기/속도 보정 앵커로 사용한다.
 		CargoStackComponent->OnCargoLost.AddUObject(this, &APGRunnerCharacter::HandleCargoLost);
+		CargoStackComponent->OnCargoDelivered.AddUObject(this, &APGRunnerCharacter::HandleCargoDelivered);
 		CargoStackComponent->InitializeCargoStack(CachedCargoSettings);
 	}
 
 	if (RunnerEnvironmentComponent)
 	{
-		RunnerEnvironmentComponent->InitializeEnvironment(CachedEnvironmentSettings, CargoStackComponent);
+		RunnerEnvironmentComponent->InitializeEnvironment(CachedEnvironmentSettings);
 		RunnerEnvironmentComponent->SetRunActive(false);
 	}
 
@@ -233,6 +234,11 @@ int32 APGRunnerCharacter::GetRunScore() const
 	return RunProgressComponent ? RunProgressComponent->GetScore() : 0;
 }
 
+int32 APGRunnerCharacter::GetDeliveredCargoCount() const
+{
+	return CargoStackComponent ? CargoStackComponent->GetDeliveredCargoCount() : 0;
+}
+
 int32 APGRunnerCharacter::GetCurrentLaneIndex() const
 {
 	return RunnerMovementComponent ? RunnerMovementComponent->GetCurrentLaneIndex() : 0;
@@ -257,6 +263,14 @@ void APGRunnerCharacter::HandleCargoLost(int32 CargoIndex)
 			// 현재 적재물은 모두 핵심 적재물이므로 하나라도 손실되면 즉시 실패한다.
 			GameMode->RequestRunFailed(TEXT("CargoLost"));
 		}
+	}
+}
+
+void APGRunnerCharacter::HandleCargoDelivered(int32 CargoInstanceId, int32 Score)
+{
+	if (RunProgressComponent)
+	{
+		RunProgressComponent->AddScore(Score, TEXT("CargoDelivered"));
 	}
 }
 
@@ -312,10 +326,7 @@ void APGRunnerCharacter::HandleRunStarted()
 		RunnerEnvironmentComponent->SetRunActive(true);
 	}
 
-	if (CargoStackComponent)
-	{
-		CargoStackComponent->SpawnInitialCargo();
-	}
+	// 첫 적재물도 CargoDeliverySubsystem의 일반 드롭 흐름으로 처리한다.
 }
 
 void APGRunnerCharacter::HandleRunFailed(FName FailureReason)

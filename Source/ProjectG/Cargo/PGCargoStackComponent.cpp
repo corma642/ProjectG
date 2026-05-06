@@ -27,10 +27,9 @@ UPGCargoStackComponent::UPGCargoStackComponent()
 void UPGCargoStackComponent::InitializeCargoStack(const FPGCargoSettings& InCargoSettings)
 {
 	CachedCargoSettings = InCargoSettings;
-	CargoActors.Reset();
+	CargoInstances.Reset();
 	PendingCargoType = nullptr;
 	bHasPendingCargoDrop = false;
-	InitialCargoSettleRemainingTime = 0.0f;
 	CargoDropHoldRemainingTime = 0.0f;
 	CargoShakeElapsedTime = 0.0f;
 	PreviousAnchorLocation = GetComponentLocation();
@@ -38,18 +37,23 @@ void UPGCargoStackComponent::InitializeCargoStack(const FPGCargoSettings& InCarg
 	LaneJumpCargoAssistRemainingTime = 0.0f;
 	bWasChangingLaneLastFrame = false;
 	bHasPreviousAnchorLocation = true;
+	NextCargoInstanceId = 1;
+	DeliveredCargoCount = 0;
 
-	PreviousAnchorLocation = GetComponentLocation();
+	if (ScriptedCargoMeshComponent)
+	{
+		ScriptedCargoMeshComponent->SetStaticMesh(nullptr);
+		ScriptedCargoMeshComponent->SetVisibility(false, true);
+		ScriptedCargoMeshComponent->SetHiddenInGame(true, true);
+	}
+
+	OnCargoListChanged.Broadcast();
 }
 
 void UPGCargoStackComponent::UpdateCargoReaction(float DeltaSeconds, float BalanceInput, bool bIsChangingLane)
 {
 	CleanupInvalidCargoActors();
 	UpdateAnchorMotion(DeltaSeconds, bIsChangingLane);
-	if (InitialCargoSettleRemainingTime > 0.0f)
-	{
-		InitialCargoSettleRemainingTime = FMath::Max(0.0f, InitialCargoSettleRemainingTime - DeltaSeconds);
-	}
 	ApplyCargoPhysicsForces(DeltaSeconds, BalanceInput);
 	ApplyLaneJumpCargoAssist();
 
@@ -64,6 +68,7 @@ void UPGCargoStackComponent::UpdateCargoReaction(float DeltaSeconds, float Balan
 	}
 
 	CheckCargoLoss();
+	UpdateCargoDeliveries(DeltaSeconds);
 	DrawCargoDebug();
 }
 
@@ -77,39 +82,32 @@ bool UPGCargoStackComponent::AddCargoByType(UPGCargoTypeDefinition* CargoType)
 	return StartCargoDropHold(CargoType);
 }
 
-void UPGCargoStackComponent::SpawnInitialCargo()
+TArray<FPGActiveCargoInfo> UPGCargoStackComponent::GetActiveCargoInfos() const
 {
-	if (GetReservedCargoCount() > 0)
+	TArray<FPGActiveCargoInfo> Infos;
+	Infos.Reserve(CargoInstances.Num());
+
+	for (const FPGRuntimeCargoInstance& CargoInstance : CargoInstances)
 	{
-		UE_LOG(LogPGCargoStack, Warning, TEXT("SpawnInitialCargo ignored because cargo already exists or is reserved. Current=%d Reserved=%d"),
-			GetCurrentCargoCount(),
-			GetReservedCargoCount());
-		return;
+		if (!CargoInstance.CargoActor || !CargoInstance.CargoType)
+		{
+			continue;
+		}
+
+		const float DeliveryDuration = FMath::Max(0.0f, CargoInstance.CargoType->DeliveryDuration);
+		FPGActiveCargoInfo Info;
+		Info.InstanceId = CargoInstance.InstanceId;
+		Info.CargoType = CargoInstance.CargoType;
+		Info.CargoThumbnail = CargoInstance.CargoType->CargoThumbnail;
+		Info.DeliveryDuration = DeliveryDuration;
+		Info.RemainingDeliveryTime = FMath::Max(0.0f, DeliveryDuration - CargoInstance.DeliveryElapsedTime);
+		Info.DeliveryProgress = DeliveryDuration > KINDA_SMALL_NUMBER
+			? FMath::Clamp(CargoInstance.DeliveryElapsedTime / DeliveryDuration, 0.0f, 1.0f)
+			: 1.0f;
+		Infos.Add(Info);
 	}
 
-	UPGCargoTypeDefinition* CargoType = ResolveDefaultCargoType();
-	if (!IsValidCargoTypeForSpawn(CargoType, TEXT("SpawnInitialCargo")))
-	{
-		return;
-	}
-
-	const int32 InitialCount = FMath::Clamp(CachedCargoSettings.InitialCargoCount, 0, FMath::Max(1, CachedCargoSettings.MaxCargoCount));
-	if (InitialCount <= 0)
-	{
-		return;
-	}
-
-	for (int32 CargoIndex = 0; CargoIndex < InitialCount; ++CargoIndex)
-	{
-		SpawnPhysicsCargo(CargoType, MakeCargoWorldTransform(CargoIndex));
-	}
-	InitialCargoSettleRemainingTime = FMath::Max(0.0f, CachedCargoSettings.InitialCargoSettleDelay);
-
-	if (ScriptedCargoMeshComponent)
-	{
-		ScriptedCargoMeshComponent->SetVisibility(false, true);
-		ScriptedCargoMeshComponent->SetHiddenInGame(true, true);
-	}
+	return Infos;
 }
 
 bool UPGCargoStackComponent::StartCargoDropHold(UPGCargoTypeDefinition* CargoType)
@@ -119,8 +117,7 @@ bool UPGCargoStackComponent::StartCargoDropHold(UPGCargoTypeDefinition* CargoTyp
 		return false;
 	}
 
-	const int32 ReservedCargoCount = CargoActors.Num() + (bHasPendingCargoDrop ? 1 : 0);
-	if (ReservedCargoCount >= CachedCargoSettings.MaxCargoCount)
+	if (bHasPendingCargoDrop)
 	{
 		return false;
 	}
@@ -140,7 +137,7 @@ bool UPGCargoStackComponent::StartCargoDropHold(UPGCargoTypeDefinition* CargoTyp
 
 	if (ScriptedCargoMeshComponent)
 	{
-		// 추가 적재물은 물리 전환 전까지 CargoStack 위치에서 대기해 플레이어가 다음 적재를 직관적으로 인지하게 한다.
+		// 물리 전환 전까지 같은 CargoStack 위치에서 대기 메시를 보여준다.
 		ScriptedCargoMeshComponent->SetStaticMesh(CargoType->CargoMesh);
 		ApplyScriptedCargoDisplayTransform(CargoType);
 		ScriptedCargoMeshComponent->SetVisibility(true, true);
@@ -148,6 +145,7 @@ bool UPGCargoStackComponent::StartCargoDropHold(UPGCargoTypeDefinition* CargoTyp
 	}
 
 	OnCargoDropHoldStarted.Broadcast();
+	OnCargoListChanged.Broadcast();
 
 	if (CargoDropHoldRemainingTime <= 0.0f)
 	{
@@ -183,9 +181,9 @@ void UPGCargoStackComponent::FinishCargoDropHold()
 		ScriptedCargoMeshComponent->SetHiddenInGame(true, true);
 	}
 
-	// 대기 메시와 실제 물리 전환은 모두 CargoStackComponent 위치를 사용합니다.
 	SpawnPhysicsCargo(CargoType, MakeCargoWorldTransform());
 	OnCargoDropHoldFinished.Broadcast();
+	OnCargoListChanged.Broadcast();
 }
 
 APGPhysicsCargoActor* UPGCargoStackComponent::SpawnPhysicsCargo(UPGCargoTypeDefinition* CargoType, const FTransform& SpawnTransform)
@@ -214,11 +212,17 @@ APGPhysicsCargoActor* UPGCargoStackComponent::SpawnPhysicsCargo(UPGCargoTypeDefi
 	CargoActor->InitializeCargo(CargoType, CachedCargoSettings.CargoCollisionProfileName);
 	if (UStaticMeshComponent* CargoMeshComponent = CargoActor->GetCargoMeshComponent())
 	{
-		// 물리 적재물은 부착하지 않지만, 생성 순간에는 앵커 속도를 상속해 자동 전진 중 뒤처지지 않게 합니다.
+		// 생성 순간에는 받침 속도를 상속해 자동 전진 중 뒤처지지 않게 한다.
 		CargoMeshComponent->SetPhysicsLinearVelocity(AnchorVelocity);
 	}
 
-	CargoActors.Add(CargoActor);
+	FPGRuntimeCargoInstance CargoInstance;
+	CargoInstance.CargoActor = CargoActor;
+	CargoInstance.CargoType = CargoType;
+	CargoInstance.InstanceId = NextCargoInstanceId++;
+	CargoInstance.DeliveryElapsedTime = 0.0f;
+	CargoInstances.Add(CargoInstance);
+	OnCargoListChanged.Broadcast();
 	return CargoActor;
 }
 
@@ -244,10 +248,9 @@ bool UPGCargoStackComponent::IsValidCargoTypeForSpawn(const UPGCargoTypeDefiniti
 	return true;
 }
 
-FTransform UPGCargoStackComponent::MakeCargoWorldTransform(int32 CargoIndex) const
+FTransform UPGCargoStackComponent::MakeCargoWorldTransform() const
 {
-	const FVector StackedOffset = FVector(0.0f, 0.0f, CargoIndex * CachedCargoSettings.InitialCargoSpacing);
-	return FTransform(GetComponentQuat(), GetComponentTransform().TransformPosition(StackedOffset), FVector::OneVector);
+	return FTransform(GetComponentQuat(), GetComponentLocation(), FVector::OneVector);
 }
 
 void UPGCargoStackComponent::ApplyScriptedCargoDisplayTransform(const UPGCargoTypeDefinition* CargoType)
@@ -281,18 +284,37 @@ void UPGCargoStackComponent::ApplyCargoPhysicsForces(float DeltaSeconds, float B
 	const FVector RightVector = GetRightVector();
 	const float ShakePhase = CargoShakeElapsedTime * CachedCargoSettings.CargoIdleShakeFrequency * UE_TWO_PI;
 
-	for (int32 CargoIndex = 0; CargoIndex < CargoActors.Num(); ++CargoIndex)
+	for (int32 CargoIndex = 0; CargoIndex < CargoInstances.Num(); ++CargoIndex)
 	{
-		APGPhysicsCargoActor* CargoActor = CargoActors[CargoIndex];
+		APGPhysicsCargoActor* CargoActor = CargoInstances[CargoIndex].CargoActor;
 		if (!CargoActor || !CargoActor->GetCargoMeshComponent())
 		{
 			continue;
 		}
 
-		// BP 받침 충돌에만 의존하면 흔들림 체감이 약할 수 있어, 중심 입력 기반의 약한 보조 힘을 적재물에 더한다.
+		// BP 받침 충돌만으로 부족한 흔들림 체감을 보강하기 위해 중심 입력 기반 보조 힘을 더한다.
 		const float IdleShake = FMath::Sin(ShakePhase + CargoIndex * 1.73f) * CachedCargoSettings.CargoIdleShakeForce;
 		const float BalanceForce = BalanceInput * CachedCargoSettings.CargoBalanceForce;
 		CargoActor->GetCargoMeshComponent()->AddForce(RightVector * (IdleShake + BalanceForce), NAME_None, true);
+	}
+}
+
+void UPGCargoStackComponent::UpdateCargoDeliveries(float DeltaSeconds)
+{
+	for (int32 CargoIndex = CargoInstances.Num() - 1; CargoIndex >= 0; --CargoIndex)
+	{
+		FPGRuntimeCargoInstance& CargoInstance = CargoInstances[CargoIndex];
+		if (!CargoInstance.CargoActor || !CargoInstance.CargoType)
+		{
+			continue;
+		}
+
+		CargoInstance.DeliveryElapsedTime += DeltaSeconds;
+		const float DeliveryDuration = FMath::Max(0.0f, CargoInstance.CargoType->DeliveryDuration);
+		if (CargoInstance.DeliveryElapsedTime >= DeliveryDuration)
+		{
+			CompleteCargoAt(CargoIndex);
+		}
 	}
 }
 
@@ -337,8 +359,9 @@ void UPGCargoStackComponent::ApplyLaneJumpCargoAssist()
 		return;
 	}
 
-	for (APGPhysicsCargoActor* CargoActor : CargoActors)
+	for (const FPGRuntimeCargoInstance& CargoInstance : CargoInstances)
 	{
+		APGPhysicsCargoActor* CargoActor = CargoInstance.CargoActor;
 		if (!CargoActor || !CargoActor->GetCargoMeshComponent())
 		{
 			continue;
@@ -354,7 +377,6 @@ void UPGCargoStackComponent::ApplyLaneJumpCargoAssist()
 
 		if (RelativeVelocity.Z > MaxUpwardRelativeSpeed)
 		{
-			// 라인 점프 중 받침이 급격히 움직여 적재물이 위로 튕겨나가는 성분만 제한한다.
 			RelativeVelocity.Z = MaxUpwardRelativeSpeed;
 		}
 
@@ -364,21 +386,17 @@ void UPGCargoStackComponent::ApplyLaneJumpCargoAssist()
 
 void UPGCargoStackComponent::CheckCargoLoss()
 {
-	if (InitialCargoSettleRemainingTime > 0.0f)
-	{
-		return;
-	}
-
 	const FVector LossOriginLocation = GetLossOriginLocation();
 	const float LossZ = LossOriginLocation.Z - CachedCargoSettings.CargoLossZOffset;
 	const float LossDistanceSquared = FMath::Square(CachedCargoSettings.CargoLossHorizontalDistance);
 
-	for (int32 CargoIndex = CargoActors.Num() - 1; CargoIndex >= 0; --CargoIndex)
+	for (int32 CargoIndex = CargoInstances.Num() - 1; CargoIndex >= 0; --CargoIndex)
 	{
-		APGPhysicsCargoActor* CargoActor = CargoActors[CargoIndex];
+		APGPhysicsCargoActor* CargoActor = CargoInstances[CargoIndex].CargoActor;
 		if (!CargoActor)
 		{
-			CargoActors.RemoveAt(CargoIndex);
+			CargoInstances.RemoveAt(CargoIndex);
+			OnCargoListChanged.Broadcast();
 			continue;
 		}
 
@@ -394,27 +412,51 @@ void UPGCargoStackComponent::CheckCargoLoss()
 
 void UPGCargoStackComponent::LoseCargoAt(int32 CargoIndex)
 {
-	if (!CargoActors.IsValidIndex(CargoIndex))
+	if (!CargoInstances.IsValidIndex(CargoIndex))
 	{
 		return;
 	}
 
-	if (APGPhysicsCargoActor* CargoActor = CargoActors[CargoIndex])
+	if (APGPhysicsCargoActor* CargoActor = CargoInstances[CargoIndex].CargoActor)
 	{
 		CargoActor->Destroy();
 	}
 
-	CargoActors.RemoveAt(CargoIndex);
+	CargoInstances.RemoveAt(CargoIndex);
+	OnCargoListChanged.Broadcast();
 	OnCargoLost.Broadcast(CargoIndex);
+}
+
+void UPGCargoStackComponent::CompleteCargoAt(int32 CargoIndex)
+{
+	if (!CargoInstances.IsValidIndex(CargoIndex))
+	{
+		return;
+	}
+
+	const FPGRuntimeCargoInstance CargoInstance = CargoInstances[CargoIndex];
+	const int32 DeliveryScore = CargoInstance.CargoType ? FMath::Max(0, CargoInstance.CargoType->DeliveryScore) : 0;
+	const int32 InstanceId = CargoInstance.InstanceId;
+
+	if (CargoInstance.CargoActor)
+	{
+		CargoInstance.CargoActor->Destroy();
+	}
+
+	CargoInstances.RemoveAt(CargoIndex);
+	++DeliveredCargoCount;
+	OnCargoListChanged.Broadcast();
+	OnCargoDelivered.Broadcast(InstanceId, DeliveryScore);
 }
 
 void UPGCargoStackComponent::CleanupInvalidCargoActors()
 {
-	for (int32 CargoIndex = CargoActors.Num() - 1; CargoIndex >= 0; --CargoIndex)
+	for (int32 CargoIndex = CargoInstances.Num() - 1; CargoIndex >= 0; --CargoIndex)
 	{
-		if (!CargoActors[CargoIndex])
+		if (!CargoInstances[CargoIndex].CargoActor)
 		{
-			CargoActors.RemoveAt(CargoIndex);
+			CargoInstances.RemoveAt(CargoIndex);
+			OnCargoListChanged.Broadcast();
 		}
 	}
 }
@@ -441,15 +483,14 @@ void UPGCargoStackComponent::DrawCargoDebug() const
 
 	if (bHasPendingCargoDrop)
 	{
-		const FVector HoldLocation = GetComponentLocation();
-		DrawDebugSphere(World, HoldLocation, 18.0f, 16, FColor::Purple, false, 0.0f, 0, 2.0f);
+		DrawDebugSphere(World, GetComponentLocation(), 18.0f, 16, FColor::Purple, false, 0.0f, 0, 2.0f);
 	}
 
-	for (const APGPhysicsCargoActor* CargoActor : CargoActors)
+	for (const FPGRuntimeCargoInstance& CargoInstance : CargoInstances)
 	{
-		if (CargoActor)
+		if (CargoInstance.CargoActor)
 		{
-			DrawDebugSphere(World, CargoActor->GetActorLocation(), 8.0f, 8, FColor::Yellow, false, 0.0f, 0, 1.0f);
+			DrawDebugSphere(World, CargoInstance.CargoActor->GetActorLocation(), 8.0f, 8, FColor::Yellow, false, 0.0f, 0, 1.0f);
 		}
 	}
 #endif

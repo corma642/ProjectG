@@ -2,7 +2,6 @@
 
 #include "Environment/PGRunnerEnvironmentComponent.h"
 
-#include "Cargo/PGCargoStackComponent.h"
 #include "DrawDebugHelpers.h"
 
 UPGRunnerEnvironmentComponent::UPGRunnerEnvironmentComponent()
@@ -10,10 +9,9 @@ UPGRunnerEnvironmentComponent::UPGRunnerEnvironmentComponent()
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
-void UPGRunnerEnvironmentComponent::InitializeEnvironment(const FPGEnvironmentSettings& InEnvironmentSettings, UPGCargoStackComponent* InCargoStackComponent)
+void UPGRunnerEnvironmentComponent::InitializeEnvironment(const FPGEnvironmentSettings& InEnvironmentSettings)
 {
 	CachedEnvironmentSettings = InEnvironmentSettings;
-	CargoStackComponent = InCargoStackComponent;
 	ClearEnvironmentEffects();
 	bIsRunActive = true;
 }
@@ -113,16 +111,6 @@ void UPGRunnerEnvironmentComponent::ApplySnowstorm(float Duration, float Strengt
 
 	SnowstormRemainingTime = Duration;
 	SnowstormStrength = Strength;
-}
-
-bool UPGRunnerEnvironmentComponent::RequestCargoDrop()
-{
-	if (!bIsRunActive || !CargoStackComponent)
-	{
-		return false;
-	}
-
-	return CargoStackComponent->AddCargo();
 }
 
 void UPGRunnerEnvironmentComponent::ClearEnvironmentEffects()

@@ -119,6 +119,23 @@ void UPGCargoFeedbackComponent::HandleCargoLost(int32 CargoIndex)
 	PlayTransientPresentation(*Entry, EPGCargoFeedbackType::CargoLost, CargoIndex);
 }
 
+void UPGCargoFeedbackComponent::HandleCargoDelivered(int32 CargoInstanceId, int32 Score)
+{
+	const FPGCargoPresentationEntry* Entry = FindPresentationEntry(EPGCargoFeedbackType::CargoDelivered);
+	if (!Entry)
+	{
+		return;
+	}
+
+	if (!bPresentationResourcesReady)
+	{
+		UE_LOG(LogPGCargoFeedback, Warning, TEXT("Cargo presentation resources are not ready. Cargo delivered presentation skipped. CargoInstanceId=%d"), CargoInstanceId);
+		return;
+	}
+
+	PlayTransientPresentation(*Entry, EPGCargoFeedbackType::CargoDelivered, CargoInstanceId);
+}
+
 void UPGCargoFeedbackComponent::StartLoadingPresentationSet()
 {
 	bPresentationSetLoaded = false;
@@ -321,6 +338,7 @@ void UPGCargoFeedbackComponent::BindCargoStack(UPGCargoStackComponent* CargoStac
 
 	BoundCargoStackComponent->OnCargoDropHoldStarted.AddUObject(this, &UPGCargoFeedbackComponent::HandleCargoDropHoldStarted);
 	BoundCargoStackComponent->OnCargoDropHoldFinished.AddUObject(this, &UPGCargoFeedbackComponent::HandleCargoDropHoldFinished);
+	BoundCargoStackComponent->OnCargoDelivered.AddUObject(this, &UPGCargoFeedbackComponent::HandleCargoDelivered);
 	BoundCargoStackComponent->OnCargoLost.AddUObject(this, &UPGCargoFeedbackComponent::HandleCargoLost);
 }
 
@@ -333,6 +351,7 @@ void UPGCargoFeedbackComponent::UnbindCargoStack()
 
 	BoundCargoStackComponent->OnCargoDropHoldStarted.RemoveAll(this);
 	BoundCargoStackComponent->OnCargoDropHoldFinished.RemoveAll(this);
+	BoundCargoStackComponent->OnCargoDelivered.RemoveAll(this);
 	BoundCargoStackComponent->OnCargoLost.RemoveAll(this);
 	BoundCargoStackComponent = nullptr;
 }

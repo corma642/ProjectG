@@ -2,7 +2,6 @@
 
 #include "RunEvents/PGRunEventSubsystem.h"
 
-#include "Cargo/PGCargoStackComponent.h"
 #include "Character/PGRunnerCharacter.h"
 #include "DrawDebugHelpers.h"
 #include "Environment/PGRunnerEnvironmentComponent.h"
@@ -46,6 +45,12 @@ void UPGRunEventSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
+void UPGRunEventSubsystem::OnWorldBeginPlay(UWorld& InWorld)
+{
+	Super::OnWorldBeginPlay(InWorld);
+	BindGameMode();
+}
+
 bool UPGRunEventSubsystem::DoesSupportWorldType(EWorldType::Type WorldType) const
 {
 	return WorldType == EWorldType::Game || WorldType == EWorldType::PIE;
@@ -53,6 +58,15 @@ bool UPGRunEventSubsystem::DoesSupportWorldType(EWorldType::Type WorldType) cons
 
 void UPGRunEventSubsystem::Tick(float DeltaTime)
 {
+	if (!bIsBoundToGameMode)
+	{
+		BindGameMode();
+		if (!bIsBoundToGameMode)
+		{
+			return;
+		}
+	}
+
 	if (!bIsRunActive)
 	{
 		return;
@@ -76,7 +90,7 @@ TStatId UPGRunEventSubsystem::GetStatId() const
 
 bool UPGRunEventSubsystem::IsTickable() const
 {
-	return !IsTemplate() && bIsRunActive;
+	return !IsTemplate() && (bIsRunActive || !bIsBoundToGameMode);
 }
 
 float UPGRunEventSubsystem::GetDifficultyAlpha() const
@@ -159,22 +173,12 @@ void UPGRunEventSubsystem::InitializeDefaultRules()
 	SnowstormRule.Strength = 1.0f;
 	DefaultRules.Add(SnowstormRule);
 
-	FPGRunEventRule CargoDropRule;
-	CargoDropRule.EventType = EPGRunEventType::CargoDrop;
-	CargoDropRule.MinRunTime = 18.0f;
-	CargoDropRule.MinDifficultyAlpha = 0.2f;
-	CargoDropRule.BaseWeight = 1.25f;
-	CargoDropRule.DifficultyWeight = 0.0f;
-	CargoDropRule.CooldownSeconds = 10.0f;
-	CargoDropRule.bRequiresCargoCapacity = true;
-	DefaultRules.Add(CargoDropRule);
 }
 
 void UPGRunEventSubsystem::InitializeRunnerReferences()
 {
 	RunnerCharacter = Cast<APGRunnerCharacter>(UGameplayStatics::GetPlayerPawn(this, 0));
 	RunnerEnvironmentComponent = RunnerCharacter ? RunnerCharacter->FindComponentByClass<UPGRunnerEnvironmentComponent>() : nullptr;
-	CargoStackComponent = RunnerCharacter ? RunnerCharacter->FindComponentByClass<UPGCargoStackComponent>() : nullptr;
 }
 
 void UPGRunEventSubsystem::BindGameMode()
@@ -214,7 +218,7 @@ void UPGRunEventSubsystem::ProcessRunEventTick(float DeltaSeconds)
 		FinishActiveEvent();
 	}
 
-	if (!RunnerEnvironmentComponent || !CargoStackComponent)
+	if (!RunnerEnvironmentComponent)
 	{
 		InitializeRunnerReferences();
 	}
@@ -338,11 +342,6 @@ bool UPGRunEventSubsystem::CanUseRule(const FPGRunEventRule& Rule) const
 		return false;
 	}
 
-	if (Rule.bRequiresCargoCapacity && !HasCargoCapacity())
-	{
-		return false;
-	}
-
 	if (const float* LastTriggeredTime = LastTriggeredTimeByEvent.Find(Rule.EventType))
 	{
 		if (RunElapsedTime - *LastTriggeredTime < FMath::Max(0.0f, Rule.CooldownSeconds))
@@ -352,11 +351,6 @@ bool UPGRunEventSubsystem::CanUseRule(const FPGRunEventRule& Rule) const
 	}
 
 	return FMath::Max(0.0f, Rule.BaseWeight + Rule.DifficultyWeight * GetDifficultyAlpha()) > KINDA_SMALL_NUMBER;
-}
-
-bool UPGRunEventSubsystem::HasCargoCapacity() const
-{
-	return CargoStackComponent && CargoStackComponent->GetReservedCargoCount() < CargoStackComponent->GetMaxCargoCount();
 }
 
 void UPGRunEventSubsystem::TriggerPendingEvent()
@@ -379,9 +373,6 @@ void UPGRunEventSubsystem::TriggerPendingEvent()
 	}
 	case EPGRunEventType::Snowstorm:
 		RunnerEnvironmentComponent->ApplySnowstorm(PendingEventRule.Duration, PendingEventRule.Strength);
-		break;
-	case EPGRunEventType::CargoDrop:
-		bTriggered = RunnerEnvironmentComponent->RequestCargoDrop();
 		break;
 	case EPGRunEventType::None:
 	default:
