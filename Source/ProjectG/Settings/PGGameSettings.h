@@ -254,6 +254,10 @@ struct FPGHomeFlowSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Home Flow | UI")
 	TSoftClassPtr<UUserWidget> RunCountdownWidgetClass;
 
+	// 홈 화면 Settings 버튼으로 표시할 설정 위젯 클래스
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Home Flow | UI")
+	TSoftClassPtr<UUserWidget> SettingsScreenWidgetClass;
+
 	// 홈 화면에서 사용할 CameraActor 태그
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Home Flow | Camera")
 	FName HomeCameraTag = TEXT("HomeCamera");
@@ -269,6 +273,96 @@ struct FPGHomeFlowSettings
 	// 3-2-1-Go 카운트다운 전체 시간
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Home Flow | Countdown", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "10.0"))
 	float RunStartCountdownDuration = 3.0f;
+};
+
+/**
+ * 모바일 런타임 품질 프리셋 종류
+ */
+UENUM(BlueprintType)
+enum class EPGMobileQualityPreset : uint8
+{
+	Low UMETA(DisplayName = "Low"),
+	Balanced UMETA(DisplayName = "Balanced"),
+	High UMETA(DisplayName = "High"),
+	Ultra UMETA(DisplayName = "Ultra")
+};
+
+/**
+ * 모바일 품질 프리셋 하나가 적용하는 런타임 그래픽 설정
+ */
+USTRUCT(BlueprintType)
+struct FPGMobileQualityPresetSettings
+{
+	GENERATED_BODY()
+
+	// 내부 렌더 해상도 비율. 모바일 자글거림과 GPU 비용에 가장 직접적으로 영향을 준다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality", meta = (ClampMin = "50.0", ClampMax = "100.0", UIMin = "50.0", UIMax = "100.0"))
+	float ResolutionScalePercent = 90.0f;
+
+	// 모바일 프레임 제한. 0이면 엔진 기본값을 사용한다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality", meta = (ClampMin = "0", UIMin = "0", UIMax = "120"))
+	int32 FrameRateLimit = 60;
+
+	// 모바일 안티앨리어싱 방식 CVar 값. 기본값 2는 FXAA보다 외곽 자글거림을 줄이는 쪽으로 둔다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality", meta = (ClampMin = "0", ClampMax = "3", UIMin = "0", UIMax = "3"))
+	int32 MobileAntiAliasingMode = 2;
+
+	// Scalability AntiAliasing 품질 단계
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality", meta = (ClampMin = "0", ClampMax = "4", UIMin = "0", UIMax = "4"))
+	int32 AntiAliasingQuality = 2;
+
+	// Scalability Texture 품질 단계
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality", meta = (ClampMin = "0", ClampMax = "4", UIMin = "0", UIMax = "4"))
+	int32 TextureQuality = 2;
+
+	// Scalability Shadow 품질 단계
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality", meta = (ClampMin = "0", ClampMax = "4", UIMin = "0", UIMax = "4"))
+	int32 ShadowQuality = 1;
+
+	// Scalability PostProcess 품질 단계
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality", meta = (ClampMin = "0", ClampMax = "4", UIMin = "0", UIMax = "4"))
+	int32 PostProcessQuality = 1;
+
+	// Scalability Effects 품질 단계
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality", meta = (ClampMin = "0", ClampMax = "4", UIMin = "0", UIMax = "4"))
+	int32 EffectsQuality = 1;
+
+	// Scalability ViewDistance 품질 단계
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality", meta = (ClampMin = "0", ClampMax = "4", UIMin = "0", UIMax = "4"))
+	int32 ViewDistanceQuality = 1;
+
+	// 사선 텍스처 선명도. 너무 높이면 저사양 GPU 비용이 증가한다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality", meta = (ClampMin = "1", ClampMax = "8", UIMin = "1", UIMax = "8"))
+	int32 MaxAnisotropy = 4;
+};
+
+/**
+ * 홈 Settings 화면과 GameUserSettings에서 공유하는 모바일 품질 기본값
+ */
+USTRUCT(BlueprintType)
+struct FPGMobileQualitySettings
+{
+	GENERATED_BODY()
+
+	// 새 유저 또는 설정 파일이 없는 경우 적용할 기본 프리셋
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality")
+	EPGMobileQualityPreset DefaultPreset = EPGMobileQualityPreset::Ultra;
+
+	// 저전력/저사양 기기용 프리셋
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality")
+	FPGMobileQualityPresetSettings Low;
+
+	// 기본 권장 프리셋
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality")
+	FPGMobileQualityPresetSettings Balanced;
+
+	// 선명도 우선 프리셋
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality")
+	FPGMobileQualityPresetSettings High;
+
+	// 최고 품질 확인용 프리셋. 해상도는 우선 100%를 넘기지 않는다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality")
+	FPGMobileQualityPresetSettings Ultra;
 };
 
 /**
@@ -535,6 +629,10 @@ public:
 	// 홈 화면과 러닝 시작 카운트다운 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Home Flow")
 	FPGHomeFlowSettings HomeFlow;
+
+	// 모바일 런타임 품질 프리셋 기본값
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality")
+	FPGMobileQualitySettings MobileQuality;
 
 	// 러닝 중 거리와 점수 진행 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Progress")

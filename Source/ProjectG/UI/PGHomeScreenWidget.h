@@ -11,6 +11,7 @@ class UImage;
 class UWidget;
 
 DECLARE_MULTICAST_DELEGATE(FPGHomeStartDeliveryRequestedSignature);
+DECLARE_MULTICAST_DELEGATE(FPGHomeSettingsRequestedSignature);
 
 /**
  * 홈 화면 Blueprint Widget의 로직 클래스입니다.
@@ -23,6 +24,7 @@ class PROJECTG_API UPGHomeScreenWidget : public UUserWidget
 
 public:
 	FPGHomeStartDeliveryRequestedSignature OnStartDeliveryRequested;
+	FPGHomeSettingsRequestedSignature OnSettingsRequested;
 
 	// START DELIVERY 이후 홈 화면 요소들이 각 방향으로 빠지며 사라지는 애니메이션을 시작합니다.
 	void PlayExitAnimation(float Duration);

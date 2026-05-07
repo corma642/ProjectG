@@ -10,6 +10,7 @@
 #include "Player/PGPlayerController.h"
 #include "UI/PGHomeScreenWidget.h"
 #include "UI/PGRunCountdownWidget.h"
+#include "UI/PGSettingsScreenWidget.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGHomeFlow, Log, All);
 
@@ -123,6 +124,7 @@ void UPGHomeFlowComponent::ShowHomeScreen()
 	}
 
 	HomeScreenWidget->OnStartDeliveryRequested.AddUObject(this, &UPGHomeFlowComponent::HandleStartDeliveryRequested);
+	HomeScreenWidget->OnSettingsRequested.AddUObject(this, &UPGHomeFlowComponent::HandleSettingsRequested);
 	HomeScreenWidget->AddToViewport(10);
 }
 
@@ -199,6 +201,7 @@ void UPGHomeFlowComponent::CleanupWidgets()
 	if (HomeScreenWidget)
 	{
 		HomeScreenWidget->OnStartDeliveryRequested.RemoveAll(this);
+		HomeScreenWidget->OnSettingsRequested.RemoveAll(this);
 		HomeScreenWidget->RemoveFromParent();
 		HomeScreenWidget = nullptr;
 	}
@@ -208,18 +211,81 @@ void UPGHomeFlowComponent::CleanupWidgets()
 		CountdownWidget->RemoveFromParent();
 		CountdownWidget = nullptr;
 	}
+
+	if (SettingsScreenWidget)
+	{
+		SettingsScreenWidget->OnSettingsScreenClosed.RemoveAll(this);
+		SettingsScreenWidget->RemoveFromParent();
+		SettingsScreenWidget = nullptr;
+	}
 }
 
 void UPGHomeFlowComponent::HandleStartDeliveryRequested()
 {
+	if (SettingsScreenWidget)
+	{
+		return;
+	}
+
 	if (BoundGameMode)
 	{
 		BoundGameMode->RequestStartDelivery();
 	}
 }
 
+void UPGHomeFlowComponent::HandleSettingsRequested()
+{
+	ShowSettingsScreen();
+}
+
+void UPGHomeFlowComponent::HandleSettingsScreenClosed()
+{
+	if (SettingsScreenWidget)
+	{
+		SettingsScreenWidget->OnSettingsScreenClosed.RemoveAll(this);
+		SettingsScreenWidget = nullptr;
+	}
+}
+
+void UPGHomeFlowComponent::ShowSettingsScreen()
+{
+	if (!OwnerPlayerController || SettingsScreenWidget)
+	{
+		return;
+	}
+
+	UClass* WidgetClass = CachedHomeFlowSettings.SettingsScreenWidgetClass.LoadSynchronous();
+	if (!WidgetClass)
+	{
+		UE_LOG(LogPGHomeFlow, Warning, TEXT("SettingsScreenWidgetClass is not set. Create WBP_SettingsScreen and assign it in Go Deliver Settings > Home Flow."));
+		return;
+	}
+	if (!WidgetClass->IsChildOf(UPGSettingsScreenWidget::StaticClass()))
+	{
+		UE_LOG(LogPGHomeFlow, Warning, TEXT("SettingsScreenWidgetClass '%s' must inherit UPGSettingsScreenWidget."), *GetNameSafe(WidgetClass));
+		return;
+	}
+
+	SettingsScreenWidget = CreateWidget<UPGSettingsScreenWidget>(OwnerPlayerController, TSubclassOf<UPGSettingsScreenWidget>(WidgetClass));
+	if (!SettingsScreenWidget)
+	{
+		return;
+	}
+
+	SettingsScreenWidget->OnSettingsScreenClosed.AddUObject(this, &UPGHomeFlowComponent::HandleSettingsScreenClosed);
+	SettingsScreenWidget->AddToViewport(30);
+	SettingsScreenWidget->PlayOpenAnimation();
+}
+
 void UPGHomeFlowComponent::HandleRunCountdownStarted(float Duration)
 {
+	if (SettingsScreenWidget)
+	{
+		SettingsScreenWidget->OnSettingsScreenClosed.RemoveAll(this);
+		SettingsScreenWidget->RemoveFromParent();
+		SettingsScreenWidget = nullptr;
+	}
+
 	if (HomeScreenWidget)
 	{
 		HomeScreenWidget->PlayExitAnimation(CachedHomeFlowSettings.HomeExitAnimationDuration);

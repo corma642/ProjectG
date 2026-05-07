@@ -11,6 +11,7 @@ class APGGameModeBase;
 class APGPlayerController;
 class UPGHomeScreenWidget;
 class UPGRunCountdownWidget;
+class UPGSettingsScreenWidget;
 
 /**
  * 홈 화면 표시, 홈 카메라 전환, START DELIVERY, 카운트다운 UI를 로컬 플레이어 기준으로 자동 관리합니다.
@@ -41,6 +42,9 @@ private:
 	void ShowCountdown(float Duration);
 	void CleanupWidgets();
 	void HandleStartDeliveryRequested();
+	void HandleSettingsRequested();
+	void HandleSettingsScreenClosed();
+	void ShowSettingsScreen();
 	void ApplyHomeInputMode();
 	void ApplyGameInputMode();
 
@@ -55,6 +59,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPGRunCountdownWidget> CountdownWidget;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UPGSettingsScreenWidget> SettingsScreenWidget;
 
 	FPGHomeFlowSettings CachedHomeFlowSettings;
 	bool bIsBoundToGameMode = false;

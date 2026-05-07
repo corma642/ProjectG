@@ -15,6 +15,7 @@
 #include "InputCoreTypes.h"
 #include "RunEvents/PGRunEventFeedbackComponent.h"
 #include "Settings/PGGameSettings.h"
+#include "Settings/PGGameUserSettings.h"
 #include "RunResults/PGRunResultFeedbackComponent.h"
 
 namespace
@@ -63,6 +64,11 @@ APGPlayerController::APGPlayerController()
 void APGPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (UPGGameUserSettings* UserSettings = Cast<UPGGameUserSettings>(UGameUserSettings::GetGameUserSettings()))
+	{
+		UserSettings->ApplySavedMobileQualitySettings(false);
+	}
 
 	ApplyGameSettings();
 	EnsureInputAssets();

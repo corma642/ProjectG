@@ -126,7 +126,7 @@ void UPGHomeScreenWidget::HandleSkinsClicked()
 
 void UPGHomeScreenWidget::HandleSettingsClicked()
 {
-	UE_LOG(LogPGHomeScreenWidget, Log, TEXT("Settings button clicked. TODO: open settings screen."));
+	OnSettingsRequested.Broadcast();
 }
 
 void UPGHomeScreenWidget::ValidateRequiredWidgets() const
