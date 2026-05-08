@@ -436,6 +436,7 @@ void UPGCargoStackComponent::CompleteCargoAt(int32 CargoIndex)
 
 	const FPGRuntimeCargoInstance CargoInstance = CargoInstances[CargoIndex];
 	const int32 DeliveryScore = CargoInstance.CargoType ? FMath::Max(0, CargoInstance.CargoType->DeliveryScore) : 0;
+	const int32 DeliveryReceipts = CargoInstance.CargoType ? FMath::Max(0, CargoInstance.CargoType->DeliveryReceipts) : 0;
 	const int32 InstanceId = CargoInstance.InstanceId;
 
 	if (CargoInstance.CargoActor)
@@ -446,7 +447,7 @@ void UPGCargoStackComponent::CompleteCargoAt(int32 CargoIndex)
 	CargoInstances.RemoveAt(CargoIndex);
 	++DeliveredCargoCount;
 	OnCargoListChanged.Broadcast();
-	OnCargoDelivered.Broadcast(InstanceId, DeliveryScore);
+	OnCargoDelivered.Broadcast(InstanceId, DeliveryScore, DeliveryReceipts);
 }
 
 void UPGCargoStackComponent::CleanupInvalidCargoActors()

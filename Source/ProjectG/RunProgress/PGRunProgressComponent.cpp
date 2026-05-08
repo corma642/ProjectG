@@ -22,10 +22,12 @@ void UPGRunProgressComponent::InitializeRunProgress(const FPGRunProgressSettings
 	DisplayedDistanceMeters = 0.0f;
 	BonusScore = 0;
 	Score = 0;
+	Receipts = 0;
 	bIsProgressActive = true;
 
 	OnDisplayedDistanceChanged.Broadcast(DisplayedDistanceMeters);
 	OnScoreChanged.Broadcast(Score, TEXT("RunStarted"));
+	OnReceiptsChanged.Broadcast(Receipts, TEXT("RunStarted"));
 }
 
 void UPGRunProgressComponent::UpdateRunProgress(const FVector& CurrentLocation)
@@ -63,6 +65,17 @@ void UPGRunProgressComponent::AddScore(int32 ScoreDelta, FName Reason)
 
 	BonusScore += ScoreDelta;
 	RecalculateScore(Reason);
+}
+
+void UPGRunProgressComponent::AddReceipts(int32 Amount, FName Reason)
+{
+	if (Amount <= 0)
+	{
+		return;
+	}
+
+	Receipts += Amount;
+	OnReceiptsChanged.Broadcast(Receipts, Reason);
 }
 
 float UPGRunProgressComponent::GetElapsedTimeSeconds() const

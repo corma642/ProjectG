@@ -67,6 +67,7 @@ void UPGRunResultFeedbackComponent::HandleRunFailed(FName FailureReason)
 	const float RunTimeSeconds = RunnerCharacter ? RunnerCharacter->GetRunElapsedTime() : 0.0f;
 	const float DistanceMeters = RunnerCharacter ? RunnerCharacter->GetRunDistanceMeters() : 0.0f;
 	const int32 Score = RunnerCharacter ? RunnerCharacter->GetRunScore() : 0;
+	const int32 Receipts = RunnerCharacter ? RunnerCharacter->GetRunReceipts() : 0;
 	const int32 OrdersDelivered = RunnerCharacter ? RunnerCharacter->GetDeliveredCargoCount() : 0;
 
 	TSubclassOf<UUserWidget> WidgetClass = Settings->RunResult.GameOverWidgetClass.Get();
@@ -82,7 +83,7 @@ void UPGRunResultFeedbackComponent::HandleRunFailed(FName FailureReason)
 		{
 			if (UPGRunResultWidget* RunResultWidget = Cast<UPGRunResultWidget>(ResultWidget))
 			{
-				RunResultWidget->ConfigureRunResult(FailureReason, RunTimeSeconds, DistanceMeters, Score, OrdersDelivered);
+				RunResultWidget->ConfigureRunResult(FailureReason, RunTimeSeconds, DistanceMeters, Score, Receipts, OrdersDelivered);
 			}
 
 			ResultWidget->AddToViewport(100);

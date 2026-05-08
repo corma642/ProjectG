@@ -39,6 +39,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo | Delivery", meta = (ClampMin = "0", UIMin = "0", UIMax = "10000"))
 	int32 DeliveryScore = 500;
 
+	// 배달 완료 시 추가로 획득하는 영수증 개수
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo | Delivery", meta = (ClampMin = "0", UIMin = "0", UIMax = "100"))
+	int32 DeliveryReceipts = 1;
+
 	// 메시 피벗이나 모델 크기가 맞지 않을 때 적용할 시각 스케일
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo | Visual")
 	FVector MeshScale = FVector(1.0f);

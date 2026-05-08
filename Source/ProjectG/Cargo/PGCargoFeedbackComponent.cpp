@@ -119,7 +119,7 @@ void UPGCargoFeedbackComponent::HandleCargoLost(int32 CargoIndex)
 	PlayTransientPresentation(*Entry, EPGCargoFeedbackType::CargoLost, CargoIndex);
 }
 
-void UPGCargoFeedbackComponent::HandleCargoDelivered(int32 CargoInstanceId, int32 Score)
+void UPGCargoFeedbackComponent::HandleCargoDelivered(int32 CargoInstanceId, int32 Score, int32 Receipts)
 {
 	const FPGCargoPresentationEntry* Entry = FindPresentationEntry(EPGCargoFeedbackType::CargoDelivered);
 	if (!Entry)

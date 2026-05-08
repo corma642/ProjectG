@@ -239,6 +239,39 @@ struct FPGRunProgressSettings
 };
 
 /**
+ * 러닝 중 HUD, Pause 화면, 적재물 리스트 표시 설정입니다.
+ */
+USTRUCT(BlueprintType)
+struct FPGRunHUDSettings
+{
+	GENERATED_BODY()
+
+	// Running 상태에서 표시할 HUD Widget Blueprint 클래스
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run HUD | UI")
+	TSoftClassPtr<UUserWidget> RunHUDWidgetClass;
+
+	// Pause 버튼을 눌렀을 때 표시할 Pause Widget Blueprint 클래스
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run HUD | UI")
+	TSoftClassPtr<UUserWidget> RunPauseWidgetClass;
+
+	// 적재물 리스트에 들어가는 개별 카드 Widget Blueprint 클래스
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run HUD | UI")
+	TSoftClassPtr<UUserWidget> CargoDeliveryItemWidgetClass;
+
+	// 적재물 남은 시간과 진행 바를 갱신하는 간격
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run HUD | Cargo", meta = (ClampMin = "0.03", UIMin = "0.03", UIMax = "0.5"))
+	float CargoListRefreshInterval = 0.1f;
+
+	// Pause 화면의 배경 블러 강도. 인게임 시야를 약하게만 흐리게 둔다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run HUD | Pause", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "12.0"))
+	float PauseBackdropBlurStrength = 4.0f;
+
+	// Pause 화면의 어두운 딤 알파값
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run HUD | Pause", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "0.8"))
+	float PauseBackdropDimAlpha = 0.28f;
+};
+
+/**
  * 홈 화면과 3-2-1-Go 카운트다운 시작 흐름 설정
  */
 USTRUCT(BlueprintType)
@@ -380,10 +413,6 @@ struct FPGRunResultSettings
 	// 이전 임시 점수 계산에 사용하던 값입니다. 현재 점수는 RunProgress 설정의 거리 기반 점수를 사용합니다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | Score", meta = (ClampMin = "0", UIMin = "0", UIMax = "1000"))
 	int32 ScorePerSecond = 100;
-
-	// 영수증 수집 시스템 도입 전 결과 화면에 표시할 임시 영수증 수
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | Score", meta = (ClampMin = "0", UIMin = "0", UIMax = "99999"))
-	int32 TemporaryReceipts = 2366;
 
 	// 런 실패 시 한 번 재생할 사운드
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | SFX")
@@ -637,6 +666,10 @@ public:
 	// 러닝 중 거리와 점수 진행 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Progress")
 	FPGRunProgressSettings RunProgress;
+
+	// 러닝 중 HUD와 Pause 화면 설정
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run HUD")
+	FPGRunHUDSettings RunHUD;
 
 	// 플레이어 기준 물리 적재물 스폰/손실 판정 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")

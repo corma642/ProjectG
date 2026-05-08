@@ -12,6 +12,7 @@ class UInputAction;
 class UInputMappingContext;
 class UPGCargoFeedbackComponent;
 class UPGHomeFlowComponent;
+class UPGRunHUDComponent;
 class UPGRunEventFeedbackComponent;
 class UPGRunResultFeedbackComponent;
 struct FInputActionValue;
@@ -165,6 +166,10 @@ private:
 	// 홈 화면 표시, 시작 버튼 처리, 카운트다운 UI/카메라 전환을 자동 관리하는 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Home Flow", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPGHomeFlowComponent> HomeFlowComponent;
+
+	// 러닝 중 HUD, Pause, 인게임 Settings 흐름을 자동 관리하는 컴포넌트
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Run HUD", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPGRunHUDComponent> RunHUDComponent;
 
 	// 에셋이 없을 때 사용하는 C++ 기본 입력 매핑 컨텍스트
 	UPROPERTY(Transient)

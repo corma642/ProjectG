@@ -234,6 +234,11 @@ int32 APGRunnerCharacter::GetRunScore() const
 	return RunProgressComponent ? RunProgressComponent->GetScore() : 0;
 }
 
+int32 APGRunnerCharacter::GetRunReceipts() const
+{
+	return RunProgressComponent ? RunProgressComponent->GetReceipts() : 0;
+}
+
 int32 APGRunnerCharacter::GetDeliveredCargoCount() const
 {
 	return CargoStackComponent ? CargoStackComponent->GetDeliveredCargoCount() : 0;
@@ -266,11 +271,12 @@ void APGRunnerCharacter::HandleCargoLost(int32 CargoIndex)
 	}
 }
 
-void APGRunnerCharacter::HandleCargoDelivered(int32 CargoInstanceId, int32 Score)
+void APGRunnerCharacter::HandleCargoDelivered(int32 CargoInstanceId, int32 Score, int32 Receipts)
 {
 	if (RunProgressComponent)
 	{
 		RunProgressComponent->AddScore(Score, TEXT("CargoDelivered"));
+		RunProgressComponent->AddReceipts(Receipts, TEXT("CargoDelivered"));
 	}
 }
 

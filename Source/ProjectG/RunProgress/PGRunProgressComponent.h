@@ -9,6 +9,7 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPGDisplayedDistanceChangedSignature, float, DisplayedDistanceMeters);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPGRunScoreChangedSignature, int32, Score, FName, Reason);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPGReceiptsChangedSignature, int32, Receipts, FName, Reason);
 
 /**
  * 러닝 중 진행 거리와 점수를 추적하는 컴포넌트입니다.
@@ -34,6 +35,9 @@ public:
 	// 거리 외 이벤트나 배달 보상 점수를 추가합니다.
 	void AddScore(int32 ScoreDelta, FName Reason);
 
+	// 영수증 수집 또는 배달 보상으로 얻은 영수증을 누적합니다.
+	void AddReceipts(int32 Amount, FName Reason);
+
 	// 결과 UI와 HUD에 표시할 5m 단위 진행 거리입니다.
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run Progress")
 	float GetDisplayedDistanceMeters() const { return DisplayedDistanceMeters; }
@@ -46,6 +50,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run Progress")
 	int32 GetScore() const { return Score; }
 
+	// 현재 런에서 누적 획득한 영수증 개수입니다.
+	UFUNCTION(BlueprintPure, Category = "ProjectG | Run Progress")
+	int32 GetReceipts() const { return Receipts; }
+
 	// 런 시작 이후 경과 시간입니다.
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run Progress")
 	float GetElapsedTimeSeconds() const;
@@ -57,6 +65,10 @@ public:
 	// 점수가 바뀔 때 HUD가 연결할 수 있는 이벤트입니다.
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run Progress")
 	FPGRunScoreChangedSignature OnScoreChanged;
+
+	// 영수증 개수가 바뀌면 HUD와 결과 화면이 같은 값을 읽을 수 있도록 발생합니다.
+	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run Progress")
+	FPGReceiptsChangedSignature OnReceiptsChanged;
 
 private:
 	float CalculateRawDistanceMeters(const FVector& CurrentLocation) const;
@@ -71,5 +83,6 @@ private:
 	float DisplayedDistanceMeters = 0.0f;
 	int32 BonusScore = 0;
 	int32 Score = 0;
+	int32 Receipts = 0;
 	bool bIsProgressActive = false;
 };

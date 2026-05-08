@@ -80,12 +80,9 @@ void UPGRunResultWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTi
 	}
 }
 
-void UPGRunResultWidget::ConfigureRunResult(FName FailureReason, float RunTimeSeconds, float DistanceMeters, int32 Score, int32 OrdersDelivered)
+void UPGRunResultWidget::ConfigureRunResult(FName FailureReason, float RunTimeSeconds, float DistanceMeters, int32 Score, int32 Receipts, int32 OrdersDelivered)
 {
 	BuildDefaultLayout();
-
-	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
-	const int32 Receipts = Settings ? Settings->RunResult.TemporaryReceipts : 2366;
 
 	if (ScoreValueText)
 	{

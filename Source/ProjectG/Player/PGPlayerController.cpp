@@ -14,6 +14,7 @@
 #include "InputMappingContext.h"
 #include "InputCoreTypes.h"
 #include "RunEvents/PGRunEventFeedbackComponent.h"
+#include "RunHUD/PGRunHUDComponent.h"
 #include "Settings/PGGameSettings.h"
 #include "Settings/PGGameUserSettings.h"
 #include "RunResults/PGRunResultFeedbackComponent.h"
@@ -59,6 +60,7 @@ APGPlayerController::APGPlayerController()
 	RunResultFeedbackComponent = CreateDefaultSubobject<UPGRunResultFeedbackComponent>(TEXT("RunResultFeedback"));
 	CargoFeedbackComponent = CreateDefaultSubobject<UPGCargoFeedbackComponent>(TEXT("CargoFeedback"));
 	HomeFlowComponent = CreateDefaultSubobject<UPGHomeFlowComponent>(TEXT("HomeFlow"));
+	RunHUDComponent = CreateDefaultSubobject<UPGRunHUDComponent>(TEXT("RunHUD"));
 }
 
 void APGPlayerController::BeginPlay()
@@ -121,6 +123,10 @@ void APGPlayerController::OnUnPossess()
 	{
 		CargoFeedbackComponent->HandleRunnerUnpossessed();
 	}
+	if (RunHUDComponent)
+	{
+		RunHUDComponent->HandleRunnerUnpossessed();
+	}
 	CachedRunnerCharacter.Reset();
 	Super::OnUnPossess();
 }
@@ -171,6 +177,10 @@ void APGPlayerController::CacheRunnerPawn(APawn* InPawn)
 	if (CargoFeedbackComponent)
 	{
 		CargoFeedbackComponent->HandleRunnerPossessed(CachedRunnerCharacter.Get());
+	}
+	if (RunHUDComponent)
+	{
+		RunHUDComponent->HandleRunnerPossessed(CachedRunnerCharacter.Get());
 	}
 }
 

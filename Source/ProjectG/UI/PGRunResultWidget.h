@@ -33,7 +33,7 @@ public:
 
 	// 결과 위젯 생성 직후 현재 런의 실패 원인, 시간, 거리, 점수를 전달하고 UI 텍스트/등장 애니메이션을 갱신합니다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Run Result")
-	void ConfigureRunResult(FName FailureReason, float RunTimeSeconds, float DistanceMeters, int32 Score, int32 OrdersDelivered);
+	void ConfigureRunResult(FName FailureReason, float RunTimeSeconds, float DistanceMeters, int32 Score, int32 Receipts, int32 OrdersDelivered);
 
 protected:
 	virtual void NativeConstruct() override;
