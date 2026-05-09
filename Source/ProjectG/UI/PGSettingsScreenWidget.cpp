@@ -2,6 +2,7 @@
 
 #include "UI/PGSettingsScreenWidget.h"
 
+#include "Components/BackgroundBlur.h"
 #include "Components/Button.h"
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
@@ -13,6 +14,10 @@ namespace
 {
 constexpr float MinResolutionScalePercent = 50.0f;
 constexpr float MaxResolutionScalePercent = 100.0f;
+constexpr float SettingsBackdropBlurStrength = 5.0f;
+constexpr float SettingsBackdropDimOpacity = 0.35f;
+constexpr float SettingsPanelStartScale = 0.94f;
+constexpr float SettingsPanelStartOffsetY = 40.0f;
 
 float EaseOutCubicSettings(float Alpha)
 {
@@ -258,16 +263,32 @@ void UPGSettingsScreenWidget::ApplyFrameRate(int32 FrameRateLimit)
 
 void UPGSettingsScreenWidget::ApplyAnimationState(float Alpha)
 {
-	if (!RootPanel)
+	if (RootPanel)
 	{
-		return;
+		RootPanel->SetRenderOpacity(1.0f);
+		RootPanel->SetRenderScale(FVector2D(1.0f, 1.0f));
+		RootPanel->SetRenderTranslation(FVector2D::ZeroVector);
 	}
 
 	const float EasedAlpha = EaseOutCubicSettings(Alpha);
-	const float Scale = FMath::Lerp(0.92f, 1.0f, EasedAlpha);
-	RootPanel->SetRenderOpacity(EasedAlpha);
-	RootPanel->SetRenderScale(FVector2D(Scale, Scale));
-	RootPanel->SetRenderTranslation(FVector2D(0.0f, FMath::Lerp(40.0f, 0.0f, EasedAlpha)));
+
+	if (BackgroundBlur)
+	{
+		BackgroundBlur->SetBlurStrength(SettingsBackdropBlurStrength * EasedAlpha);
+	}
+
+	if (BackdropDim)
+	{
+		BackdropDim->SetRenderOpacity(SettingsBackdropDimOpacity * EasedAlpha);
+	}
+
+	if (SettingsPanel)
+	{
+		const float Scale = FMath::Lerp(SettingsPanelStartScale, 1.0f, EasedAlpha);
+		SettingsPanel->SetRenderOpacity(EasedAlpha);
+		SettingsPanel->SetRenderScale(FVector2D(Scale, Scale));
+		SettingsPanel->SetRenderTranslation(FVector2D(0.0f, FMath::Lerp(SettingsPanelStartOffsetY, 0.0f, EasedAlpha)));
+	}
 }
 
 void UPGSettingsScreenWidget::SetAllButtonsEnabled(bool bEnabled) const

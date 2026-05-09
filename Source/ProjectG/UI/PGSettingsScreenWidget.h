@@ -8,6 +8,7 @@
 #include "PGSettingsScreenWidget.generated.h"
 
 class UButton;
+class UBackgroundBlur;
 class USlider;
 class UTextBlock;
 class UWidget;
@@ -36,6 +37,15 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
 	TObjectPtr<UWidget> RootPanel;
+
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
+	TObjectPtr<UBackgroundBlur> BackgroundBlur;
+
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
+	TObjectPtr<UWidget> BackdropDim;
+
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
+	TObjectPtr<UWidget> SettingsPanel;
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
 	TObjectPtr<UButton> CloseButton;
