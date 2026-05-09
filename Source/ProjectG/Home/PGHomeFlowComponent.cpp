@@ -7,6 +7,7 @@
 #include "Engine/EngineBaseTypes.h"
 #include "EngineUtils.h"
 #include "GameModes/PGGameModeBase.h"
+#include "Loading/PGRuntimePreloadSubsystem.h"
 #include "Player/PGPlayerController.h"
 #include "UI/PGHomeScreenWidget.h"
 #include "UI/PGRunCountdownWidget.h"
@@ -36,17 +37,24 @@ void UPGHomeFlowComponent::BeginPlay()
 	}
 
 	BindGameMode();
+	BindRuntimePreloadSubsystem();
+
+	const FString StartFlowOption = GetWorld() ? GetWorld()->URL.GetOption(TEXT("StartFlow="), TEXT("")) : FString();
+	bRetryCountdownRequested = StartFlowOption.Equals(TEXT("RetryCountdown"), ESearchCase::IgnoreCase);
 
 	if (BoundGameMode && BoundGameMode->GetRunState() == EPGRunState::Home)
 	{
-		const FString StartFlowOption = GetWorld() ? GetWorld()->URL.GetOption(TEXT("StartFlow="), TEXT("")) : FString();
-		if (StartFlowOption.Equals(TEXT("RetryCountdown"), ESearchCase::IgnoreCase))
+		if (bRetryCountdownRequested)
 		{
+			RequestStartDeliveryAfterPreload();
 			return;
 		}
 
 		SetHomeCameraViewTarget();
-		ShowHomeScreen();
+		if (!RuntimePreloadSubsystem || RuntimePreloadSubsystem->IsReady())
+		{
+			ShowHomeScreen();
+		}
 		ApplyHomeInputMode();
 	}
 	else if (BoundGameMode && BoundGameMode->GetRunState() == EPGRunState::Countdown)
@@ -61,6 +69,11 @@ void UPGHomeFlowComponent::BeginPlay()
 
 void UPGHomeFlowComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (RuntimePreloadSubsystem)
+	{
+		RuntimePreloadSubsystem->OnPreloadCompleted.RemoveDynamic(this, &UPGHomeFlowComponent::HandleRuntimePreloadCompleted);
+		RuntimePreloadSubsystem = nullptr;
+	}
 	UnbindGameMode();
 	CleanupWidgets();
 	Super::EndPlay(EndPlayReason);
@@ -98,6 +111,51 @@ void UPGHomeFlowComponent::UnbindGameMode()
 	BoundGameMode = nullptr;
 }
 
+void UPGHomeFlowComponent::BindRuntimePreloadSubsystem()
+{
+	UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	if (RuntimePreloadSubsystem || !GameInstance)
+	{
+		return;
+	}
+
+	RuntimePreloadSubsystem = GameInstance->GetSubsystem<UPGRuntimePreloadSubsystem>();
+	if (!RuntimePreloadSubsystem)
+	{
+		UE_LOG(LogPGHomeFlow, Warning, TEXT("RuntimePreloadSubsystem is unavailable. Home flow will use already loaded resources only."));
+		return;
+	}
+
+	RuntimePreloadSubsystem->OnPreloadCompleted.AddDynamic(this, &UPGHomeFlowComponent::HandleRuntimePreloadCompleted);
+	RuntimePreloadSubsystem->StartPreload();
+}
+
+void UPGHomeFlowComponent::RequestStartDeliveryAfterPreload()
+{
+	if (!BoundGameMode)
+	{
+		return;
+	}
+
+	if (!RuntimePreloadSubsystem || RuntimePreloadSubsystem->IsReady())
+	{
+		bPendingStartDeliveryAfterPreload = false;
+		BoundGameMode->RequestStartDelivery();
+		if (HomeScreenWidget && BoundGameMode->GetRunState() == EPGRunState::Home)
+		{
+			HomeScreenWidget->SetHomeButtonsEnabled(true);
+		}
+		return;
+	}
+
+	bPendingStartDeliveryAfterPreload = true;
+	RuntimePreloadSubsystem->StartPreload();
+	if (HomeScreenWidget)
+	{
+		HomeScreenWidget->SetHomeButtonsEnabled(false);
+	}
+}
+
 void UPGHomeFlowComponent::ShowHomeScreen()
 {
 	if (!OwnerPlayerController || HomeScreenWidget)
@@ -105,7 +163,7 @@ void UPGHomeFlowComponent::ShowHomeScreen()
 		return;
 	}
 
-	UClass* WidgetClass = CachedHomeFlowSettings.HomeScreenWidgetClass.LoadSynchronous();
+	UClass* WidgetClass = CachedHomeFlowSettings.HomeScreenWidgetClass.Get();
 	if (!WidgetClass)
 	{
 		UE_LOG(LogPGHomeFlow, Warning, TEXT("HomeScreenWidgetClass is not set. Create BP_HomeScreenWidget and assign it in Go Deliver Settings > Home Flow."));
@@ -174,7 +232,7 @@ void UPGHomeFlowComponent::ShowCountdown(float Duration)
 		CountdownWidget = nullptr;
 	}
 
-	UClass* WidgetClass = CachedHomeFlowSettings.RunCountdownWidgetClass.LoadSynchronous();
+	UClass* WidgetClass = CachedHomeFlowSettings.RunCountdownWidgetClass.Get();
 	if (!WidgetClass)
 	{
 		UE_LOG(LogPGHomeFlow, Warning, TEXT("RunCountdownWidgetClass is not set. Create BP_RunCountdownWidget and assign it in Go Deliver Settings > Home Flow."));
@@ -227,10 +285,7 @@ void UPGHomeFlowComponent::HandleStartDeliveryRequested()
 		return;
 	}
 
-	if (BoundGameMode)
-	{
-		BoundGameMode->RequestStartDelivery();
-	}
+	RequestStartDeliveryAfterPreload();
 }
 
 void UPGHomeFlowComponent::HandleSettingsRequested()
@@ -254,7 +309,7 @@ void UPGHomeFlowComponent::ShowSettingsScreen()
 		return;
 	}
 
-	UClass* WidgetClass = CachedHomeFlowSettings.SettingsScreenWidgetClass.LoadSynchronous();
+	UClass* WidgetClass = CachedHomeFlowSettings.SettingsScreenWidgetClass.Get();
 	if (!WidgetClass)
 	{
 		UE_LOG(LogPGHomeFlow, Warning, TEXT("SettingsScreenWidgetClass is not set. Create WBP_SettingsScreen and assign it in Go Deliver Settings > Home Flow."));
@@ -304,6 +359,22 @@ void UPGHomeFlowComponent::HandleRunStarted()
 	}
 
 	ApplyGameInputMode();
+}
+
+void UPGHomeFlowComponent::HandleRuntimePreloadCompleted()
+{
+	if (!BoundGameMode || BoundGameMode->GetRunState() != EPGRunState::Home)
+	{
+		return;
+	}
+
+	if (bPendingStartDeliveryAfterPreload || bRetryCountdownRequested)
+	{
+		RequestStartDeliveryAfterPreload();
+		return;
+	}
+
+	ShowHomeScreen();
 }
 
 void UPGHomeFlowComponent::ApplyHomeInputMode()

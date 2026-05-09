@@ -49,7 +49,6 @@ protected:
 	TObjectPtr<UProgressBar> DeliveryProgressBar;
 
 private:
-	void ValidateRequiredWidgets() const;
 	void ApplyAnimationState(float Alpha, bool bExiting);
 
 	int32 CargoInstanceId = INDEX_NONE;

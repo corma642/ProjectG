@@ -29,6 +29,9 @@ public:
 	// START DELIVERY 이후 홈 화면 요소들이 각 방향으로 빠지며 사라지는 애니메이션을 시작합니다.
 	void PlayExitAnimation(float Duration);
 
+	// 리소스 예열 대기나 설정 화면 표시 중 홈 버튼 입력을 잠그거나 다시 엽니다.
+	void SetHomeButtonsEnabled(bool bEnabled) const;
+
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
@@ -59,7 +62,6 @@ private:
 	UFUNCTION()
 	void HandleSettingsClicked();
 
-	void ValidateRequiredWidgets() const;
 	void ApplyExitAnimation(float Alpha);
 	void ApplyWidgetExitAnimation(UWidget* Widget, float Delay, const FVector2D& TargetOffset, float AnimationTime) const;
 

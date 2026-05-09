@@ -5,11 +5,10 @@
 #include "Blueprint/UserWidget.h"
 #include "Cargo/PGCargoStackComponent.h"
 #include "Character/PGRunnerCharacter.h"
-#include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
 #include "GameFramework/PlayerController.h"
 #include "GameModes/PGGameModeBase.h"
 #include "Kismet/GameplayStatics.h"
+#include "Loading/PGRuntimePreloadSubsystem.h"
 #include "Player/PGPlayerController.h"
 #include "RunProgress/PGRunProgressComponent.h"
 #include "UI/PGCargoDeliveryItemWidget.h"
@@ -37,7 +36,6 @@ void UPGRunHUDComponent::BeginPlay()
 	}
 
 	LoadSettings();
-	StartPreloadingResources();
 	BindGameMode();
 	HandleRunnerPossessed(Cast<APGRunnerCharacter>(OwnerPlayerController->GetPawn()));
 
@@ -54,7 +52,6 @@ void UPGRunHUDComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	CleanupSettingsScreen();
 	CleanupPauseScreen(false);
 	CleanupHUD();
-	ReleaseResourceLoadHandle();
 
 	Super::EndPlay(EndPlayReason);
 }
@@ -186,61 +183,11 @@ void UPGRunHUDComponent::LoadSettings()
 	}
 }
 
-void UPGRunHUDComponent::StartPreloadingResources()
+bool UPGRunHUDComponent::AreRuntimeResourcesReady() const
 {
-	bResourcesReady = false;
-
-	TArray<FSoftObjectPath> ResourcePaths;
-	if (!CachedRunHUDSettings.RunHUDWidgetClass.IsNull())
-	{
-		ResourcePaths.Add(CachedRunHUDSettings.RunHUDWidgetClass.ToSoftObjectPath());
-	}
-	if (!CachedRunHUDSettings.RunPauseWidgetClass.IsNull())
-	{
-		ResourcePaths.Add(CachedRunHUDSettings.RunPauseWidgetClass.ToSoftObjectPath());
-	}
-	if (!CachedRunHUDSettings.CargoDeliveryItemWidgetClass.IsNull())
-	{
-		ResourcePaths.Add(CachedRunHUDSettings.CargoDeliveryItemWidgetClass.ToSoftObjectPath());
-	}
-	if (!CachedHomeFlowSettings.SettingsScreenWidgetClass.IsNull())
-	{
-		ResourcePaths.Add(CachedHomeFlowSettings.SettingsScreenWidgetClass.ToSoftObjectPath());
-	}
-
-	if (ResourcePaths.IsEmpty())
-	{
-		bResourcesReady = true;
-		return;
-	}
-
-	FStreamableManager& StreamableManager = UAssetManager::GetStreamableManager();
-	ResourceLoadHandle = StreamableManager.RequestAsyncLoad(
-		ResourcePaths,
-		FStreamableDelegate::CreateUObject(this, &UPGRunHUDComponent::HandleResourcesLoaded),
-		FStreamableManager::DefaultAsyncLoadPriority,
-		false,
-		false,
-		TEXT("PGRunHUDResources"));
-}
-
-void UPGRunHUDComponent::HandleResourcesLoaded()
-{
-	bResourcesReady = true;
-	if (BoundGameMode && (BoundGameMode->GetRunState() == EPGRunState::Countdown || BoundGameMode->GetRunState() == EPGRunState::Running))
-	{
-		ShowHUD();
-	}
-}
-
-void UPGRunHUDComponent::ReleaseResourceLoadHandle()
-{
-	if (ResourceLoadHandle.IsValid())
-	{
-		ResourceLoadHandle->ReleaseHandle();
-		ResourceLoadHandle.Reset();
-	}
-	bResourcesReady = false;
+	const UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	const UPGRuntimePreloadSubsystem* PreloadSubsystem = GameInstance ? GameInstance->GetSubsystem<UPGRuntimePreloadSubsystem>() : nullptr;
+	return !PreloadSubsystem || PreloadSubsystem->IsReady();
 }
 
 void UPGRunHUDComponent::BindGameMode()
@@ -345,9 +292,8 @@ void UPGRunHUDComponent::ShowHUD()
 		return;
 	}
 
-	if (!bResourcesReady)
+	if (!AreRuntimeResourcesReady())
 	{
-		UE_LOG(LogPGRunHUDComponent, Warning, TEXT("Run HUD resources are still loading. HUD display skipped."));
 		return;
 	}
 
@@ -426,7 +372,7 @@ void UPGRunHUDComponent::RefreshCargoList()
 
 void UPGRunHUDComponent::ShowPauseScreen()
 {
-	if (!OwnerPlayerController || PauseWidget || !bResourcesReady)
+	if (!OwnerPlayerController || PauseWidget || !AreRuntimeResourcesReady())
 	{
 		return;
 	}

@@ -63,7 +63,6 @@ private:
 	UFUNCTION()
 	void HandlePauseClicked();
 
-	void ValidateRequiredWidgets() const;
 	void ApplyAnimationState(float Alpha, bool bExiting);
 	UPGCargoDeliveryItemWidget* AcquireCargoItemWidget();
 	void HandleCargoItemExitFinished(UPGCargoDeliveryItemWidget* ItemWidget);

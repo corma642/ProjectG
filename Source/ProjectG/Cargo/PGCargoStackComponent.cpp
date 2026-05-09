@@ -226,7 +226,7 @@ APGPhysicsCargoActor* UPGCargoStackComponent::SpawnPhysicsCargo(UPGCargoTypeDefi
 
 UPGCargoTypeDefinition* UPGCargoStackComponent::ResolveDefaultCargoType() const
 {
-	return CachedCargoSettings.DefaultCargoType.LoadSynchronous();
+	return CachedCargoSettings.DefaultCargoType.Get();
 }
 
 bool UPGCargoStackComponent::IsValidCargoTypeForSpawn(const UPGCargoTypeDefinition* CargoType, const TCHAR* Context) const

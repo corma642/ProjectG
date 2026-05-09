@@ -132,11 +132,7 @@ void UPGCargoDeliverySubsystem::LoadSettings()
 	{
 		CachedDeliverySettings = Settings->CargoDelivery;
 		CachedCargoSettings = Settings->Cargo;
-		LoadedDropSet = CachedDeliverySettings.DefaultCargoDropSet.LoadSynchronous();
-		if (!LoadedDropSet && !CachedDeliverySettings.DefaultCargoDropSet.IsNull())
-		{
-			UE_LOG(LogPGCargoDeliverySubsystem, Warning, TEXT("DefaultCargoDropSet could not be loaded. DefaultCargoType fallback will be used."));
-		}
+		LoadedDropSet = CachedDeliverySettings.DefaultCargoDropSet.Get();
 	}
 }
 
@@ -253,6 +249,11 @@ bool UPGCargoDeliverySubsystem::TryStartCargoDrop()
 
 UPGCargoTypeDefinition* UPGCargoDeliverySubsystem::SelectCargoType()
 {
+	if (!LoadedDropSet)
+	{
+		LoadedDropSet = CachedDeliverySettings.DefaultCargoDropSet.Get();
+	}
+
 	if (LoadedDropSet && !LoadedDropSet->Entries.IsEmpty())
 	{
 		float TotalWeight = 0.0f;
@@ -285,7 +286,7 @@ UPGCargoTypeDefinition* UPGCargoDeliverySubsystem::SelectCargoType()
 		}
 	}
 
-	return CachedCargoSettings.DefaultCargoType.LoadSynchronous();
+	return CachedCargoSettings.DefaultCargoType.Get();
 }
 
 void UPGCargoDeliverySubsystem::ScheduleNextDrop(float DelaySeconds)

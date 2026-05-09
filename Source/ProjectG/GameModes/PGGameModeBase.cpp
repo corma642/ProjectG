@@ -19,9 +19,12 @@ void APGGameModeBase::BeginPlay()
 	Super::BeginPlay();
 
 	RunState = EPGRunState::Home;
-	if (ResolveInitialRunFlowMode() == EPGInitialRunFlowMode::RetryCountdown)
+
+	const UWorld* World = GetWorld();
+	const FString StartFlowOption = World ? World->URL.GetOption(TEXT("StartFlow="), TEXT("")) : FString();
+	if (StartFlowOption.Equals(TEXT("RetryCountdown"), ESearchCase::IgnoreCase))
 	{
-		RequestStartDelivery();
+		GetWorldTimerManager().SetTimer(RetryCountdownFallbackTimerHandle, this, &APGGameModeBase::HandleRetryCountdownFallback, 1.0f, false);
 	}
 }
 
@@ -36,6 +39,7 @@ void APGGameModeBase::RequestStartDelivery()
 	const float CountdownDuration = Settings ? FMath::Max(0.0f, Settings->HomeFlow.RunStartCountdownDuration) : 3.0f;
 
 	RunState = EPGRunState::Countdown;
+	GetWorldTimerManager().ClearTimer(RetryCountdownFallbackTimerHandle);
 	OnRunCountdownStarted.Broadcast(CountdownDuration);
 
 	if (CountdownDuration <= KINDA_SMALL_NUMBER)
@@ -56,6 +60,7 @@ void APGGameModeBase::RequestRunFailed(FName FailureReason)
 
 	RunState = EPGRunState::Failed;
 	GetWorldTimerManager().ClearTimer(RunCountdownTimerHandle);
+	GetWorldTimerManager().ClearTimer(RetryCountdownFallbackTimerHandle);
 	OnRunFailed.Broadcast(FailureReason);
 }
 
@@ -70,19 +75,11 @@ void APGGameModeBase::FinishRunCountdown()
 	OnRunStarted.Broadcast();
 }
 
-EPGInitialRunFlowMode APGGameModeBase::ResolveInitialRunFlowMode() const
+void APGGameModeBase::HandleRetryCountdownFallback()
 {
-	const UWorld* World = GetWorld();
-	if (!World)
+	if (RunState == EPGRunState::Home)
 	{
-		return EPGInitialRunFlowMode::Home;
+		RequestStartDelivery();
 	}
-
-	const FString StartFlowOption = World->URL.GetOption(TEXT("StartFlow="), TEXT(""));
-	if (StartFlowOption.Equals(TEXT("RetryCountdown"), ESearchCase::IgnoreCase))
-	{
-		return EPGInitialRunFlowMode::RetryCountdown;
-	}
-
-	return EPGInitialRunFlowMode::Home;
 }
+

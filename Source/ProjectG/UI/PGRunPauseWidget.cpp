@@ -7,8 +7,6 @@
 #include "Components/Image.h"
 #include "Components/Widget.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogPGRunPauseWidget, Log, All);
-
 namespace
 {
 float RunPauseEaseOutCubic(float Alpha)
@@ -22,7 +20,6 @@ void UPGRunPauseWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	ValidateRequiredWidgets();
 	if (ResumeButton)
 	{
 		ResumeButton->OnClicked.AddDynamic(this, &UPGRunPauseWidget::HandleResumeClicked);
@@ -116,34 +113,6 @@ void UPGRunPauseWidget::HandleResumeClicked()
 void UPGRunPauseWidget::HandleSettingsClicked()
 {
 	OnSettingsRequested.Broadcast();
-}
-
-void UPGRunPauseWidget::ValidateRequiredWidgets() const
-{
-	if (!RootPanel)
-	{
-		UE_LOG(LogPGRunPauseWidget, Warning, TEXT("%s requires BindWidget 'RootPanel'."), *GetNameSafe(this));
-	}
-	if (!BackdropBlur)
-	{
-		UE_LOG(LogPGRunPauseWidget, Warning, TEXT("%s requires BindWidget 'BackdropBlur'."), *GetNameSafe(this));
-	}
-	if (!BackdropDim)
-	{
-		UE_LOG(LogPGRunPauseWidget, Warning, TEXT("%s requires BindWidget 'BackdropDim'."), *GetNameSafe(this));
-	}
-	if (!PausePanel)
-	{
-		UE_LOG(LogPGRunPauseWidget, Warning, TEXT("%s requires BindWidget 'PausePanel'."), *GetNameSafe(this));
-	}
-	if (!ResumeButton)
-	{
-		UE_LOG(LogPGRunPauseWidget, Warning, TEXT("%s requires BindWidget 'ResumeButton'."), *GetNameSafe(this));
-	}
-	if (!SettingsButton)
-	{
-		UE_LOG(LogPGRunPauseWidget, Warning, TEXT("%s requires BindWidget 'SettingsButton'."), *GetNameSafe(this));
-	}
 }
 
 void UPGRunPauseWidget::ApplyAnimationState(float Alpha, bool bClosing)

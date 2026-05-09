@@ -8,7 +8,6 @@
 #include "PGRunEventFeedbackComponent.generated.h"
 
 class APlayerController;
-struct FStreamableHandle;
 class UNiagaraComponent;
 class UPGRunEventSubsystem;
 class UAudioComponent;
@@ -42,15 +41,12 @@ private:
 	UFUNCTION()
 	void HandleRunEventCanceled(EPGRunEventType EventType);
 
-	void StartLoadingPresentationSet();
-	void HandlePresentationSetLoaded();
-	void StartPreloadingPresentationResources();
-	void HandlePresentationResourcesLoaded();
+	void ResolvePresentationSet();
+	bool ArePresentationResourcesReady() const;
 	void ValidatePresentationSet() const;
-	void ReleasePresentationLoadHandles();
 	void BindRunEventSubsystem();
 	void UnbindRunEventSubsystem();
-	const FPGRunEventPresentationEntry* FindPresentationEntry(EPGRunEventType EventType) const;
+	const FPGRunEventPresentationEntry* FindPresentationEntry(EPGRunEventType EventType);
 	void PlayPreviewPresentation(const FPGRunEventPresentationEntry& Entry, EPGRunEventType EventType, float TimeUntilTrigger, float Direction);
 	void PlayActivePresentation(const FPGRunEventPresentationEntry& Entry, EPGRunEventType EventType, float Duration, float Direction);
 	void CleanupPreviewPresentation();
@@ -80,11 +76,6 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UAudioComponent> ActiveLoopAudioComponent;
 
-	TSharedPtr<FStreamableHandle> PresentationSetLoadHandle;
-	TSharedPtr<FStreamableHandle> PresentationResourcesLoadHandle;
-
 	EPGRunEventType PreviewEventType = EPGRunEventType::None;
 	EPGRunEventType ActiveEventType = EPGRunEventType::None;
-	bool bPresentationSetLoaded = false;
-	bool bPresentationResourcesReady = false;
 };

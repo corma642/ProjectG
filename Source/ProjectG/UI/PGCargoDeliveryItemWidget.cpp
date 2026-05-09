@@ -7,8 +7,6 @@
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogPGCargoDeliveryItemWidget, Log, All);
-
 namespace
 {
 float CargoItemEaseOutCubic(float Alpha)
@@ -21,7 +19,6 @@ float CargoItemEaseOutCubic(float Alpha)
 void UPGCargoDeliveryItemWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
-	ValidateRequiredWidgets();
 	SetRenderOpacity(0.0f);
 }
 
@@ -91,26 +88,6 @@ void UPGCargoDeliveryItemWidget::PlayExitAnimation()
 	AnimationElapsed = 0.0f;
 	SetVisibility(ESlateVisibility::HitTestInvisible);
 	ApplyAnimationState(0.0f, true);
-}
-
-void UPGCargoDeliveryItemWidget::ValidateRequiredWidgets() const
-{
-	if (!RootPanel)
-	{
-		UE_LOG(LogPGCargoDeliveryItemWidget, Warning, TEXT("%s requires BindWidget 'RootPanel'."), *GetNameSafe(this));
-	}
-	if (!ThumbnailImage)
-	{
-		UE_LOG(LogPGCargoDeliveryItemWidget, Warning, TEXT("%s requires BindWidget 'ThumbnailImage'."), *GetNameSafe(this));
-	}
-	if (!RemainingTimeText)
-	{
-		UE_LOG(LogPGCargoDeliveryItemWidget, Warning, TEXT("%s requires BindWidget 'RemainingTimeText'."), *GetNameSafe(this));
-	}
-	if (!DeliveryProgressBar)
-	{
-		UE_LOG(LogPGCargoDeliveryItemWidget, Warning, TEXT("%s requires BindWidget 'DeliveryProgressBar'."), *GetNameSafe(this));
-	}
 }
 
 void UPGCargoDeliveryItemWidget::ApplyAnimationState(float Alpha, bool bExiting)

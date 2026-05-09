@@ -8,8 +8,6 @@
 #include "Components/Widget.h"
 #include "UI/PGCargoDeliveryItemWidget.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogPGRunHUDWidget, Log, All);
-
 namespace
 {
 float RunHUDEaseOutCubic(float Alpha)
@@ -23,7 +21,6 @@ void UPGRunHUDWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	ValidateRequiredWidgets();
 	if (PauseButton)
 	{
 		PauseButton->OnClicked.AddDynamic(this, &UPGRunHUDWidget::HandlePauseClicked);
@@ -177,34 +174,6 @@ void UPGRunHUDWidget::PlayExitAnimation()
 void UPGRunHUDWidget::HandlePauseClicked()
 {
 	OnPauseRequested.Broadcast();
-}
-
-void UPGRunHUDWidget::ValidateRequiredWidgets() const
-{
-	if (!RootPanel)
-	{
-		UE_LOG(LogPGRunHUDWidget, Warning, TEXT("%s requires BindWidget 'RootPanel'."), *GetNameSafe(this));
-	}
-	if (!ScoreText)
-	{
-		UE_LOG(LogPGRunHUDWidget, Warning, TEXT("%s requires BindWidget 'ScoreText'."), *GetNameSafe(this));
-	}
-	if (!DistanceText)
-	{
-		UE_LOG(LogPGRunHUDWidget, Warning, TEXT("%s requires BindWidget 'DistanceText'."), *GetNameSafe(this));
-	}
-	if (!ReceiptsText)
-	{
-		UE_LOG(LogPGRunHUDWidget, Warning, TEXT("%s requires BindWidget 'ReceiptsText'."), *GetNameSafe(this));
-	}
-	if (!PauseButton)
-	{
-		UE_LOG(LogPGRunHUDWidget, Warning, TEXT("%s requires BindWidget 'PauseButton'."), *GetNameSafe(this));
-	}
-	if (!CargoListBox)
-	{
-		UE_LOG(LogPGRunHUDWidget, Warning, TEXT("%s requires BindWidget 'CargoListBox'."), *GetNameSafe(this));
-	}
 }
 
 void UPGRunHUDWidget::ApplyAnimationState(float Alpha, bool bExiting)

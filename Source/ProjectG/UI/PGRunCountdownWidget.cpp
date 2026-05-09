@@ -5,8 +5,6 @@
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogPGRunCountdownWidget, Log, All);
-
 namespace
 {
 float EaseOutBack(float Alpha)
@@ -33,7 +31,6 @@ float EaseInCubicCountdown(float Alpha)
 void UPGRunCountdownWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
-	ValidateRequiredWidgets();
 
 	if (RootPanel)
 	{
@@ -87,18 +84,6 @@ void UPGRunCountdownWidget::StartCountdown(float Duration)
 	{
 		bIsCountdownActive = false;
 		RemoveFromParent();
-	}
-}
-
-void UPGRunCountdownWidget::ValidateRequiredWidgets() const
-{
-	if (!RootPanel)
-	{
-		UE_LOG(LogPGRunCountdownWidget, Warning, TEXT("%s requires BindWidget 'RootPanel'."), *GetNameSafe(this));
-	}
-	if (!CountdownText)
-	{
-		UE_LOG(LogPGRunCountdownWidget, Warning, TEXT("%s requires BindWidget 'CountdownText'."), *GetNameSafe(this));
 	}
 }
 

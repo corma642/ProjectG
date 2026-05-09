@@ -10,7 +10,6 @@ class APGGameModeBase;
 class APGRunnerCharacter;
 class APlayerController;
 class UUserWidget;
-struct FStreamableHandle;
 
 /**
  * GameMode의 공통 실패 이벤트를 구독해 로컬 플레이어 결과 화면을 자동으로 표시하는 컴포넌트입니다.
@@ -31,9 +30,7 @@ private:
 	UFUNCTION()
 	void HandleRunFailed(FName FailureReason);
 
-	void StartPreloadingResources();
-	void HandleResourcesLoaded();
-	void ReleaseResourceLoadHandle();
+	bool AreRuntimeResourcesReady() const;
 	void BindGameMode();
 	void UnbindGameMode();
 	void CleanupResultWidget();
@@ -46,8 +43,5 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UUserWidget> ResultWidget;
 
-	TSharedPtr<FStreamableHandle> ResourceLoadHandle;
-
 	bool bIsBoundToGameMode = false;
-	bool bResourcesReady = false;
 };

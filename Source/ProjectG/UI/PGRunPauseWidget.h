@@ -61,7 +61,6 @@ private:
 	UFUNCTION()
 	void HandleSettingsClicked();
 
-	void ValidateRequiredWidgets() const;
 	void ApplyAnimationState(float Alpha, bool bClosing);
 
 	bool bIsOpening = false;

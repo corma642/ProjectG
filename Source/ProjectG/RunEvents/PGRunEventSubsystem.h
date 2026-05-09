@@ -96,7 +96,7 @@ private:
 	TObjectPtr<UPGRunnerEnvironmentComponent> RunnerEnvironmentComponent;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UPGRunEventSet> LoadedEventSet;
+	mutable TObjectPtr<UPGRunEventSet> LoadedEventSet;
 
 	UPROPERTY(Transient)
 	TObjectPtr<APGGameModeBase> BoundGameMode;

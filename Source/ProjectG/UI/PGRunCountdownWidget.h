@@ -33,7 +33,6 @@ protected:
 	TObjectPtr<UTextBlock> CountdownText;
 
 private:
-	void ValidateRequiredWidgets() const;
 	void UpdateCountdownText(int32 StepIndex);
 	void ApplyStepAnimation(float StepAlpha);
 

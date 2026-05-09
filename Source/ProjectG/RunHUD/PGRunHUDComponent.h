@@ -15,7 +15,6 @@ class UPGRunHUDWidget;
 class UPGRunPauseWidget;
 class UPGRunProgressComponent;
 class UPGSettingsScreenWidget;
-struct FStreamableHandle;
 
 /**
  * 러닝 중 HUD와 Pause 화면의 생명주기, 데이터 바인딩, Settings 재사용 흐름을 관리하는 로컬 플레이어 컴포넌트입니다.
@@ -62,9 +61,7 @@ private:
 	void HandleSettingsScreenClosed();
 
 	void LoadSettings();
-	void StartPreloadingResources();
-	void HandleResourcesLoaded();
-	void ReleaseResourceLoadHandle();
+	bool AreRuntimeResourcesReady() const;
 	void BindGameMode();
 	void UnbindGameMode();
 	void BindRunProgress(UPGRunProgressComponent* RunProgressComponent);
@@ -104,11 +101,8 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UPGSettingsScreenWidget> SettingsScreenWidget;
 
-	TSharedPtr<FStreamableHandle> ResourceLoadHandle;
-
 	FPGRunHUDSettings CachedRunHUDSettings;
 	FPGHomeFlowSettings CachedHomeFlowSettings;
 	float CargoRefreshElapsed = 0.0f;
 	bool bIsBoundToGameMode = false;
-	bool bResourcesReady = false;
 };

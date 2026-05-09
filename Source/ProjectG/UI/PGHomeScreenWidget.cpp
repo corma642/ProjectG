@@ -1,12 +1,10 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UI/PGHomeScreenWidget.h"
 
 #include "Components/Button.h"
 #include "Components/Image.h"
 #include "Components/Widget.h"
-
-DEFINE_LOG_CATEGORY_STATIC(LogPGHomeScreenWidget, Log, All);
 
 namespace
 {
@@ -27,8 +25,6 @@ float EaseInCubicHome(float Alpha)
 void UPGHomeScreenWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
-
-	ValidateRequiredWidgets();
 
 	if (StartDeliveryButton)
 	{
@@ -92,18 +88,7 @@ void UPGHomeScreenWidget::PlayExitAnimation(float Duration)
 	ExitAnimationElapsed = 0.0f;
 	bIsExitAnimating = true;
 
-	if (StartDeliveryButton)
-	{
-		StartDeliveryButton->SetIsEnabled(false);
-	}
-	if (SkinsButton)
-	{
-		SkinsButton->SetIsEnabled(false);
-	}
-	if (SettingsButton)
-	{
-		SettingsButton->SetIsEnabled(false);
-	}
+	SetHomeButtonsEnabled(false);
 
 	ApplyExitAnimation(0.0f);
 	if (ExitAnimationDuration <= KINDA_SMALL_NUMBER)
@@ -114,6 +99,22 @@ void UPGHomeScreenWidget::PlayExitAnimation(float Duration)
 	}
 }
 
+void UPGHomeScreenWidget::SetHomeButtonsEnabled(bool bEnabled) const
+{
+	if (StartDeliveryButton)
+	{
+		StartDeliveryButton->SetIsEnabled(bEnabled);
+	}
+	if (SkinsButton)
+	{
+		SkinsButton->SetIsEnabled(bEnabled);
+	}
+	if (SettingsButton)
+	{
+		SettingsButton->SetIsEnabled(bEnabled);
+	}
+}
+
 void UPGHomeScreenWidget::HandleStartDeliveryClicked()
 {
 	OnStartDeliveryRequested.Broadcast();
@@ -121,36 +122,11 @@ void UPGHomeScreenWidget::HandleStartDeliveryClicked()
 
 void UPGHomeScreenWidget::HandleSkinsClicked()
 {
-	UE_LOG(LogPGHomeScreenWidget, Log, TEXT("Skins button clicked. TODO: open skins/shop screen."));
 }
 
 void UPGHomeScreenWidget::HandleSettingsClicked()
 {
 	OnSettingsRequested.Broadcast();
-}
-
-void UPGHomeScreenWidget::ValidateRequiredWidgets() const
-{
-	if (!RootPanel)
-	{
-		UE_LOG(LogPGHomeScreenWidget, Warning, TEXT("%s requires BindWidget 'RootPanel'."), *GetNameSafe(this));
-	}
-	if (!LogoImage)
-	{
-		UE_LOG(LogPGHomeScreenWidget, Warning, TEXT("%s requires BindWidget 'LogoImage'."), *GetNameSafe(this));
-	}
-	if (!StartDeliveryButton)
-	{
-		UE_LOG(LogPGHomeScreenWidget, Warning, TEXT("%s requires BindWidget 'StartDeliveryButton'."), *GetNameSafe(this));
-	}
-	if (!SkinsButton)
-	{
-		UE_LOG(LogPGHomeScreenWidget, Warning, TEXT("%s requires BindWidget 'SkinsButton'."), *GetNameSafe(this));
-	}
-	if (!SettingsButton)
-	{
-		UE_LOG(LogPGHomeScreenWidget, Warning, TEXT("%s requires BindWidget 'SettingsButton'."), *GetNameSafe(this));
-	}
 }
 
 void UPGHomeScreenWidget::ApplyExitAnimation(float Alpha)

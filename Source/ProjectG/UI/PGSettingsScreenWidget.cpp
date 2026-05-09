@@ -9,8 +9,6 @@
 #include "GameFramework/GameUserSettings.h"
 #include "Settings/PGGameUserSettings.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogPGSettingsScreenWidget, Log, All);
-
 namespace
 {
 constexpr float MinResolutionScalePercent = 50.0f;
@@ -27,8 +25,6 @@ float EaseOutCubicSettings(float Alpha)
 void UPGSettingsScreenWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
-
-	ValidateRequiredWidgets();
 
 	if (CloseButton)
 	{
@@ -220,50 +216,6 @@ void UPGSettingsScreenWidget::HandleFrameRate30Clicked()
 void UPGSettingsScreenWidget::HandleFrameRate60Clicked()
 {
 	ApplyFrameRate(60);
-}
-
-void UPGSettingsScreenWidget::ValidateRequiredWidgets() const
-{
-	if (!RootPanel)
-	{
-		UE_LOG(LogPGSettingsScreenWidget, Warning, TEXT("%s requires BindWidget 'RootPanel'."), *GetNameSafe(this));
-	}
-	if (!CloseButton)
-	{
-		UE_LOG(LogPGSettingsScreenWidget, Warning, TEXT("%s requires BindWidget 'CloseButton'."), *GetNameSafe(this));
-	}
-	if (!LowPresetButton)
-	{
-		UE_LOG(LogPGSettingsScreenWidget, Warning, TEXT("%s requires BindWidget 'LowPresetButton'."), *GetNameSafe(this));
-	}
-	if (!BalancedPresetButton)
-	{
-		UE_LOG(LogPGSettingsScreenWidget, Warning, TEXT("%s requires BindWidget 'BalancedPresetButton'."), *GetNameSafe(this));
-	}
-	if (!HighPresetButton)
-	{
-		UE_LOG(LogPGSettingsScreenWidget, Warning, TEXT("%s requires BindWidget 'HighPresetButton'."), *GetNameSafe(this));
-	}
-	if (!UltraPresetButton)
-	{
-		UE_LOG(LogPGSettingsScreenWidget, Warning, TEXT("%s requires BindWidget 'UltraPresetButton'."), *GetNameSafe(this));
-	}
-	if (!ResolutionScaleSlider)
-	{
-		UE_LOG(LogPGSettingsScreenWidget, Warning, TEXT("%s requires BindWidget 'ResolutionScaleSlider'."), *GetNameSafe(this));
-	}
-	if (!ResolutionScaleValueText)
-	{
-		UE_LOG(LogPGSettingsScreenWidget, Warning, TEXT("%s requires BindWidget 'ResolutionScaleValueText'."), *GetNameSafe(this));
-	}
-	if (!FrameRate30Button)
-	{
-		UE_LOG(LogPGSettingsScreenWidget, Warning, TEXT("%s requires BindWidget 'FrameRate30Button'."), *GetNameSafe(this));
-	}
-	if (!FrameRate60Button)
-	{
-		UE_LOG(LogPGSettingsScreenWidget, Warning, TEXT("%s requires BindWidget 'FrameRate60Button'."), *GetNameSafe(this));
-	}
 }
 
 void UPGSettingsScreenWidget::RefreshControlsFromSettings()

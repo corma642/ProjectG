@@ -92,7 +92,6 @@ private:
 	UFUNCTION()
 	void HandleFrameRate60Clicked();
 
-	void ValidateRequiredWidgets() const;
 	void RefreshControlsFromSettings();
 	void ApplyPreset(EPGMobileQualityPreset Preset);
 	void ApplyFrameRate(int32 FrameRateLimit);

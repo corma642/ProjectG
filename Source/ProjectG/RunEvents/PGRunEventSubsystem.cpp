@@ -139,11 +139,7 @@ void UPGRunEventSubsystem::LoadSettings()
 	if (const UPGGameSettings* Settings = GetDefault<UPGGameSettings>())
 	{
 		CachedRunEventSettings = Settings->RunEvent;
-		LoadedEventSet = CachedRunEventSettings.DefaultRunEventSet.LoadSynchronous();
-		if (!LoadedEventSet && !CachedRunEventSettings.DefaultRunEventSet.IsNull())
-		{
-			UE_LOG(LogPGRunEventSubsystem, Warning, TEXT("DefaultRunEventSet could not be loaded. C++ default run event rules will be used."));
-		}
+		LoadedEventSet = CachedRunEventSettings.DefaultRunEventSet.Get();
 	}
 }
 
@@ -327,6 +323,11 @@ bool UPGRunEventSubsystem::SelectEventRule(FPGRunEventRule& OutRule)
 
 const TArray<FPGRunEventRule>& UPGRunEventSubsystem::GetEffectiveEventRules() const
 {
+	if (!LoadedEventSet)
+	{
+		LoadedEventSet = CachedRunEventSettings.DefaultRunEventSet.Get();
+	}
+
 	return LoadedEventSet && !LoadedEventSet->EventRules.IsEmpty() ? LoadedEventSet->EventRules : DefaultRules;
 }
 

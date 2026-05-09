@@ -5,11 +5,10 @@
 #include "Blueprint/UserWidget.h"
 #include "Components/AudioComponent.h"
 #include "Components/SceneComponent.h"
-#include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
+#include "Loading/PGRuntimePreloadSubsystem.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "RunEvents/PGRunEventSubsystem.h"
@@ -28,7 +27,7 @@ void UPGRunEventFeedbackComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	StartLoadingPresentationSet();
+	ResolvePresentationSet();
 	BindRunEventSubsystem();
 }
 
@@ -36,7 +35,6 @@ void UPGRunEventFeedbackComponent::EndPlay(const EEndPlayReason::Type EndPlayRea
 {
 	UnbindRunEventSubsystem();
 	CleanupAllPresentations();
-	ReleasePresentationLoadHandles();
 
 	Super::EndPlay(EndPlayReason);
 }
@@ -52,9 +50,8 @@ void UPGRunEventFeedbackComponent::HandleRunEventPreviewStarted(EPGRunEventType 
 		return;
 	}
 
-	if (!bPresentationResourcesReady)
+	if (!ArePresentationResourcesReady())
 	{
-		UE_LOG(LogPGRunEventFeedback, Warning, TEXT("Run event presentation resources are not ready. Preview presentation skipped. EventType=%d"), static_cast<int32>(EventType));
 		return;
 	}
 
@@ -74,9 +71,8 @@ void UPGRunEventFeedbackComponent::HandleRunEventTriggered(EPGRunEventType Event
 		return;
 	}
 
-	if (!bPresentationResourcesReady)
+	if (!ArePresentationResourcesReady())
 	{
-		UE_LOG(LogPGRunEventFeedback, Warning, TEXT("Run event presentation resources are not ready. Active presentation skipped. EventType=%d"), static_cast<int32>(EventType));
 		return;
 	}
 
@@ -106,153 +102,36 @@ void UPGRunEventFeedbackComponent::HandleRunEventCanceled(EPGRunEventType EventT
 	}
 }
 
-void UPGRunEventFeedbackComponent::StartLoadingPresentationSet()
+void UPGRunEventFeedbackComponent::ResolvePresentationSet()
 {
-	bPresentationSetLoaded = false;
-	bPresentationResourcesReady = false;
 	PresentationSet = nullptr;
 
 	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
 	if (!Settings)
 	{
-		bPresentationSetLoaded = true;
-		bPresentationResourcesReady = true;
 		return;
 	}
 
 	if (Settings->RunEvent.DefaultPresentationSet.IsNull())
 	{
-		UE_LOG(LogPGRunEventFeedback, Warning, TEXT("DefaultPresentationSet is not assigned. Run event presentation will be skipped."));
-		bPresentationSetLoaded = true;
-		bPresentationResourcesReady = true;
 		return;
 	}
 
-	FStreamableManager& StreamableManager = UAssetManager::GetStreamableManager();
-	PresentationSetLoadHandle = StreamableManager.RequestAsyncLoad(
-		Settings->RunEvent.DefaultPresentationSet.ToSoftObjectPath(),
-		FStreamableDelegate::CreateUObject(this, &UPGRunEventFeedbackComponent::HandlePresentationSetLoaded),
-		FStreamableManager::DefaultAsyncLoadPriority,
-		false,
-		false,
-		TEXT("PGRunEventPresentationSet"));
-}
-
-void UPGRunEventFeedbackComponent::HandlePresentationSetLoaded()
-{
-	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
 	PresentationSet = Settings ? Settings->RunEvent.DefaultPresentationSet.Get() : nullptr;
-	bPresentationSetLoaded = true;
 
 	if (!PresentationSet)
 	{
-		UE_LOG(LogPGRunEventFeedback, Warning, TEXT("DefaultPresentationSet could not be loaded. Run event presentation will be skipped."));
-		bPresentationResourcesReady = true;
 		return;
 	}
 
 	ValidatePresentationSet();
-	StartPreloadingPresentationResources();
 }
 
-void UPGRunEventFeedbackComponent::StartPreloadingPresentationResources()
+bool UPGRunEventFeedbackComponent::ArePresentationResourcesReady() const
 {
-	if (PresentationSet->Entries.IsEmpty())
-	{
-		bPresentationResourcesReady = true;
-		return;
-	}
-
-	TSet<FSoftObjectPath> UniqueResourcePaths;
-	for (const FPGRunEventPresentationEntry& Entry : PresentationSet->Entries)
-	{
-		if (!Entry.PreviewWidgetClass.IsNull())
-		{
-			UniqueResourcePaths.Add(Entry.PreviewWidgetClass.ToSoftObjectPath());
-		}
-		if (!Entry.ActiveWidgetClass.IsNull())
-		{
-			UniqueResourcePaths.Add(Entry.ActiveWidgetClass.ToSoftObjectPath());
-		}
-		if (!Entry.PreviewNiagaraSystem.IsNull())
-		{
-			UniqueResourcePaths.Add(Entry.PreviewNiagaraSystem.ToSoftObjectPath());
-		}
-		if (!Entry.ActiveNiagaraSystem.IsNull())
-		{
-			UniqueResourcePaths.Add(Entry.ActiveNiagaraSystem.ToSoftObjectPath());
-		}
-		if (!Entry.PreviewSound.IsNull())
-		{
-			UniqueResourcePaths.Add(Entry.PreviewSound.ToSoftObjectPath());
-		}
-		if (!Entry.TriggerSound.IsNull())
-		{
-			UniqueResourcePaths.Add(Entry.TriggerSound.ToSoftObjectPath());
-		}
-		if (!Entry.ActiveLoopSound.IsNull())
-		{
-			UniqueResourcePaths.Add(Entry.ActiveLoopSound.ToSoftObjectPath());
-		}
-	}
-
-	if (UniqueResourcePaths.IsEmpty())
-	{
-		bPresentationResourcesReady = true;
-		return;
-	}
-
-	TArray<FSoftObjectPath> ResourcePaths = UniqueResourcePaths.Array();
-	FStreamableManager& StreamableManager = UAssetManager::GetStreamableManager();
-	PresentationResourcesLoadHandle = StreamableManager.RequestAsyncLoad(
-		ResourcePaths,
-		FStreamableDelegate::CreateUObject(this, &UPGRunEventFeedbackComponent::HandlePresentationResourcesLoaded),
-		FStreamableManager::DefaultAsyncLoadPriority,
-		false,
-		false,
-		TEXT("PGRunEventPresentationResources"));
-}
-
-void UPGRunEventFeedbackComponent::HandlePresentationResourcesLoaded()
-{
-	bPresentationResourcesReady = true;
-
-	if (!PresentationSet)
-	{
-		return;
-	}
-
-	for (const FPGRunEventPresentationEntry& Entry : PresentationSet->Entries)
-	{
-		if (!Entry.PreviewWidgetClass.IsNull() && !Entry.PreviewWidgetClass.Get())
-		{
-			UE_LOG(LogPGRunEventFeedback, Warning, TEXT("PreviewWidgetClass could not be preloaded. EventType=%d"), static_cast<int32>(Entry.EventType));
-		}
-		if (!Entry.ActiveWidgetClass.IsNull() && !Entry.ActiveWidgetClass.Get())
-		{
-			UE_LOG(LogPGRunEventFeedback, Warning, TEXT("ActiveWidgetClass could not be preloaded. EventType=%d"), static_cast<int32>(Entry.EventType));
-		}
-		if (!Entry.PreviewNiagaraSystem.IsNull() && !Entry.PreviewNiagaraSystem.Get())
-		{
-			UE_LOG(LogPGRunEventFeedback, Warning, TEXT("PreviewNiagaraSystem could not be preloaded. EventType=%d"), static_cast<int32>(Entry.EventType));
-		}
-		if (!Entry.ActiveNiagaraSystem.IsNull() && !Entry.ActiveNiagaraSystem.Get())
-		{
-			UE_LOG(LogPGRunEventFeedback, Warning, TEXT("ActiveNiagaraSystem could not be preloaded. EventType=%d"), static_cast<int32>(Entry.EventType));
-		}
-		if (!Entry.PreviewSound.IsNull() && !Entry.PreviewSound.Get())
-		{
-			UE_LOG(LogPGRunEventFeedback, Warning, TEXT("PreviewSound could not be preloaded. EventType=%d"), static_cast<int32>(Entry.EventType));
-		}
-		if (!Entry.TriggerSound.IsNull() && !Entry.TriggerSound.Get())
-		{
-			UE_LOG(LogPGRunEventFeedback, Warning, TEXT("TriggerSound could not be preloaded. EventType=%d"), static_cast<int32>(Entry.EventType));
-		}
-		if (!Entry.ActiveLoopSound.IsNull() && !Entry.ActiveLoopSound.Get())
-		{
-			UE_LOG(LogPGRunEventFeedback, Warning, TEXT("ActiveLoopSound could not be preloaded. EventType=%d"), static_cast<int32>(Entry.EventType));
-		}
-	}
+	const UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	const UPGRuntimePreloadSubsystem* PreloadSubsystem = GameInstance ? GameInstance->GetSubsystem<UPGRuntimePreloadSubsystem>() : nullptr;
+	return !PreloadSubsystem || PreloadSubsystem->IsReady();
 }
 
 void UPGRunEventFeedbackComponent::ValidatePresentationSet() const
@@ -291,24 +170,6 @@ void UPGRunEventFeedbackComponent::ValidatePresentationSet() const
 	}
 }
 
-void UPGRunEventFeedbackComponent::ReleasePresentationLoadHandles()
-{
-	if (PresentationResourcesLoadHandle.IsValid())
-	{
-		PresentationResourcesLoadHandle->ReleaseHandle();
-		PresentationResourcesLoadHandle.Reset();
-	}
-
-	if (PresentationSetLoadHandle.IsValid())
-	{
-		PresentationSetLoadHandle->ReleaseHandle();
-		PresentationSetLoadHandle.Reset();
-	}
-
-	bPresentationSetLoaded = false;
-	bPresentationResourcesReady = false;
-}
-
 void UPGRunEventFeedbackComponent::BindRunEventSubsystem()
 {
 	if (!GetWorld())
@@ -343,12 +204,16 @@ void UPGRunEventFeedbackComponent::UnbindRunEventSubsystem()
 	BoundRunEventSubsystem = nullptr;
 }
 
-const FPGRunEventPresentationEntry* UPGRunEventFeedbackComponent::FindPresentationEntry(EPGRunEventType EventType) const
+const FPGRunEventPresentationEntry* UPGRunEventFeedbackComponent::FindPresentationEntry(EPGRunEventType EventType)
 {
 	if (!PresentationSet)
 	{
-		const TCHAR* LoadStateText = bPresentationSetLoaded ? TEXT("not assigned or failed") : TEXT("still loading");
-		UE_LOG(LogPGRunEventFeedback, Warning, TEXT("DefaultPresentationSet is %s. EventType=%d"), LoadStateText, static_cast<int32>(EventType));
+		ResolvePresentationSet();
+	}
+
+	if (!PresentationSet)
+	{
+		UE_LOG(LogPGRunEventFeedback, Warning, TEXT("DefaultPresentationSet is not assigned or could not be preloaded. EventType=%d"), static_cast<int32>(EventType));
 		return nullptr;
 	}
 

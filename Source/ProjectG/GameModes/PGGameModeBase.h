@@ -21,13 +21,6 @@ enum class EPGRunState : uint8
 /**
  * 레벨 로드 직후 어떤 런 플로우로 시작할지 결정하는 모드입니다.
  */
-UENUM(BlueprintType)
-enum class EPGInitialRunFlowMode : uint8
-{
-	Home,
-	RetryCountdown
-};
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPGRunCountdownStartedSignature, float, Duration);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPGRunStartedSignature);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPGRunFailedSignature, FName, FailureReason);
@@ -71,11 +64,12 @@ public:
 	FPGRunFailedSignature OnRunFailed;
 
 private:
-	EPGInitialRunFlowMode ResolveInitialRunFlowMode() const;
 	void FinishRunCountdown();
+	void HandleRetryCountdownFallback();
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Run", meta = (AllowPrivateAccess = "true"))
 	EPGRunState RunState = EPGRunState::Home;
 
 	FTimerHandle RunCountdownTimerHandle;
+	FTimerHandle RetryCountdownFallbackTimerHandle;
 };

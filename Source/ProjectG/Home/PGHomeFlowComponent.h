@@ -9,6 +9,7 @@
 
 class APGGameModeBase;
 class APGPlayerController;
+class UPGRuntimePreloadSubsystem;
 class UPGHomeScreenWidget;
 class UPGRunCountdownWidget;
 class UPGSettingsScreenWidget;
@@ -34,8 +35,13 @@ private:
 	UFUNCTION()
 	void HandleRunStarted();
 
+	UFUNCTION()
+	void HandleRuntimePreloadCompleted();
+
 	void BindGameMode();
 	void UnbindGameMode();
+	void BindRuntimePreloadSubsystem();
+	void RequestStartDeliveryAfterPreload();
 	void ShowHomeScreen();
 	void SetHomeCameraViewTarget();
 	void BlendToRunnerCamera();
@@ -55,6 +61,9 @@ private:
 	TObjectPtr<APGGameModeBase> BoundGameMode;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UPGRuntimePreloadSubsystem> RuntimePreloadSubsystem;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UPGHomeScreenWidget> HomeScreenWidget;
 
 	UPROPERTY(Transient)
@@ -65,4 +74,6 @@ private:
 
 	FPGHomeFlowSettings CachedHomeFlowSettings;
 	bool bIsBoundToGameMode = false;
+	bool bPendingStartDeliveryAfterPreload = false;
+	bool bRetryCountdownRequested = false;
 };
