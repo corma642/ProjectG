@@ -15,7 +15,6 @@ class UTexture2D;
 DECLARE_MULTICAST_DELEGATE_OneParam(FPGCargoLostSignature, int32);
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FPGCargoDeliveredSignature, int32, int32, int32);
 DECLARE_MULTICAST_DELEGATE(FPGCargoListChangedSignature);
-DECLARE_MULTICAST_DELEGATE(FPGCargoSignalSignature);
 
 /**
  * HUD가 적재물 썸네일과 배달 게이지를 표시할 때 사용할 공개 상태 정보입니다.
@@ -83,12 +82,6 @@ public:
 	// 활성 적재물 목록이 바뀌어 HUD 갱신이 필요할 때 발생합니다.
 	FPGCargoListChangedSignature OnCargoListChanged;
 
-	// 적재물이 비물리 대기 상태로 표시될 때 발생합니다.
-	FPGCargoSignalSignature OnCargoDropHoldStarted;
-
-	// 적재물 대기가 끝나고 실제 물리 Actor로 전환될 때 발생합니다.
-	FPGCargoSignalSignature OnCargoDropHoldFinished;
-
 	// Project Settings의 적재 설정을 적용하고 새 런 시작 전 상태로 초기화합니다.
 	void InitializeCargoStack(const FPGCargoSettings& InCargoSettings);
 
@@ -118,10 +111,6 @@ public:
 	// 현재 Hold 상태의 적재물이 있는지 여부입니다.
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
 	bool HasPendingCargoDrop() const { return bHasPendingCargoDrop; }
-
-	// 추가 적재물이 대기 위치에 머무르는 남은 시간입니다.
-	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
-	float GetCargoDropHoldRemainingTime() const { return CargoDropHoldRemainingTime; }
 
 	// HUD가 활성 적재물 썸네일과 배달 게이지를 표시할 때 사용하는 상태 목록입니다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Cargo")

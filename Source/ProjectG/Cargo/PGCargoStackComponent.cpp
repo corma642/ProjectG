@@ -144,7 +144,6 @@ bool UPGCargoStackComponent::StartCargoDropHold(UPGCargoTypeDefinition* CargoTyp
 		ScriptedCargoMeshComponent->SetHiddenInGame(false, true);
 	}
 
-	OnCargoDropHoldStarted.Broadcast();
 	OnCargoListChanged.Broadcast();
 
 	if (CargoDropHoldRemainingTime <= 0.0f)
@@ -182,7 +181,6 @@ void UPGCargoStackComponent::FinishCargoDropHold()
 	}
 
 	SpawnPhysicsCargo(CargoType, MakeCargoWorldTransform());
-	OnCargoDropHoldFinished.Broadcast();
 	OnCargoListChanged.Broadcast();
 }
 

@@ -3,7 +3,6 @@
 #include "Player/PGPlayerController.h"
 
 #include "Character/PGRunnerCharacter.h"
-#include "Cargo/PGCargoFeedbackComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/Engine.h"
@@ -36,20 +35,6 @@ float SelectTiltAxisValue(const FVector& Tilt, EPGTiltInputAxis Axis)
 	}
 }
 
-const TCHAR* GetTiltAxisDebugName(EPGTiltInputAxis Axis)
-{
-	switch (Axis)
-	{
-	case EPGTiltInputAxis::X:
-		return TEXT("X");
-	case EPGTiltInputAxis::Y:
-		return TEXT("Y");
-	case EPGTiltInputAxis::Z:
-		return TEXT("Z");
-	default:
-		return TEXT("X");
-	}
-}
 }
 
 APGPlayerController::APGPlayerController()
@@ -58,7 +43,6 @@ APGPlayerController::APGPlayerController()
 	bShowMouseCursor = false;
 	RunEventFeedbackComponent = CreateDefaultSubobject<UPGRunEventFeedbackComponent>(TEXT("RunEventFeedback"));
 	RunResultFeedbackComponent = CreateDefaultSubobject<UPGRunResultFeedbackComponent>(TEXT("RunResultFeedback"));
-	CargoFeedbackComponent = CreateDefaultSubobject<UPGCargoFeedbackComponent>(TEXT("CargoFeedback"));
 	HomeFlowComponent = CreateDefaultSubobject<UPGHomeFlowComponent>(TEXT("HomeFlow"));
 	RunHUDComponent = CreateDefaultSubobject<UPGRunHUDComponent>(TEXT("RunHUD"));
 }
@@ -119,10 +103,6 @@ void APGPlayerController::OnPossess(APawn* InPawn)
 
 void APGPlayerController::OnUnPossess()
 {
-	if (CargoFeedbackComponent)
-	{
-		CargoFeedbackComponent->HandleRunnerUnpossessed();
-	}
 	if (RunHUDComponent)
 	{
 		RunHUDComponent->HandleRunnerUnpossessed();
@@ -168,16 +148,11 @@ void APGPlayerController::ApplyGameSettings()
 {
 	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
 	CachedGyroSettings = Settings->Gyro;
-	CachedDebugSettings = Settings->Debug;
 }
 
 void APGPlayerController::CacheRunnerPawn(APawn* InPawn)
 {
 	CachedRunnerCharacter = Cast<APGRunnerCharacter>(InPawn);
-	if (CargoFeedbackComponent)
-	{
-		CargoFeedbackComponent->HandleRunnerPossessed(CachedRunnerCharacter.Get());
-	}
 	if (RunHUDComponent)
 	{
 		RunHUDComponent->HandleRunnerPossessed(CachedRunnerCharacter.Get());
@@ -391,54 +366,12 @@ void APGPlayerController::UpdateGyroInput(float DeltaTime)
 		RunnerCharacter->SetBalanceInput(FinalBalanceInput);
 	}
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	if (CachedDebugSettings.bDrawGyroDebug && GEngine)
-	{
-#if !PLATFORM_ANDROID
-		const TCHAR* InputSource = TEXT("Keyboard");
-		GEngine->AddOnScreenDebugMessage(
-			reinterpret_cast<uint64>(this),
-			0.0f,
-			FColor::Cyan,
-			FString::Printf(
-				TEXT("Source:%s Axis:%s | Tilt X/Y/Z: %.3f / %.3f / %.3f | Raw: %.3f | Motion: %.3f | Keyboard/QE: %.3f | Balance: %.3f"),
-				InputSource,
-				GetTiltAxisDebugName(CachedGyroSettings.TiltInputAxis),
-				Tilt.X,
-				Tilt.Y,
-				Tilt.Z,
-				LastRawTilt,
-				MotionBalanceInput,
-				GetKeyboardBalanceInput(),
-				FinalBalanceInput));
-#else
-		GEngine->AddOnScreenDebugMessage(
-			reinterpret_cast<uint64>(this),
-			0.0f,
-			FColor::Cyan,
-			FString::Printf(
-				TEXT("Source:Motion Axis:%s | Tilt X/Y/Z: %.3f / %.3f / %.3f | Raw: %.3f | Balance: %.3f"),
-				GetTiltAxisDebugName(CachedGyroSettings.TiltInputAxis),
-				Tilt.X,
-				Tilt.Y,
-				Tilt.Z,
-				LastRawTilt,
-				FinalBalanceInput));
-#endif
-	}
-#endif
 }
 
 float APGPlayerController::NormalizeTiltInput(float RawTilt) const
 {
 	const float DirectionScale = CachedGyroSettings.bInvertTiltInput ? -1.0f : 1.0f;
 	const float CenteredTilt = (RawTilt - CalibrationTilt) * DirectionScale;
-
-	if (FMath::Abs(CenteredTilt) <= CachedGyroSettings.TiltDeadZone)
-	{
-		// 손 떨림이나 센서 미세 노이즈는 중심 입력으로 보지 않는다.
-		return 0.0f;
-	}
 
 	// 민감도 적용 후 설정된 최대 입력 범위 안으로 제한한다.
 	return FMath::Clamp(CenteredTilt * CachedGyroSettings.TiltSensitivity, -CachedGyroSettings.MaxTiltInput, CachedGyroSettings.MaxTiltInput);

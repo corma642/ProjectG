@@ -5,7 +5,6 @@
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "DrawDebugHelpers.h"
 #include "Engine/Engine.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -138,7 +137,6 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 
 		UpdateForwardMovement();
 		UpdateBodyLean(DeltaSeconds);
-		DrawDebugLanes();
 		return;
 	}
 
@@ -171,7 +169,6 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 		CargoStackComponent->UpdateCargoReaction(DeltaSeconds, GetCargoBalanceInputForPhysics(), bIsChangingLane);
 	}
 	UpdateBodyLean(DeltaSeconds);
-	DrawDebugLanes();
 }
 
 void APGRunnerCharacter::RequestLaneChange(int32 Direction)
@@ -391,7 +388,6 @@ void APGRunnerCharacter::ApplyGameSettings()
 	CachedLaneSettings = Settings->Lane;
 	CachedGyroSettings = Settings->Gyro;
 	CachedCameraSettings = Settings->Camera;
-	CachedDebugSettings = Settings->Debug;
 	CachedCargoSettings = Settings->Cargo;
 	CachedEnvironmentSettings = Settings->Environment;
 
@@ -509,28 +505,3 @@ void APGRunnerCharacter::DrawBalanceDebug() const
 #endif
 }
 
-void APGRunnerCharacter::DrawDebugLanes() const
-{
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	if (!CachedDebugSettings.bDrawLaneDebug || !RunnerMovementComponent)
-	{
-		return;
-	}
-
-	constexpr float DebugForwardLength = 1000.0f;
-	constexpr float DebugBackLength = 200.0f;
-	constexpr float DebugHeight = 8.0f;
-	const FVector DebugUpOffset = FVector::UpVector * DebugHeight;
-
-	for (int32 LaneIndex = 0; LaneIndex < CachedLaneSettings.LaneCount; ++LaneIndex)
-	{
-		// 목표 라인은 초록색으로 표시해 라인 보간 상태를 빠르게 확인한다.
-		const FVector LaneLocation = RunnerMovementComponent->GetLaneWorldLocation(LaneIndex);
-		const FVector ForwardVector = RunnerMovementComponent->GetRunnerForwardVector();
-		const FVector Start = LaneLocation - ForwardVector * DebugBackLength + DebugUpOffset;
-		const FVector End = LaneLocation + ForwardVector * DebugForwardLength + DebugUpOffset;
-		const FColor LaneColor = LaneIndex == RunnerMovementComponent->GetTargetLaneIndex() ? FColor::Green : FColor::Silver;
-		DrawDebugLine(GetWorld(), Start, End, LaneColor, false, 0.0f, 0, 2.0f);
-	}
-#endif
-}

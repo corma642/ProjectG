@@ -144,8 +144,6 @@ private:
 	void DrawBalanceDebug() const;
 
 	// 디버그 옵션이 켜져 있을 때 러너 기준 3라인 위치를 월드에 표시한다.
-	void DrawDebugLanes() const;
-
 	// BeginPlay에서 캐시한 자동 전진/몸 기울기 설정
 	FPGRunnerSettings CachedRunnerSettings;
 
@@ -162,8 +160,6 @@ private:
 	FPGCameraSettings CachedCameraSettings;
 
 	// BeginPlay에서 캐시한 에디터 디버그 설정
-	FPGDebugSettings CachedDebugSettings;
-
 	// BeginPlay에서 캐시한 물리 적재물 설정
 	FPGCargoSettings CachedCargoSettings;
 

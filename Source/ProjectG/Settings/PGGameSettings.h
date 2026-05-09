@@ -8,7 +8,6 @@
 
 class UPGCargoTypeDefinition;
 class UPGCargoDropSet;
-class UPGCargoPresentationSet;
 class UPGRunEventPresentationSet;
 class UPGRunEventSet;
 class UCameraShakeBase;
@@ -146,10 +145,6 @@ struct FPGGyroSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Gyro", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
 	float TiltSensitivity = 4.0f;
 
-	// 미세 흔들림을 무시하는 입력 데드존
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Gyro", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "0.2"))
-	float TiltDeadZone = 0.01f;
-
 	// 정규화된 자이로 입력의 최대 절댓값
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Gyro", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float MaxTiltInput = 1.0f;
@@ -198,23 +193,6 @@ struct FPGCameraSettings
 	// 기본 시야각
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Camera", meta = (ClampMin = "30.0", ClampMax = "130.0", UIMin = "60.0", UIMax = "110.0"))
 	float DefaultFOV = 90.0f;
-};
-
-/**
- * 에디터/개발 빌드에서만 쓰는 확인 보조 설정
- */
-USTRUCT(BlueprintType)
-struct FPGDebugSettings
-{
-	GENERATED_BODY()
-
-	// 라인 위치 디버그 표시 여부
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Debug")
-	bool bDrawLaneDebug = false;
-
-	// 자이로 입력 디버그 표시 여부
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Debug")
-	bool bDrawGyroDebug = false;
 };
 
 /**
@@ -410,10 +388,6 @@ struct FPGRunResultSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | UI")
 	TSoftClassPtr<UUserWidget> GameOverWidgetClass;
 
-	// 이전 임시 점수 계산에 사용하던 값입니다. 현재 점수는 RunProgress 설정의 거리 기반 점수를 사용합니다.
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | Score", meta = (ClampMin = "0", UIMin = "0", UIMax = "1000"))
-	int32 ScorePerSecond = 100;
-
 	// 런 실패 시 한 번 재생할 사운드
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | SFX")
 	TSoftObjectPtr<USoundBase> GameOverSound;
@@ -530,19 +504,6 @@ struct FPGCargoDeliverySettings
 };
 
 /**
- * 적재물 관련 로컬 UI/VFX/SFX 자동 연출 설정
- */
-USTRUCT(BlueprintType)
-struct FPGCargoFeedbackSettings
-{
-	GENERATED_BODY()
-
-	// 추가 적재/손실 이벤트별 UI/VFX/SFX 리소스를 담은 기본 연출 DataAsset
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo Feedback")
-	TSoftObjectPtr<UPGCargoPresentationSet> DefaultPresentationSet;
-};
-
-/**
  * 바람, 눈바람, 적재 증가 같은 환경 이벤트의 기본 반응 설정
  */
 USTRUCT(BlueprintType)
@@ -647,10 +608,6 @@ public:
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Camera")
 	FPGCameraSettings Camera;
 
-	// 에디터 테스트와 디버그 보조 설정
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Debug")
-	FPGDebugSettings Debug;
-
 	// 런 실패 후 결과 화면 자동 표시 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result")
 	FPGRunResultSettings RunResult;
@@ -674,10 +631,6 @@ public:
 	// 플레이어 기준 물리 적재물 스폰/손실 판정 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")
 	FPGCargoSettings Cargo;
-
-	// 적재물 추가/손실 로컬 연출 설정
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo Feedback")
-	FPGCargoFeedbackSettings CargoFeedback;
 
 	// 배달형 적재물 드롭 스케줄 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo Delivery")

@@ -10,7 +10,6 @@
 class APGRunnerCharacter;
 class UInputAction;
 class UInputMappingContext;
-class UPGCargoFeedbackComponent;
 class UPGHomeFlowComponent;
 class UPGRunHUDComponent;
 class UPGRunEventFeedbackComponent;
@@ -160,9 +159,6 @@ private:
 	TObjectPtr<UPGRunResultFeedbackComponent> RunResultFeedbackComponent;
 
 	// 적재물 추가/손실 UI/VFX/SFX를 로컬 플레이어 기준으로 자동 재생하는 컴포넌트
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cargo Feedback", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UPGCargoFeedbackComponent> CargoFeedbackComponent;
-
 	// 홈 화면 표시, 시작 버튼 처리, 카운트다운 UI/카메라 전환을 자동 관리하는 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Home Flow", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPGHomeFlowComponent> HomeFlowComponent;
@@ -212,8 +208,6 @@ private:
 	FPGGyroSettings CachedGyroSettings;
 
 	// BeginPlay에서 캐시한 에디터/디버그 설정
-	FPGDebugSettings CachedDebugSettings;
-
 	// 매 프레임 Pawn Cast를 반복하지 않기 위한 러너 캐릭터 참조
 	TWeakObjectPtr<APGRunnerCharacter> CachedRunnerCharacter;
 
