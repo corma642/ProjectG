@@ -66,23 +66,19 @@ void UPGRunResultFeedbackComponent::HandleRunFailed(FName FailureReason)
 	const int32 Receipts = RunnerCharacter ? RunnerCharacter->GetRunReceipts() : 0;
 	const int32 OrdersDelivered = RunnerCharacter ? RunnerCharacter->GetDeliveredCargoCount() : 0;
 
-	TSubclassOf<UUserWidget> WidgetClass = Settings->RunResult.GameOverWidgetClass.Get();
-	if (!WidgetClass)
-	{
-		WidgetClass = UPGRunResultWidget::StaticClass();
-	}
-
+	TSubclassOf<UPGRunResultWidget> WidgetClass = Settings->RunResult.GameOverWidgetClass.Get();
 	if (WidgetClass)
 	{
-		ResultWidget = CreateWidget<UUserWidget>(PlayerController, WidgetClass);
+		ResultWidget = CreateWidget<UPGRunResultWidget>(PlayerController, WidgetClass);
 		if (ResultWidget)
 		{
+			ResultWidget->AddToViewport(100);
+
 			if (UPGRunResultWidget* RunResultWidget = Cast<UPGRunResultWidget>(ResultWidget))
 			{
 				RunResultWidget->ConfigureRunResult(FailureReason, RunTimeSeconds, DistanceMeters, Score, Receipts, OrdersDelivered);
 			}
 
-			ResultWidget->AddToViewport(100);
 			PlayerController->SetInputMode(FInputModeUIOnly());
 			PlayerController->SetShowMouseCursor(true);
 		}

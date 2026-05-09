@@ -8,6 +8,7 @@
 
 class UPGCargoTypeDefinition;
 class UPGCargoDropSet;
+class UPGRunResultWidget;
 class UPGRunEventPresentationSet;
 class UPGRunEventSet;
 class UCameraShakeBase;
@@ -386,7 +387,7 @@ struct FPGRunResultSettings
 
 	// 런 실패 시 자동으로 표시할 게임오버/결과 위젯 클래스
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | UI")
-	TSoftClassPtr<UUserWidget> GameOverWidgetClass;
+	TSoftClassPtr<UPGRunResultWidget> GameOverWidgetClass;
 
 	// 런 실패 시 한 번 재생할 사운드
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Result | SFX")
