@@ -4,15 +4,43 @@
 
 #include "Components/BackgroundBlur.h"
 #include "Components/Button.h"
-#include "Components/Image.h"
 #include "Components/Widget.h"
 
 namespace
 {
+constexpr float PauseRootStartScale = 0.94f;
+constexpr float PauseRootStartOffsetY = 36.0f;
+constexpr float PausePanelDelay = 0.08f;
+constexpr float PauseButtonDelay = 0.12f;
+constexpr float PauseButtonStagger = 0.05f;
+constexpr float PauseButtonSlideDistance = 220.0f;
+
 float RunPauseEaseOutCubic(float Alpha)
 {
 	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
 	return 1.0f - FMath::Pow(1.0f - ClampedAlpha, 3.0f);
+}
+
+float RunPauseDelayedAlpha(float Alpha, float Delay)
+{
+	if (Alpha <= Delay)
+	{
+		return 0.0f;
+	}
+
+	return FMath::Clamp((Alpha - Delay) / FMath::Max(1.0f - Delay, KINDA_SMALL_NUMBER), 0.0f, 1.0f);
+}
+
+void ApplyRunPauseWidgetState(UWidget* Widget, float Alpha, const FVector2D& StartTranslation)
+{
+	if (!Widget)
+	{
+		return;
+	}
+
+	const float EasedAlpha = RunPauseEaseOutCubic(Alpha);
+	Widget->SetRenderOpacity(EasedAlpha);
+	Widget->SetRenderTranslation(FMath::Lerp(StartTranslation, FVector2D::ZeroVector, EasedAlpha));
 }
 }
 
@@ -126,16 +154,20 @@ void UPGRunPauseWidget::ApplyAnimationState(float Alpha, bool bClosing)
 
 	if (BackdropDim)
 	{
-		BackdropDim->SetColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, TargetDimAlpha * EffectiveAlpha));
+		BackdropDim->SetRenderOpacity(TargetDimAlpha * EffectiveAlpha);
 	}
 
-	if (PausePanel)
+	if (PauseRootPanel)
 	{
-		PausePanel->SetRenderOpacity(EffectiveAlpha);
-		const float Scale = FMath::Lerp(0.92f, 1.0f, EffectiveAlpha);
-		PausePanel->SetRenderScale(FVector2D(Scale, Scale));
-		PausePanel->SetRenderTranslation(FVector2D(0.0f, FMath::Lerp(30.0f, 0.0f, EffectiveAlpha)));
+		PauseRootPanel->SetRenderOpacity(EffectiveAlpha);
+		const float Scale = FMath::Lerp(PauseRootStartScale, 1.0f, EffectiveAlpha);
+		PauseRootPanel->SetRenderScale(FVector2D(Scale, Scale));
+		PauseRootPanel->SetRenderTranslation(FVector2D(0.0f, FMath::Lerp(PauseRootStartOffsetY, 0.0f, EffectiveAlpha)));
 	}
+
+	ApplyRunPauseWidgetState(PausePanel, RunPauseDelayedAlpha(EffectiveAlpha, PausePanelDelay), FVector2D::ZeroVector);
+	ApplyRunPauseWidgetState(ResumeButton, RunPauseDelayedAlpha(EffectiveAlpha, PauseButtonDelay), FVector2D(-PauseButtonSlideDistance, 0.0f));
+	ApplyRunPauseWidgetState(SettingsButton, RunPauseDelayedAlpha(EffectiveAlpha, PauseButtonDelay + PauseButtonStagger), FVector2D(PauseButtonSlideDistance, 0.0f));
 
 	if (!bClosing && Alpha >= 1.0f)
 	{

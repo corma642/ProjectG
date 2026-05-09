@@ -8,7 +8,6 @@
 
 class UBackgroundBlur;
 class UButton;
-class UImage;
 class UWidget;
 
 DECLARE_MULTICAST_DELEGATE(FPGRunPauseResumeRequestedSignature);
@@ -43,7 +42,10 @@ protected:
 	TObjectPtr<UBackgroundBlur> BackdropBlur;
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Pause")
-	TObjectPtr<UImage> BackdropDim;
+	TObjectPtr<UWidget> BackdropDim;
+
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Pause")
+	TObjectPtr<UWidget> PauseRootPanel;
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Pause")
 	TObjectPtr<UWidget> PausePanel;
