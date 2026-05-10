@@ -9,6 +9,7 @@
 
 class UButton;
 class UBackgroundBlur;
+class UCheckBox;
 class USlider;
 class UTextBlock;
 class UWidget;
@@ -74,6 +75,12 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
 	TObjectPtr<UButton> FrameRate60Button;
 
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
+	TObjectPtr<UButton> FrameRate120Button;
+
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
+	TObjectPtr<UCheckBox> ShowFPSCheckBox;
+
 private:
 	UFUNCTION()
 	void HandleCloseClicked();
@@ -102,6 +109,12 @@ private:
 	UFUNCTION()
 	void HandleFrameRate60Clicked();
 
+	UFUNCTION()
+	void HandleFrameRate120Clicked();
+
+	UFUNCTION()
+	void HandleShowFPSCheckStateChanged(bool bIsChecked);
+
 	void RefreshControlsFromSettings();
 	void ApplyPreset(EPGMobileQualityPreset Preset);
 	void ApplyFrameRate(int32 FrameRateLimit);
@@ -109,6 +122,7 @@ private:
 	void SetAllButtonsEnabled(bool bEnabled) const;
 	void SetPresetSelectionState(EPGMobileQualityPreset Preset) const;
 	void SetFrameRateSelectionState(int32 FrameRateLimit) const;
+	void SetShowFPSCheckState(bool bShowFPS) const;
 	void UpdateResolutionScaleText(float Value) const;
 
 	bool bIsOpening = false;

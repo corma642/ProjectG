@@ -251,6 +251,19 @@ struct FPGRunHUDSettings
 };
 
 /**
+ * Android 실기기 품질 확인용 독립 디버그 UI 설정입니다.
+ */
+USTRUCT(BlueprintType)
+struct FPGDebugUISettings
+{
+	GENERATED_BODY()
+
+	// Settings에서 켰을 때 표시할 FPS Widget Blueprint 클래스
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Debug UI | FPS")
+	TSoftClassPtr<UUserWidget> FPSDisplayWidgetClass;
+};
+
+/**
  * 홈 화면과 3-2-1-Go 카운트다운 시작 흐름 설정
  */
 USTRUCT(BlueprintType)
@@ -628,6 +641,10 @@ public:
 	// 러닝 중 HUD와 Pause 화면 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run HUD")
 	FPGRunHUDSettings RunHUD;
+
+	// Android 실기기 품질 확인용 독립 디버그 UI 설정
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Debug UI")
+	FPGDebugUISettings DebugUI;
 
 	// 플레이어 기준 물리 적재물 스폰/손실 판정 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")

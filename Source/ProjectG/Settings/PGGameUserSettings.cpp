@@ -54,6 +54,22 @@ void UPGGameUserSettings::SetMobileFrameRateLimit(int32 NewFrameRateLimit, bool 
 	ApplySavedMobileQualitySettings(bSaveAfterApply);
 }
 
+void UPGGameUserSettings::SetShowFPSDisplay(bool bShow, bool bSaveAfterApply)
+{
+	if (bShowFPSDisplay == bShow)
+	{
+		return;
+	}
+
+	bShowFPSDisplay = bShow;
+	if (bSaveAfterApply)
+	{
+		SaveSettings();
+	}
+
+	OnShowFPSDisplayChanged.Broadcast(bShowFPSDisplay);
+}
+
 void UPGGameUserSettings::CopyPresetToSavedSettings(EPGMobileQualityPreset Preset)
 {
 	const FPGMobileQualityPresetSettings& PresetSettings = GetPresetSettings(Preset);

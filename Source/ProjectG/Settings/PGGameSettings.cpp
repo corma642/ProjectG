@@ -42,7 +42,7 @@ UPGGameSettings::UPGGameSettings()
 	MobileQuality.High.MaxAnisotropy = 8;
 
 	MobileQuality.Ultra.ResolutionScalePercent = 100.0f;
-	MobileQuality.Ultra.FrameRateLimit = 60;
+	MobileQuality.Ultra.FrameRateLimit = 120;
 	MobileQuality.Ultra.MobileAntiAliasingMode = 2;
 	MobileQuality.Ultra.AntiAliasingQuality = 4;
 	MobileQuality.Ultra.TextureQuality = 4;

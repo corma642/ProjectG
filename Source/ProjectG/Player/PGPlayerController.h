@@ -10,6 +10,7 @@
 class APGRunnerCharacter;
 class UInputAction;
 class UInputMappingContext;
+class UPGFPSDisplayComponent;
 class UPGHomeFlowComponent;
 class UPGRunHUDComponent;
 class UPGRunEventFeedbackComponent;
@@ -166,6 +167,10 @@ private:
 	// 러닝 중 HUD, Pause, 인게임 Settings 흐름을 자동 관리하는 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Run HUD", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPGRunHUDComponent> RunHUDComponent;
+
+	// Android 프레임 테스트용 FPS 오버레이를 Settings 저장값에 맞춰 표시/숨김 처리하는 컴포넌트
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Debug UI", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPGFPSDisplayComponent> FPSDisplayComponent;
 
 	// 에셋이 없을 때 사용하는 C++ 기본 입력 매핑 컨텍스트
 	UPROPERTY(Transient)

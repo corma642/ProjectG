@@ -7,6 +7,8 @@
 #include "Settings/PGGameSettings.h"
 #include "PGGameUserSettings.generated.h"
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FPGShowFPSDisplayChangedSignature, bool);
+
 /**
  * 모바일 품질 프리셋과 런타임 그래픽 설정을 저장/적용하는 프로젝트 GameUserSettings입니다.
  * 기기 기본값은 DeviceProfile이 담당하고, 사용자가 Home Settings에서 고른 값은 이 클래스가 유지합니다.
@@ -18,6 +20,8 @@ class PROJECTG_API UPGGameUserSettings : public UGameUserSettings
 
 public:
 	UPGGameUserSettings();
+
+	FPGShowFPSDisplayChangedSignature OnShowFPSDisplayChanged;
 
 	virtual void SetToDefaults() override;
 
@@ -37,6 +41,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Mobile Quality")
 	void SetMobileFrameRateLimit(int32 NewFrameRateLimit, bool bSaveAfterApply = true);
 
+	// Android 실기기 프레임 확인용 FPS 표시 여부를 저장하고 즉시 반영합니다.
+	UFUNCTION(BlueprintCallable, Category = "Debug UI")
+	void SetShowFPSDisplay(bool bShow, bool bSaveAfterApply = true);
+
 	UFUNCTION(BlueprintPure, Category = "Mobile Quality")
 	EPGMobileQualityPreset GetSelectedMobileQualityPreset() const { return SelectedMobileQualityPreset; }
 
@@ -45,6 +53,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Mobile Quality")
 	int32 GetMobileFrameRateLimit() const { return SavedMobileFrameRateLimit; }
+
+	UFUNCTION(BlueprintPure, Category = "Debug UI")
+	bool GetShowFPSDisplay() const { return bShowFPSDisplay; }
 
 private:
 	void CopyPresetToSavedSettings(EPGMobileQualityPreset Preset);
@@ -63,7 +74,7 @@ private:
 
 	// 모바일 프레임 제한
 	UPROPERTY(Config)
-	int32 SavedMobileFrameRateLimit = 60;
+	int32 SavedMobileFrameRateLimit = 120;
 
 	// 모바일 안티앨리어싱 방식 CVar 값
 	UPROPERTY(Config)
@@ -89,4 +100,8 @@ private:
 
 	UPROPERTY(Config)
 	int32 MaxAnisotropy = 8;
+
+	// Android 프레임 테스트용 FPS 위젯 표시 여부
+	UPROPERTY(Config)
+	bool bShowFPSDisplay = false;
 };

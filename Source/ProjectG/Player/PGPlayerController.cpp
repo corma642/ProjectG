@@ -3,6 +3,7 @@
 #include "Player/PGPlayerController.h"
 
 #include "Character/PGRunnerCharacter.h"
+#include "Debug/PGFPSDisplayComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/Engine.h"
@@ -45,6 +46,7 @@ APGPlayerController::APGPlayerController()
 	RunResultFeedbackComponent = CreateDefaultSubobject<UPGRunResultFeedbackComponent>(TEXT("RunResultFeedback"));
 	HomeFlowComponent = CreateDefaultSubobject<UPGHomeFlowComponent>(TEXT("HomeFlow"));
 	RunHUDComponent = CreateDefaultSubobject<UPGRunHUDComponent>(TEXT("RunHUD"));
+	FPSDisplayComponent = CreateDefaultSubobject<UPGFPSDisplayComponent>(TEXT("FPSDisplay"));
 }
 
 void APGPlayerController::BeginPlay()

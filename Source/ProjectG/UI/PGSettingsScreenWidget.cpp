@@ -4,6 +4,7 @@
 
 #include "Components/BackgroundBlur.h"
 #include "Components/Button.h"
+#include "Components/CheckBox.h"
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
@@ -67,6 +68,14 @@ void UPGSettingsScreenWidget::NativeConstruct()
 	{
 		FrameRate60Button->OnClicked.AddDynamic(this, &UPGSettingsScreenWidget::HandleFrameRate60Clicked);
 	}
+	if (FrameRate120Button)
+	{
+		FrameRate120Button->OnClicked.AddDynamic(this, &UPGSettingsScreenWidget::HandleFrameRate120Clicked);
+	}
+	if (ShowFPSCheckBox)
+	{
+		ShowFPSCheckBox->OnCheckStateChanged.AddDynamic(this, &UPGSettingsScreenWidget::HandleShowFPSCheckStateChanged);
+	}
 
 	RefreshControlsFromSettings();
 	ApplyAnimationState(0.0f);
@@ -107,6 +116,14 @@ void UPGSettingsScreenWidget::NativeDestruct()
 	if (FrameRate60Button)
 	{
 		FrameRate60Button->OnClicked.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleFrameRate60Clicked);
+	}
+	if (FrameRate120Button)
+	{
+		FrameRate120Button->OnClicked.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleFrameRate120Clicked);
+	}
+	if (ShowFPSCheckBox)
+	{
+		ShowFPSCheckBox->OnCheckStateChanged.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleShowFPSCheckStateChanged);
 	}
 
 	Super::NativeDestruct();
@@ -223,6 +240,24 @@ void UPGSettingsScreenWidget::HandleFrameRate60Clicked()
 	ApplyFrameRate(60);
 }
 
+void UPGSettingsScreenWidget::HandleFrameRate120Clicked()
+{
+	ApplyFrameRate(120);
+}
+
+void UPGSettingsScreenWidget::HandleShowFPSCheckStateChanged(bool bIsChecked)
+{
+	if (bIsUpdatingControls)
+	{
+		return;
+	}
+
+	if (UPGGameUserSettings* UserSettings = Cast<UPGGameUserSettings>(UGameUserSettings::GetGameUserSettings()))
+	{
+		UserSettings->SetShowFPSDisplay(bIsChecked, true);
+	}
+}
+
 void UPGSettingsScreenWidget::RefreshControlsFromSettings()
 {
 	UPGGameUserSettings* UserSettings = Cast<UPGGameUserSettings>(UGameUserSettings::GetGameUserSettings());
@@ -237,6 +272,7 @@ void UPGSettingsScreenWidget::RefreshControlsFromSettings()
 		ResolutionScaleSlider->SetValue(UserSettings->GetMobileResolutionScalePercent());
 	}
 	UpdateResolutionScaleText(UserSettings->GetMobileResolutionScalePercent());
+	SetShowFPSCheckState(UserSettings->GetShowFPSDisplay());
 	bIsUpdatingControls = false;
 
 	SetPresetSelectionState(UserSettings->GetSelectedMobileQualityPreset());
@@ -321,9 +357,17 @@ void UPGSettingsScreenWidget::SetAllButtonsEnabled(bool bEnabled) const
 	{
 		FrameRate60Button->SetIsEnabled(bEnabled);
 	}
+	if (FrameRate120Button)
+	{
+		FrameRate120Button->SetIsEnabled(bEnabled);
+	}
 	if (ResolutionScaleSlider)
 	{
 		ResolutionScaleSlider->SetIsEnabled(bEnabled);
+	}
+	if (ShowFPSCheckBox)
+	{
+		ShowFPSCheckBox->SetIsEnabled(bEnabled);
 	}
 }
 
@@ -356,6 +400,18 @@ void UPGSettingsScreenWidget::SetFrameRateSelectionState(int32 InFrameRateLimit)
 	if (FrameRate60Button)
 	{
 		FrameRate60Button->SetIsEnabled(InFrameRateLimit != 60);
+	}
+	if (FrameRate120Button)
+	{
+		FrameRate120Button->SetIsEnabled(InFrameRateLimit != 120);
+	}
+}
+
+void UPGSettingsScreenWidget::SetShowFPSCheckState(bool bShowFPS) const
+{
+	if (ShowFPSCheckBox)
+	{
+		ShowFPSCheckBox->SetIsChecked(bShowFPS);
 	}
 }
 
