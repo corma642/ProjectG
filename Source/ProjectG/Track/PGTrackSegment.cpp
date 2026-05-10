@@ -3,6 +3,7 @@
 #include "Track/PGTrackSegment.h"
 
 #include "Components/SceneComponent.h"
+#include "Track/PGTrackPoolableInterface.h"
 
 APGTrackSegment::APGTrackSegment()
 {
@@ -53,10 +54,30 @@ void APGTrackSegment::ActivateFromPool(const FTransform& SegmentTransform)
 	SetActorTransform(SegmentTransform, false, nullptr, ETeleportType::TeleportPhysics);
 	SetActorHiddenInGame(false);
 	SetActorEnableCollision(true);
+
+	TArray<AActor*> AttachedActors;
+	GetAttachedActors(AttachedActors, true);
+	for (AActor* AttachedActor : AttachedActors)
+	{
+		if (AttachedActor && AttachedActor->GetClass()->ImplementsInterface(UPGTrackPoolableInterface::StaticClass()))
+		{
+			IPGTrackPoolableInterface::Execute_OnTrackSegmentActivatedFromPool(AttachedActor);
+		}
+	}
 }
 
 void APGTrackSegment::DeactivateForPool()
 {
+	TArray<AActor*> AttachedActors;
+	GetAttachedActors(AttachedActors, true);
+	for (AActor* AttachedActor : AttachedActors)
+	{
+		if (AttachedActor && AttachedActor->GetClass()->ImplementsInterface(UPGTrackPoolableInterface::StaticClass()))
+		{
+			IPGTrackPoolableInterface::Execute_OnTrackSegmentDeactivatedForPool(AttachedActor);
+		}
+	}
+
 	SetActorEnableCollision(false);
 	SetActorHiddenInGame(true);
 	SetActorLocation(FVector(0.0f, 0.0f, -100000.0f), false, nullptr, ETeleportType::TeleportPhysics);
