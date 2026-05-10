@@ -9,9 +9,11 @@
 #include "GameModes/PGGameModeBase.h"
 #include "Kismet/GameplayStatics.h"
 #include "Loading/PGRuntimePreloadSubsystem.h"
+#include "NiagaraFunctionLibrary.h"
 #include "Player/PGPlayerController.h"
 #include "RunProgress/PGRunProgressComponent.h"
 #include "UI/PGCargoDeliveryItemWidget.h"
+#include "UI/PGCargoScoreIndicatorWidget.h"
 #include "UI/PGRunHUDWidget.h"
 #include "UI/PGRunPauseWidget.h"
 #include "UI/PGSettingsScreenWidget.h"
@@ -142,6 +144,43 @@ void UPGRunHUDComponent::HandleCargoListChanged()
 	RefreshCargoList();
 }
 
+void UPGRunHUDComponent::HandleCargoDelivered(int32 CargoInstanceId, int32 Score, int32 Receipts, FVector DeliveryLocation)
+{
+	UWorld* World = GetWorld();
+	if (World)
+	{
+		if (UNiagaraSystem* DeliveredVFX = CachedRunHUDSettings.CargoDeliveredVFX.Get())
+		{
+			if (BoundCargoStackComponent)
+			{
+				const FVector RelativeDeliveryLocation = BoundCargoStackComponent->GetComponentTransform().InverseTransformPosition(DeliveryLocation);
+				UNiagaraFunctionLibrary::SpawnSystemAttached(
+					DeliveredVFX,
+					BoundCargoStackComponent,
+					NAME_None,
+					RelativeDeliveryLocation,
+					FRotator::ZeroRotator,
+					EAttachLocation::KeepRelativeOffset,
+					true);
+			}
+			else
+			{
+				UNiagaraFunctionLibrary::SpawnSystemAtLocation(World, DeliveredVFX, DeliveryLocation);
+			}
+		}
+
+		if (USoundBase* DeliveredSound = CachedRunHUDSettings.CargoDeliveredSound.Get())
+		{
+			UGameplayStatics::PlaySoundAtLocation(World, DeliveredSound, DeliveryLocation);
+		}
+	}
+
+	if (HUDWidget)
+	{
+		HUDWidget->ShowCargoScoreIndicator(CargoInstanceId, Score);
+	}
+}
+
 void UPGRunHUDComponent::HandlePauseRequested()
 {
 	ShowPauseScreen();
@@ -264,6 +303,7 @@ void UPGRunHUDComponent::BindCargoStack(UPGCargoStackComponent* CargoStackCompon
 	if (BoundCargoStackComponent)
 	{
 		BoundCargoStackComponent->OnCargoListChanged.AddUObject(this, &UPGRunHUDComponent::HandleCargoListChanged);
+		BoundCargoStackComponent->OnCargoDelivered.AddUObject(this, &UPGRunHUDComponent::HandleCargoDelivered);
 	}
 }
 
@@ -272,6 +312,7 @@ void UPGRunHUDComponent::UnbindCargoStack()
 	if (BoundCargoStackComponent)
 	{
 		BoundCargoStackComponent->OnCargoListChanged.RemoveAll(this);
+		BoundCargoStackComponent->OnCargoDelivered.RemoveAll(this);
 	}
 	BoundCargoStackComponent = nullptr;
 }
@@ -299,6 +340,7 @@ void UPGRunHUDComponent::ShowHUD()
 
 	UClass* WidgetClass = CachedRunHUDSettings.RunHUDWidgetClass.Get();
 	UClass* CargoItemClass = CachedRunHUDSettings.CargoDeliveryItemWidgetClass.Get();
+	UClass* ScoreIndicatorClass = CachedRunHUDSettings.CargoScoreIndicatorWidgetClass.Get();
 	if (!WidgetClass || !WidgetClass->IsChildOf(UPGRunHUDWidget::StaticClass()))
 	{
 		UE_LOG(LogPGRunHUDComponent, Warning, TEXT("RunHUDWidgetClass must be assigned and inherit UPGRunHUDWidget."));
@@ -317,6 +359,10 @@ void UPGRunHUDComponent::ShowHUD()
 	}
 
 	HUDWidget->SetCargoItemWidgetClass(TSubclassOf<UPGCargoDeliveryItemWidget>(CargoItemClass));
+	if (ScoreIndicatorClass && ScoreIndicatorClass->IsChildOf(UPGCargoScoreIndicatorWidget::StaticClass()))
+	{
+		HUDWidget->SetCargoScoreIndicatorWidgetClass(TSubclassOf<UPGCargoScoreIndicatorWidget>(ScoreIndicatorClass));
+	}
 	HUDWidget->OnPauseRequested.AddUObject(this, &UPGRunHUDComponent::HandlePauseRequested);
 	HUDWidget->AddToViewport(15);
 	HUDWidget->PlayEnterAnimation();

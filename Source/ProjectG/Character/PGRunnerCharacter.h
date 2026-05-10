@@ -81,7 +81,7 @@ public:
 	void HandleCargoLost(int32 CargoIndex);
 
 	// 적재물 배달 완료 시 점수 보상을 반영합니다.
-	void HandleCargoDelivered(int32 CargoInstanceId, int32 Score, int32 Receipts);
+	void HandleCargoDelivered(int32 CargoInstanceId, int32 Score, int32 Receipts, FVector DeliveryLocation);
 
 	// 런 실패 이벤트를 받으면 자동 전진과 입력 반응을 정지한다.
 	UFUNCTION()

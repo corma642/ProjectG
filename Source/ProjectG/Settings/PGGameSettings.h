@@ -237,6 +237,18 @@ struct FPGRunHUDSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run HUD | UI")
 	TSoftClassPtr<UUserWidget> CargoDeliveryItemWidgetClass;
 
+	// 적재물 배달 완료 시 카드 위치에 표시할 점수 인디케이터 Widget Blueprint 클래스
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run HUD | Cargo")
+	TSoftClassPtr<UUserWidget> CargoScoreIndicatorWidgetClass;
+
+	// 적재물 배달 완료 시 적재물 월드 위치에 한 번 재생할 공통 Niagara VFX
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run HUD | Cargo")
+	TSoftObjectPtr<UNiagaraSystem> CargoDeliveredVFX;
+
+	// 적재물 배달 완료 시 적재물 월드 위치에 한 번 재생할 공통 사운드
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run HUD | Cargo")
+	TSoftObjectPtr<USoundBase> CargoDeliveredSound;
+
 	// 적재물 남은 시간과 진행 바를 갱신하는 간격
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run HUD | Cargo", meta = (ClampMin = "0.03", UIMin = "0.03", UIMax = "0.5"))
 	float CargoListRefreshInterval = 0.1f;

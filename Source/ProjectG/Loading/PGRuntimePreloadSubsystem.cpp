@@ -63,6 +63,9 @@ void UPGRuntimePreloadSubsystem::CollectPrimaryResourcePaths(TArray<FSoftObjectP
 	AddUniquePath(OutPaths, Settings->RunHUD.RunHUDWidgetClass.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->RunHUD.RunPauseWidgetClass.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->RunHUD.CargoDeliveryItemWidgetClass.ToSoftObjectPath());
+	AddUniquePath(OutPaths, Settings->RunHUD.CargoScoreIndicatorWidgetClass.ToSoftObjectPath());
+	AddUniquePath(OutPaths, Settings->RunHUD.CargoDeliveredVFX.ToSoftObjectPath());
+	AddUniquePath(OutPaths, Settings->RunHUD.CargoDeliveredSound.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->DebugUI.FPSDisplayWidgetClass.ToSoftObjectPath());
 
 	AddUniquePath(OutPaths, Settings->RunResult.GameOverWidgetClass.ToSoftObjectPath());

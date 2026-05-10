@@ -8,8 +8,10 @@
 #include "PGRunHUDWidget.generated.h"
 
 class UButton;
+class UCanvasPanel;
 class UPanelWidget;
 class UPGCargoDeliveryItemWidget;
+class UPGCargoScoreIndicatorWidget;
 class UTextBlock;
 class UWidget;
 
@@ -28,11 +30,13 @@ public:
 	FPGRunHUDPauseRequestedSignature OnPauseRequested;
 
 	void SetCargoItemWidgetClass(TSubclassOf<UPGCargoDeliveryItemWidget> InCargoItemWidgetClass);
+	void SetCargoScoreIndicatorWidgetClass(TSubclassOf<UPGCargoScoreIndicatorWidget> InCargoScoreIndicatorWidgetClass);
 	void SetScore(int32 Score);
 	void SetDistanceMeters(float DistanceMeters);
 	void SetReceipts(int32 Receipts);
 	void SetPauseButtonEnabled(bool bEnabled) const;
 	void RefreshCargoList(const TArray<FPGActiveCargoInfo>& ActiveCargoInfos);
+	void ShowCargoScoreIndicator(int32 CargoInstanceId, int32 Score);
 	void PlayEnterAnimation();
 	void PlayExitAnimation();
 
@@ -59,16 +63,23 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Run HUD")
 	TObjectPtr<UPanelWidget> CargoListBox;
 
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Run HUD")
+	TObjectPtr<UCanvasPanel> CargoScoreIndicatorLayer;
+
 private:
 	UFUNCTION()
 	void HandlePauseClicked();
 
 	void ApplyAnimationState(float Alpha, bool bExiting);
 	UPGCargoDeliveryItemWidget* AcquireCargoItemWidget();
+	FVector2D ResolveCargoIndicatorPosition(int32 CargoInstanceId) const;
 	void HandleCargoItemExitFinished(UPGCargoDeliveryItemWidget* ItemWidget);
 
 	UPROPERTY(Transient)
 	TSubclassOf<UPGCargoDeliveryItemWidget> CargoItemWidgetClass;
+
+	UPROPERTY(Transient)
+	TSubclassOf<UPGCargoScoreIndicatorWidget> CargoScoreIndicatorWidgetClass;
 
 	UPROPERTY(Transient)
 	TMap<int32, TObjectPtr<UPGCargoDeliveryItemWidget>> ActiveItemWidgets;

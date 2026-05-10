@@ -13,7 +13,7 @@ class UStaticMeshComponent;
 class UTexture2D;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPGCargoLostSignature, int32);
-DECLARE_MULTICAST_DELEGATE_ThreeParams(FPGCargoDeliveredSignature, int32, int32, int32);
+DECLARE_MULTICAST_DELEGATE_FourParams(FPGCargoDeliveredSignature, int32, int32, int32, FVector);
 DECLARE_MULTICAST_DELEGATE(FPGCargoListChangedSignature);
 
 /**

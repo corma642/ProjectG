@@ -268,7 +268,7 @@ void APGRunnerCharacter::HandleCargoLost(int32 CargoIndex)
 	}
 }
 
-void APGRunnerCharacter::HandleCargoDelivered(int32 CargoInstanceId, int32 Score, int32 Receipts)
+void APGRunnerCharacter::HandleCargoDelivered(int32 CargoInstanceId, int32 Score, int32 Receipts, FVector DeliveryLocation)
 {
 	if (RunProgressComponent)
 	{

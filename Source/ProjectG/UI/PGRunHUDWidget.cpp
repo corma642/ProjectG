@@ -3,10 +3,13 @@
 #include "UI/PGRunHUDWidget.h"
 
 #include "Components/Button.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
 #include "Components/PanelWidget.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "UI/PGCargoDeliveryItemWidget.h"
+#include "UI/PGCargoScoreIndicatorWidget.h"
 
 namespace
 {
@@ -67,6 +70,11 @@ void UPGRunHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 void UPGRunHUDWidget::SetCargoItemWidgetClass(TSubclassOf<UPGCargoDeliveryItemWidget> InCargoItemWidgetClass)
 {
 	CargoItemWidgetClass = InCargoItemWidgetClass;
+}
+
+void UPGRunHUDWidget::SetCargoScoreIndicatorWidgetClass(TSubclassOf<UPGCargoScoreIndicatorWidget> InCargoScoreIndicatorWidgetClass)
+{
+	CargoScoreIndicatorWidgetClass = InCargoScoreIndicatorWidgetClass;
 }
 
 void UPGRunHUDWidget::SetScore(int32 Score)
@@ -155,6 +163,30 @@ void UPGRunHUDWidget::RefreshCargoList(const TArray<FPGActiveCargoInfo>& ActiveC
 	}
 }
 
+void UPGRunHUDWidget::ShowCargoScoreIndicator(int32 CargoInstanceId, int32 Score)
+{
+	if (!CargoScoreIndicatorLayer || !CargoScoreIndicatorWidgetClass || Score <= 0)
+	{
+		return;
+	}
+
+	UPGCargoScoreIndicatorWidget* IndicatorWidget = CreateWidget<UPGCargoScoreIndicatorWidget>(GetOwningPlayer(), CargoScoreIndicatorWidgetClass);
+	if (!IndicatorWidget)
+	{
+		return;
+	}
+
+	CargoScoreIndicatorLayer->AddChild(IndicatorWidget);
+	if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(IndicatorWidget->Slot))
+	{
+		CanvasSlot->SetAutoSize(true);
+		CanvasSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+		CanvasSlot->SetPosition(ResolveCargoIndicatorPosition(CargoInstanceId));
+	}
+
+	IndicatorWidget->PlayScoreIndicator(Score);
+}
+
 void UPGRunHUDWidget::PlayEnterAnimation()
 {
 	bIsEntering = true;
@@ -201,6 +233,39 @@ UPGCargoDeliveryItemWidget* UPGRunHUDWidget::AcquireCargoItemWidget()
 		NewItemWidget->OnExitAnimationFinished.AddUObject(this, &UPGRunHUDWidget::HandleCargoItemExitFinished);
 	}
 	return NewItemWidget;
+}
+
+FVector2D UPGRunHUDWidget::ResolveCargoIndicatorPosition(int32 CargoInstanceId) const
+{
+	if (!CargoScoreIndicatorLayer)
+	{
+		return FVector2D::ZeroVector;
+	}
+
+	const FGeometry LayerGeometry = CargoScoreIndicatorLayer->GetCachedGeometry();
+	if (const UPGCargoDeliveryItemWidget* ItemWidget = ActiveItemWidgets.FindRef(CargoInstanceId))
+	{
+		const FGeometry ItemGeometry = ItemWidget->GetCachedGeometry();
+		const FVector2D ItemSize = ItemGeometry.GetLocalSize();
+		if (ItemSize.X > KINDA_SMALL_NUMBER && ItemSize.Y > KINDA_SMALL_NUMBER)
+		{
+			const FVector2D ItemCenterAbsolute = ItemGeometry.LocalToAbsolute(ItemSize * 0.5f);
+			return LayerGeometry.AbsoluteToLocal(ItemCenterAbsolute);
+		}
+	}
+
+	if (CargoListBox)
+	{
+		const FGeometry ListGeometry = CargoListBox->GetCachedGeometry();
+		const FVector2D ListSize = ListGeometry.GetLocalSize();
+		if (ListSize.X > KINDA_SMALL_NUMBER && ListSize.Y > KINDA_SMALL_NUMBER)
+		{
+			const FVector2D ListCenterAbsolute = ListGeometry.LocalToAbsolute(ListSize * 0.5f);
+			return LayerGeometry.AbsoluteToLocal(ListCenterAbsolute);
+		}
+	}
+
+	return FVector2D::ZeroVector;
 }
 
 void UPGRunHUDWidget::HandleCargoItemExitFinished(UPGCargoDeliveryItemWidget* ItemWidget)

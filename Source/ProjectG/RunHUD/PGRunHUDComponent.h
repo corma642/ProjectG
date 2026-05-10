@@ -55,6 +55,7 @@ private:
 	void HandleReceiptsChanged(int32 Receipts, FName Reason);
 
 	void HandleCargoListChanged();
+	void HandleCargoDelivered(int32 CargoInstanceId, int32 Score, int32 Receipts, FVector DeliveryLocation);
 	void HandlePauseRequested();
 	void HandleResumeRequested();
 	void HandlePauseSettingsRequested();
