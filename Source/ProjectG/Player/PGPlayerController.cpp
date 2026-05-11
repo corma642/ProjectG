@@ -3,6 +3,7 @@
 #include "Player/PGPlayerController.h"
 
 #include "Character/PGRunnerCharacter.h"
+#include "Audio/PGMusicComponent.h"
 #include "Debug/PGFPSDisplayComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -44,6 +45,7 @@ APGPlayerController::APGPlayerController()
 	bShowMouseCursor = false;
 	RunEventFeedbackComponent = CreateDefaultSubobject<UPGRunEventFeedbackComponent>(TEXT("RunEventFeedback"));
 	RunResultFeedbackComponent = CreateDefaultSubobject<UPGRunResultFeedbackComponent>(TEXT("RunResultFeedback"));
+	MusicComponent = CreateDefaultSubobject<UPGMusicComponent>(TEXT("Music"));
 	HomeFlowComponent = CreateDefaultSubobject<UPGHomeFlowComponent>(TEXT("HomeFlow"));
 	RunHUDComponent = CreateDefaultSubobject<UPGRunHUDComponent>(TEXT("RunHUD"));
 	FPSDisplayComponent = CreateDefaultSubobject<UPGFPSDisplayComponent>(TEXT("FPSDisplay"));

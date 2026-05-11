@@ -12,6 +12,7 @@ class UInputAction;
 class UInputMappingContext;
 class UPGFPSDisplayComponent;
 class UPGHomeFlowComponent;
+class UPGMusicComponent;
 class UPGRunHUDComponent;
 class UPGRunEventFeedbackComponent;
 class UPGRunResultFeedbackComponent;
@@ -159,7 +160,10 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Run Result", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPGRunResultFeedbackComponent> RunResultFeedbackComponent;
 
-	// 적재물 추가/손실 UI/VFX/SFX를 로컬 플레이어 기준으로 자동 재생하는 컴포넌트
+	// 홈/러닝 배경음을 로컬 플레이어 기준으로 자동 재생하는 컴포넌트
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Music", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPGMusicComponent> MusicComponent;
+
 	// 홈 화면 표시, 시작 버튼 처리, 카운트다운 UI/카메라 전환을 자동 관리하는 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Home Flow", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPGHomeFlowComponent> HomeFlowComponent;

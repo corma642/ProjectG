@@ -323,6 +323,39 @@ struct FPGHomeFlowSettings
 };
 
 /**
+ * 홈/러닝 배경음 재생과 전환 페이드 설정
+ */
+USTRUCT(BlueprintType)
+struct FPGMusicSettings
+{
+	GENERATED_BODY()
+
+	// Home 상태에서 반복 재생할 배경음
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Music")
+	TSoftObjectPtr<USoundBase> HomeMusic;
+
+	// Countdown 시작부터 Running 중 반복 재생할 배경음
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Music")
+	TSoftObjectPtr<USoundBase> RunMusic;
+
+	// Home/Run BGM 전환과 실패 페이드아웃에 사용할 시간
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Music", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
+	float MusicFadeDuration = 0.6f;
+
+	// 일반 상태의 BGM 볼륨
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Music", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2.0"))
+	float MusicVolume = 1.0f;
+
+	// Pause 중 Run BGM을 낮출 목표 볼륨
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Music | Pause", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0"))
+	float PauseDuckedVolume = 0.35f;
+
+	// Pause 진입/복귀 시 볼륨 보간 시간
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Music | Pause", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2.0"))
+	float PauseDuckFadeDuration = 0.2f;
+};
+
+/**
  * 모바일 런타임 품질 프리셋 종류
  */
 UENUM(BlueprintType)
@@ -651,6 +684,10 @@ public:
 	// 홈 화면과 러닝 시작 카운트다운 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Home Flow")
 	FPGHomeFlowSettings HomeFlow;
+
+	// 홈/러닝 배경음 설정
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Music")
+	FPGMusicSettings Music;
 
 	// 모바일 런타임 품질 프리셋 기본값
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality")

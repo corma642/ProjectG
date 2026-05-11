@@ -3,6 +3,7 @@
 #include "RunHUD/PGRunHUDComponent.h"
 
 #include "Blueprint/UserWidget.h"
+#include "Audio/PGMusicComponent.h"
 #include "Cargo/PGCargoStackComponent.h"
 #include "Character/PGRunnerCharacter.h"
 #include "GameFramework/PlayerController.h"
@@ -441,6 +442,11 @@ void UPGRunHUDComponent::ShowPauseScreen()
 		return;
 	}
 
+	if (UPGMusicComponent* MusicComponent = OwnerPlayerController->FindComponentByClass<UPGMusicComponent>())
+	{
+		MusicComponent->SetMusicDucked(true);
+	}
+
 	PauseWidget->OnResumeRequested.AddUObject(this, &UPGRunHUDComponent::HandleResumeRequested);
 	PauseWidget->OnSettingsRequested.AddUObject(this, &UPGRunHUDComponent::HandlePauseSettingsRequested);
 	PauseWidget->AddToViewport(60);
@@ -463,6 +469,14 @@ void UPGRunHUDComponent::CleanupPauseScreen(bool bResumeGame)
 
 	if (bResumeGame)
 	{
+		if (OwnerPlayerController)
+		{
+			if (UPGMusicComponent* MusicComponent = OwnerPlayerController->FindComponentByClass<UPGMusicComponent>())
+			{
+				MusicComponent->SetMusicDucked(false);
+			}
+		}
+
 		UGameplayStatics::SetGamePaused(GetWorld(), false);
 		ApplyGameInputMode();
 	}
