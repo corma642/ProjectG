@@ -6,6 +6,7 @@
 #include "Engine/StreamableManager.h"
 #include "RunEvents/PGRunEventPresentationSet.h"
 #include "Settings/PGGameSettings.h"
+#include "Tutorial/PGTutorialPageSet.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGRuntimePreload, Log, All);
 
@@ -59,6 +60,8 @@ void UPGRuntimePreloadSubsystem::CollectPrimaryResourcePaths(TArray<FSoftObjectP
 	AddUniquePath(OutPaths, Settings->HomeFlow.HomeScreenWidgetClass.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->HomeFlow.RunCountdownWidgetClass.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->HomeFlow.SettingsScreenWidgetClass.ToSoftObjectPath());
+	AddUniquePath(OutPaths, Settings->HomeFlow.TutorialScreenWidgetClass.ToSoftObjectPath());
+	AddUniquePath(OutPaths, Settings->HomeFlow.TutorialPageSet.ToSoftObjectPath());
 
 	AddUniquePath(OutPaths, Settings->RunHUD.RunHUDWidgetClass.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->RunHUD.RunPauseWidgetClass.ToSoftObjectPath());
@@ -100,6 +103,15 @@ void UPGRuntimePreloadSubsystem::CollectNestedResourcePaths(TArray<FSoftObjectPa
 			AddUniquePath(OutPaths, Entry.PreviewSound.ToSoftObjectPath());
 			AddUniquePath(OutPaths, Entry.TriggerSound.ToSoftObjectPath());
 			AddUniquePath(OutPaths, Entry.ActiveLoopSound.ToSoftObjectPath());
+		}
+	}
+
+	const UPGTutorialPageSet* TutorialPageSet = Settings->HomeFlow.TutorialPageSet.Get();
+	if (TutorialPageSet)
+	{
+		for (const TSoftObjectPtr<UTexture2D>& PageTexture : TutorialPageSet->Pages)
+		{
+			AddUniquePath(OutPaths, PageTexture.ToSoftObjectPath());
 		}
 	}
 }

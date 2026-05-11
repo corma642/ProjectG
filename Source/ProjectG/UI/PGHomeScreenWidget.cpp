@@ -38,6 +38,10 @@ void UPGHomeScreenWidget::NativeConstruct()
 	{
 		SettingsButton->OnClicked.AddDynamic(this, &UPGHomeScreenWidget::HandleSettingsClicked);
 	}
+	if (HelpButton)
+	{
+		HelpButton->OnClicked.AddDynamic(this, &UPGHomeScreenWidget::HandleHelpClicked);
+	}
 
 	ApplyExitAnimation(0.0f);
 }
@@ -55,6 +59,10 @@ void UPGHomeScreenWidget::NativeDestruct()
 	if (SettingsButton)
 	{
 		SettingsButton->OnClicked.RemoveDynamic(this, &UPGHomeScreenWidget::HandleSettingsClicked);
+	}
+	if (HelpButton)
+	{
+		HelpButton->OnClicked.RemoveDynamic(this, &UPGHomeScreenWidget::HandleHelpClicked);
 	}
 
 	Super::NativeDestruct();
@@ -113,6 +121,10 @@ void UPGHomeScreenWidget::SetHomeButtonsEnabled(bool bEnabled) const
 	{
 		SettingsButton->SetIsEnabled(bEnabled);
 	}
+	if (HelpButton)
+	{
+		HelpButton->SetIsEnabled(bEnabled);
+	}
 }
 
 void UPGHomeScreenWidget::HandleStartDeliveryClicked()
@@ -129,6 +141,11 @@ void UPGHomeScreenWidget::HandleSettingsClicked()
 	OnSettingsRequested.Broadcast();
 }
 
+void UPGHomeScreenWidget::HandleHelpClicked()
+{
+	OnHelpRequested.Broadcast();
+}
+
 void UPGHomeScreenWidget::ApplyExitAnimation(float Alpha)
 {
 	const float AnimationTime = FMath::Max(0.0f, ExitAnimationDuration) * FMath::Clamp(Alpha, 0.0f, 1.0f);
@@ -136,6 +153,7 @@ void UPGHomeScreenWidget::ApplyExitAnimation(float Alpha)
 	ApplyWidgetExitAnimation(StartDeliveryButton, StartButtonExitDelay, StartButtonExitOffset, AnimationTime);
 	ApplyWidgetExitAnimation(SkinsButton, SubButtonExitDelay, SubButtonExitOffset, AnimationTime);
 	ApplyWidgetExitAnimation(SettingsButton, SubButtonExitDelay, SubButtonExitOffset, AnimationTime);
+	ApplyWidgetExitAnimation(HelpButton, SubButtonExitDelay, SubButtonExitOffset, AnimationTime);
 }
 
 void UPGHomeScreenWidget::ApplyWidgetExitAnimation(UWidget* Widget, float Delay, const FVector2D& TargetOffset, float AnimationTime) const

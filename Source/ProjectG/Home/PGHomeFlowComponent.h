@@ -13,6 +13,7 @@ class UPGRuntimePreloadSubsystem;
 class UPGHomeScreenWidget;
 class UPGRunCountdownWidget;
 class UPGSettingsScreenWidget;
+class UPGTutorialScreenWidget;
 
 /**
  * 홈 화면 표시, 홈 카메라 전환, START DELIVERY, 카운트다운 UI를 로컬 플레이어 기준으로 자동 관리합니다.
@@ -50,7 +51,10 @@ private:
 	void HandleStartDeliveryRequested();
 	void HandleSettingsRequested();
 	void HandleSettingsScreenClosed();
+	void HandleHelpRequested();
+	void HandleTutorialClosed();
 	void ShowSettingsScreen();
+	void ShowTutorialScreen();
 	void ApplyHomeInputMode();
 	void ApplyGameInputMode();
 
@@ -71,6 +75,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPGSettingsScreenWidget> SettingsScreenWidget;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UPGTutorialScreenWidget> TutorialScreenWidget;
 
 	FPGHomeFlowSettings CachedHomeFlowSettings;
 	bool bIsBoundToGameMode = false;

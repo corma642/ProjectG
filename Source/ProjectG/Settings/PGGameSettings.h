@@ -11,6 +11,7 @@ class UPGCargoDropSet;
 class UPGRunResultWidget;
 class UPGRunEventPresentationSet;
 class UPGRunEventSet;
+class UPGTutorialPageSet;
 class UCameraShakeBase;
 class UNiagaraSystem;
 class USoundBase;
@@ -220,6 +221,7 @@ struct FPGRunProgressSettings
 /**
  * 러닝 중 HUD, Pause 화면, 적재물 리스트 표시 설정입니다.
  */
+
 USTRUCT(BlueprintType)
 struct FPGRunHUDSettings
 {
@@ -294,6 +296,14 @@ struct FPGHomeFlowSettings
 	// 홈 화면 Settings 버튼으로 표시할 설정 위젯 클래스
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Home Flow | UI")
 	TSoftClassPtr<UUserWidget> SettingsScreenWidgetClass;
+
+	// 홈 화면 Help 버튼으로 표시할 튜토리얼 위젯 클래스
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Home Flow | UI")
+	TSoftClassPtr<UUserWidget> TutorialScreenWidgetClass;
+
+	// Help 튜토리얼에서 책처럼 넘겨 볼 설명 이미지 목록
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Home Flow | Tutorial")
+	TSoftObjectPtr<UPGTutorialPageSet> TutorialPageSet;
 
 	// 홈 화면에서 사용할 CameraActor 태그
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Home Flow | Camera")

@@ -12,6 +12,7 @@ class UWidget;
 
 DECLARE_MULTICAST_DELEGATE(FPGHomeStartDeliveryRequestedSignature);
 DECLARE_MULTICAST_DELEGATE(FPGHomeSettingsRequestedSignature);
+DECLARE_MULTICAST_DELEGATE(FPGHomeHelpRequestedSignature);
 
 /**
  * 홈 화면 Blueprint Widget의 로직 클래스입니다.
@@ -25,6 +26,7 @@ class PROJECTG_API UPGHomeScreenWidget : public UUserWidget
 public:
 	FPGHomeStartDeliveryRequestedSignature OnStartDeliveryRequested;
 	FPGHomeSettingsRequestedSignature OnSettingsRequested;
+	FPGHomeHelpRequestedSignature OnHelpRequested;
 
 	// START DELIVERY 이후 홈 화면 요소들이 각 방향으로 빠지며 사라지는 애니메이션을 시작합니다.
 	void PlayExitAnimation(float Duration);
@@ -52,6 +54,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Home")
 	TObjectPtr<UButton> SettingsButton;
 
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Home")
+	TObjectPtr<UButton> HelpButton;
+
 private:
 	UFUNCTION()
 	void HandleStartDeliveryClicked();
@@ -61,6 +66,9 @@ private:
 
 	UFUNCTION()
 	void HandleSettingsClicked();
+
+	UFUNCTION()
+	void HandleHelpClicked();
 
 	void ApplyExitAnimation(float Alpha);
 	void ApplyWidgetExitAnimation(UWidget* Widget, float Delay, const FVector2D& TargetOffset, float AnimationTime) const;

@@ -12,6 +12,8 @@
 #include "UI/PGHomeScreenWidget.h"
 #include "UI/PGRunCountdownWidget.h"
 #include "UI/PGSettingsScreenWidget.h"
+#include "UI/PGTutorialScreenWidget.h"
+#include "Tutorial/PGTutorialPageSet.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGHomeFlow, Log, All);
 
@@ -183,6 +185,7 @@ void UPGHomeFlowComponent::ShowHomeScreen()
 
 	HomeScreenWidget->OnStartDeliveryRequested.AddUObject(this, &UPGHomeFlowComponent::HandleStartDeliveryRequested);
 	HomeScreenWidget->OnSettingsRequested.AddUObject(this, &UPGHomeFlowComponent::HandleSettingsRequested);
+	HomeScreenWidget->OnHelpRequested.AddUObject(this, &UPGHomeFlowComponent::HandleHelpRequested);
 	HomeScreenWidget->AddToViewport(10);
 }
 
@@ -260,6 +263,7 @@ void UPGHomeFlowComponent::CleanupWidgets()
 	{
 		HomeScreenWidget->OnStartDeliveryRequested.RemoveAll(this);
 		HomeScreenWidget->OnSettingsRequested.RemoveAll(this);
+		HomeScreenWidget->OnHelpRequested.RemoveAll(this);
 		HomeScreenWidget->RemoveFromParent();
 		HomeScreenWidget = nullptr;
 	}
@@ -276,11 +280,18 @@ void UPGHomeFlowComponent::CleanupWidgets()
 		SettingsScreenWidget->RemoveFromParent();
 		SettingsScreenWidget = nullptr;
 	}
+
+	if (TutorialScreenWidget)
+	{
+		TutorialScreenWidget->OnTutorialClosed.RemoveAll(this);
+		TutorialScreenWidget->RemoveFromParent();
+		TutorialScreenWidget = nullptr;
+	}
 }
 
 void UPGHomeFlowComponent::HandleStartDeliveryRequested()
 {
-	if (SettingsScreenWidget)
+	if (SettingsScreenWidget || TutorialScreenWidget)
 	{
 		return;
 	}
@@ -290,6 +301,11 @@ void UPGHomeFlowComponent::HandleStartDeliveryRequested()
 
 void UPGHomeFlowComponent::HandleSettingsRequested()
 {
+	if (TutorialScreenWidget)
+	{
+		return;
+	}
+
 	ShowSettingsScreen();
 }
 
@@ -302,9 +318,33 @@ void UPGHomeFlowComponent::HandleSettingsScreenClosed()
 	}
 }
 
+void UPGHomeFlowComponent::HandleHelpRequested()
+{
+	if (SettingsScreenWidget)
+	{
+		return;
+	}
+
+	ShowTutorialScreen();
+}
+
+void UPGHomeFlowComponent::HandleTutorialClosed()
+{
+	if (TutorialScreenWidget)
+	{
+		TutorialScreenWidget->OnTutorialClosed.RemoveAll(this);
+		TutorialScreenWidget = nullptr;
+	}
+
+	if (HomeScreenWidget)
+	{
+		HomeScreenWidget->SetHomeButtonsEnabled(true);
+	}
+}
+
 void UPGHomeFlowComponent::ShowSettingsScreen()
 {
-	if (!OwnerPlayerController || SettingsScreenWidget)
+	if (!OwnerPlayerController || SettingsScreenWidget || TutorialScreenWidget)
 	{
 		return;
 	}
@@ -332,6 +372,48 @@ void UPGHomeFlowComponent::ShowSettingsScreen()
 	SettingsScreenWidget->PlayOpenAnimation();
 }
 
+void UPGHomeFlowComponent::ShowTutorialScreen()
+{
+	if (!OwnerPlayerController || TutorialScreenWidget)
+	{
+		return;
+	}
+
+	UClass* WidgetClass = CachedHomeFlowSettings.TutorialScreenWidgetClass.Get();
+	if (!WidgetClass)
+	{
+		UE_LOG(LogPGHomeFlow, Warning, TEXT("TutorialScreenWidgetClass is not set. Create WBP_TutorialScreen and assign it in Go Deliver Settings > Home Flow."));
+		return;
+	}
+	if (!WidgetClass->IsChildOf(UPGTutorialScreenWidget::StaticClass()))
+	{
+		UE_LOG(LogPGHomeFlow, Warning, TEXT("TutorialScreenWidgetClass '%s' must inherit UPGTutorialScreenWidget."), *GetNameSafe(WidgetClass));
+		return;
+	}
+
+	UPGTutorialPageSet* PageSet = CachedHomeFlowSettings.TutorialPageSet.Get();
+	if (!PageSet)
+	{
+		UE_LOG(LogPGHomeFlow, Warning, TEXT("TutorialPageSet is not set. Create DA_TutorialPageSet and assign it in Go Deliver Settings > Home Flow."));
+		return;
+	}
+
+	TutorialScreenWidget = CreateWidget<UPGTutorialScreenWidget>(OwnerPlayerController, TSubclassOf<UPGTutorialScreenWidget>(WidgetClass));
+	if (!TutorialScreenWidget)
+	{
+		return;
+	}
+
+	if (HomeScreenWidget)
+	{
+		HomeScreenWidget->SetHomeButtonsEnabled(false);
+	}
+
+	TutorialScreenWidget->OnTutorialClosed.AddUObject(this, &UPGHomeFlowComponent::HandleTutorialClosed);
+	TutorialScreenWidget->AddToViewport(30);
+	TutorialScreenWidget->InitializeTutorial(PageSet);
+}
+
 void UPGHomeFlowComponent::HandleRunCountdownStarted(float Duration)
 {
 	if (SettingsScreenWidget)
@@ -339,6 +421,13 @@ void UPGHomeFlowComponent::HandleRunCountdownStarted(float Duration)
 		SettingsScreenWidget->OnSettingsScreenClosed.RemoveAll(this);
 		SettingsScreenWidget->RemoveFromParent();
 		SettingsScreenWidget = nullptr;
+	}
+
+	if (TutorialScreenWidget)
+	{
+		TutorialScreenWidget->OnTutorialClosed.RemoveAll(this);
+		TutorialScreenWidget->RemoveFromParent();
+		TutorialScreenWidget = nullptr;
 	}
 
 	if (HomeScreenWidget)
