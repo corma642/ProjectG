@@ -13,6 +13,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "Settings/PGGameSettings.h"
+#include "Settings/PGGameUserSettings.h"
 #include "Sound/SoundBase.h"
 #include "UI/PGRunResultWidget.h"
 
@@ -86,7 +87,7 @@ void UPGRunResultFeedbackComponent::HandleRunFailed(FName FailureReason)
 
 	if (USoundBase* GameOverSound = Settings->RunResult.GameOverSound.Get())
 	{
-		UGameplayStatics::PlaySound2D(PlayerController, GameOverSound);
+		UGameplayStatics::PlaySound2D(PlayerController, GameOverSound, UPGGameUserSettings::GetCurrentSFXVolumeScale());
 	}
 
 	if (UNiagaraSystem* GameOverVFX = Settings->RunResult.GameOverVFX.Get())

@@ -42,11 +42,14 @@ private:
 	UFUNCTION()
 	void HandleRuntimePreloadCompleted();
 
+	void HandleMusicVolumeChanged(float MusicVolumeScale);
 	void LoadSettings();
 	void BindGameMode();
 	void UnbindGameMode();
 	void BindRuntimePreloadIfNeeded();
 	void UnbindRuntimePreload();
+	void BindUserSettings();
+	void UnbindUserSettings();
 	void RefreshMusicForCurrentState();
 	void PlayHomeMusic();
 	void PlayRunMusic();
@@ -54,6 +57,8 @@ private:
 	void FadeOutMusic(TObjectPtr<UAudioComponent>& MusicComponent);
 	void FadeOutAllMusic();
 	void ApplyRunMusicVolume(float FadeDuration);
+	float GetBaseMusicVolume() const;
+	float GetRunMusicTargetVolume() const;
 	bool IsRetryCountdownLoad() const;
 
 	UPROPERTY(Transient)

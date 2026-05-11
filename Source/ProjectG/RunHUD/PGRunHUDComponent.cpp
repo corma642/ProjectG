@@ -13,6 +13,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "Player/PGPlayerController.h"
 #include "RunProgress/PGRunProgressComponent.h"
+#include "Settings/PGGameUserSettings.h"
 #include "UI/PGCargoDeliveryItemWidget.h"
 #include "UI/PGCargoScoreIndicatorWidget.h"
 #include "UI/PGRunHUDWidget.h"
@@ -172,7 +173,7 @@ void UPGRunHUDComponent::HandleCargoDelivered(int32 CargoInstanceId, int32 Score
 
 		if (USoundBase* DeliveredSound = CachedRunHUDSettings.CargoDeliveredSound.Get())
 		{
-			UGameplayStatics::PlaySoundAtLocation(World, DeliveredSound, DeliveryLocation);
+			UGameplayStatics::PlaySoundAtLocation(World, DeliveredSound, DeliveryLocation, UPGGameUserSettings::GetCurrentSFXVolumeScale());
 		}
 	}
 

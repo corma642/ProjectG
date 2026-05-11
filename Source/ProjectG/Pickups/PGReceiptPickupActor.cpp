@@ -10,6 +10,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "NiagaraFunctionLibrary.h"
 #include "RunProgress/PGRunProgressComponent.h"
+#include "Settings/PGGameUserSettings.h"
 #include "Sound/SoundBase.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGReceiptPickup, Log, All);
@@ -124,7 +125,7 @@ void APGReceiptPickupActor::PlayPickupFeedback() const
 
 	if (PickupSound)
 	{
-		UGameplayStatics::PlaySoundAtLocation(this, PickupSound, FeedbackLocation);
+		UGameplayStatics::PlaySoundAtLocation(this, PickupSound, FeedbackLocation, UPGGameUserSettings::GetCurrentSFXVolumeScale());
 	}
 }
 

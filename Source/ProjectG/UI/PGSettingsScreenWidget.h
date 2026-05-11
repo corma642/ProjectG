@@ -81,6 +81,18 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
 	TObjectPtr<UCheckBox> ShowFPSCheckBox;
 
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
+	TObjectPtr<USlider> MusicVolumeSlider;
+
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
+	TObjectPtr<UTextBlock> MusicVolumeValueText;
+
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
+	TObjectPtr<USlider> SFXVolumeSlider;
+
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
+	TObjectPtr<UTextBlock> SFXVolumeValueText;
+
 private:
 	UFUNCTION()
 	void HandleCloseClicked();
@@ -115,6 +127,18 @@ private:
 	UFUNCTION()
 	void HandleShowFPSCheckStateChanged(bool bIsChecked);
 
+	UFUNCTION()
+	void HandleMusicVolumeChanged(float Value);
+
+	UFUNCTION()
+	void HandleMusicVolumeCommit();
+
+	UFUNCTION()
+	void HandleSFXVolumeChanged(float Value);
+
+	UFUNCTION()
+	void HandleSFXVolumeCommit();
+
 	void RefreshControlsFromSettings();
 	void ApplyPreset(EPGMobileQualityPreset Preset);
 	void ApplyFrameRate(int32 FrameRateLimit);
@@ -124,6 +148,8 @@ private:
 	void SetFrameRateSelectionState(int32 FrameRateLimit) const;
 	void SetShowFPSCheckState(bool bShowFPS) const;
 	void UpdateResolutionScaleText(float Value) const;
+	void UpdateMusicVolumeText(float Value) const;
+	void UpdateSFXVolumeText(float Value) const;
 
 	bool bIsOpening = false;
 	bool bIsClosing = false;

@@ -41,11 +41,14 @@ private:
 	UFUNCTION()
 	void HandleRunEventCanceled(EPGRunEventType EventType);
 
+	void HandleSFXVolumeChanged(float SFXVolumeScale);
 	void ResolvePresentationSet();
 	bool ArePresentationResourcesReady() const;
 	void ValidatePresentationSet() const;
 	void BindRunEventSubsystem();
 	void UnbindRunEventSubsystem();
+	void BindUserSettings();
+	void UnbindUserSettings();
 	const FPGRunEventPresentationEntry* FindPresentationEntry(EPGRunEventType EventType);
 	void PlayPreviewPresentation(const FPGRunEventPresentationEntry& Entry, EPGRunEventType EventType, float TimeUntilTrigger, float Direction);
 	void PlayActivePresentation(const FPGRunEventPresentationEntry& Entry, EPGRunEventType EventType, float Duration, float Direction);

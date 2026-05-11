@@ -15,6 +15,8 @@ namespace
 {
 constexpr float MinResolutionScalePercent = 50.0f;
 constexpr float MaxResolutionScalePercent = 100.0f;
+constexpr float MinVolumePercent = 0.0f;
+constexpr float MaxVolumePercent = 150.0f;
 constexpr float SettingsBackdropBlurStrength = 5.0f;
 constexpr float SettingsBackdropDimOpacity = 0.35f;
 constexpr float SettingsPanelStartScale = 0.94f;
@@ -76,6 +78,22 @@ void UPGSettingsScreenWidget::NativeConstruct()
 	{
 		ShowFPSCheckBox->OnCheckStateChanged.AddDynamic(this, &UPGSettingsScreenWidget::HandleShowFPSCheckStateChanged);
 	}
+	if (MusicVolumeSlider)
+	{
+		MusicVolumeSlider->SetMinValue(MinVolumePercent);
+		MusicVolumeSlider->SetMaxValue(MaxVolumePercent);
+		MusicVolumeSlider->OnValueChanged.AddDynamic(this, &UPGSettingsScreenWidget::HandleMusicVolumeChanged);
+		MusicVolumeSlider->OnMouseCaptureEnd.AddDynamic(this, &UPGSettingsScreenWidget::HandleMusicVolumeCommit);
+		MusicVolumeSlider->OnControllerCaptureEnd.AddDynamic(this, &UPGSettingsScreenWidget::HandleMusicVolumeCommit);
+	}
+	if (SFXVolumeSlider)
+	{
+		SFXVolumeSlider->SetMinValue(MinVolumePercent);
+		SFXVolumeSlider->SetMaxValue(MaxVolumePercent);
+		SFXVolumeSlider->OnValueChanged.AddDynamic(this, &UPGSettingsScreenWidget::HandleSFXVolumeChanged);
+		SFXVolumeSlider->OnMouseCaptureEnd.AddDynamic(this, &UPGSettingsScreenWidget::HandleSFXVolumeCommit);
+		SFXVolumeSlider->OnControllerCaptureEnd.AddDynamic(this, &UPGSettingsScreenWidget::HandleSFXVolumeCommit);
+	}
 
 	RefreshControlsFromSettings();
 	ApplyAnimationState(0.0f);
@@ -124,6 +142,18 @@ void UPGSettingsScreenWidget::NativeDestruct()
 	if (ShowFPSCheckBox)
 	{
 		ShowFPSCheckBox->OnCheckStateChanged.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleShowFPSCheckStateChanged);
+	}
+	if (MusicVolumeSlider)
+	{
+		MusicVolumeSlider->OnValueChanged.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleMusicVolumeChanged);
+		MusicVolumeSlider->OnMouseCaptureEnd.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleMusicVolumeCommit);
+		MusicVolumeSlider->OnControllerCaptureEnd.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleMusicVolumeCommit);
+	}
+	if (SFXVolumeSlider)
+	{
+		SFXVolumeSlider->OnValueChanged.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleSFXVolumeChanged);
+		SFXVolumeSlider->OnMouseCaptureEnd.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleSFXVolumeCommit);
+		SFXVolumeSlider->OnControllerCaptureEnd.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleSFXVolumeCommit);
 	}
 
 	Super::NativeDestruct();
@@ -258,6 +288,56 @@ void UPGSettingsScreenWidget::HandleShowFPSCheckStateChanged(bool bIsChecked)
 	}
 }
 
+void UPGSettingsScreenWidget::HandleMusicVolumeChanged(float Value)
+{
+	if (bIsUpdatingControls)
+	{
+		return;
+	}
+
+	UpdateMusicVolumeText(Value);
+	if (UPGGameUserSettings* UserSettings = Cast<UPGGameUserSettings>(UGameUserSettings::GetGameUserSettings()))
+	{
+		UserSettings->SetMusicVolumePercent(Value, false);
+	}
+}
+
+void UPGSettingsScreenWidget::HandleMusicVolumeCommit()
+{
+	if (MusicVolumeSlider)
+	{
+		if (UPGGameUserSettings* UserSettings = Cast<UPGGameUserSettings>(UGameUserSettings::GetGameUserSettings()))
+		{
+			UserSettings->SetMusicVolumePercent(MusicVolumeSlider->GetValue(), true);
+		}
+	}
+}
+
+void UPGSettingsScreenWidget::HandleSFXVolumeChanged(float Value)
+{
+	if (bIsUpdatingControls)
+	{
+		return;
+	}
+
+	UpdateSFXVolumeText(Value);
+	if (UPGGameUserSettings* UserSettings = Cast<UPGGameUserSettings>(UGameUserSettings::GetGameUserSettings()))
+	{
+		UserSettings->SetSFXVolumePercent(Value, false);
+	}
+}
+
+void UPGSettingsScreenWidget::HandleSFXVolumeCommit()
+{
+	if (SFXVolumeSlider)
+	{
+		if (UPGGameUserSettings* UserSettings = Cast<UPGGameUserSettings>(UGameUserSettings::GetGameUserSettings()))
+		{
+			UserSettings->SetSFXVolumePercent(SFXVolumeSlider->GetValue(), true);
+		}
+	}
+}
+
 void UPGSettingsScreenWidget::RefreshControlsFromSettings()
 {
 	UPGGameUserSettings* UserSettings = Cast<UPGGameUserSettings>(UGameUserSettings::GetGameUserSettings());
@@ -272,6 +352,16 @@ void UPGSettingsScreenWidget::RefreshControlsFromSettings()
 		ResolutionScaleSlider->SetValue(UserSettings->GetMobileResolutionScalePercent());
 	}
 	UpdateResolutionScaleText(UserSettings->GetMobileResolutionScalePercent());
+	if (MusicVolumeSlider)
+	{
+		MusicVolumeSlider->SetValue(UserSettings->GetMusicVolumePercent());
+	}
+	UpdateMusicVolumeText(UserSettings->GetMusicVolumePercent());
+	if (SFXVolumeSlider)
+	{
+		SFXVolumeSlider->SetValue(UserSettings->GetSFXVolumePercent());
+	}
+	UpdateSFXVolumeText(UserSettings->GetSFXVolumePercent());
 	SetShowFPSCheckState(UserSettings->GetShowFPSDisplay());
 	bIsUpdatingControls = false;
 
@@ -369,6 +459,14 @@ void UPGSettingsScreenWidget::SetAllButtonsEnabled(bool bEnabled) const
 	{
 		ShowFPSCheckBox->SetIsEnabled(bEnabled);
 	}
+	if (MusicVolumeSlider)
+	{
+		MusicVolumeSlider->SetIsEnabled(bEnabled);
+	}
+	if (SFXVolumeSlider)
+	{
+		SFXVolumeSlider->SetIsEnabled(bEnabled);
+	}
 }
 
 void UPGSettingsScreenWidget::SetPresetSelectionState(EPGMobileQualityPreset Preset) const
@@ -421,6 +519,26 @@ void UPGSettingsScreenWidget::UpdateResolutionScaleText(float Value) const
 	{
 		ResolutionScaleValueText->SetText(FText::Format(
 			NSLOCTEXT("PGSettingsScreen", "ResolutionScaleFormat", "{0}%"),
+			FText::AsNumber(FMath::RoundToInt(Value))));
+	}
+}
+
+void UPGSettingsScreenWidget::UpdateMusicVolumeText(float Value) const
+{
+	if (MusicVolumeValueText)
+	{
+		MusicVolumeValueText->SetText(FText::Format(
+			NSLOCTEXT("PGSettingsScreen", "MusicVolumeFormat", "{0}%"),
+			FText::AsNumber(FMath::RoundToInt(Value))));
+	}
+}
+
+void UPGSettingsScreenWidget::UpdateSFXVolumeText(float Value) const
+{
+	if (SFXVolumeValueText)
+	{
+		SFXVolumeValueText->SetText(FText::Format(
+			NSLOCTEXT("PGSettingsScreen", "SFXVolumeFormat", "{0}%"),
 			FText::AsNumber(FMath::RoundToInt(Value))));
 	}
 }

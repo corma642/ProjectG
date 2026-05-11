@@ -13,6 +13,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "RunEvents/PGRunEventSubsystem.h"
 #include "Settings/PGGameSettings.h"
+#include "Settings/PGGameUserSettings.h"
 #include "Sound/SoundBase.h"
 #include "UI/PGRunEventFeedbackWidget.h"
 
@@ -28,12 +29,14 @@ void UPGRunEventFeedbackComponent::BeginPlay()
 	Super::BeginPlay();
 
 	ResolvePresentationSet();
+	BindUserSettings();
 	BindRunEventSubsystem();
 }
 
 void UPGRunEventFeedbackComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	UnbindRunEventSubsystem();
+	UnbindUserSettings();
 	CleanupAllPresentations();
 
 	Super::EndPlay(EndPlayReason);
@@ -99,6 +102,14 @@ void UPGRunEventFeedbackComponent::HandleRunEventCanceled(EPGRunEventType EventT
 	if (EventType == EPGRunEventType::None)
 	{
 		CleanupAllPresentations();
+	}
+}
+
+void UPGRunEventFeedbackComponent::HandleSFXVolumeChanged(float SFXVolumeScale)
+{
+	if (ActiveLoopAudioComponent)
+	{
+		ActiveLoopAudioComponent->SetVolumeMultiplier(SFXVolumeScale);
 	}
 }
 
@@ -204,6 +215,22 @@ void UPGRunEventFeedbackComponent::UnbindRunEventSubsystem()
 	BoundRunEventSubsystem = nullptr;
 }
 
+void UPGRunEventFeedbackComponent::BindUserSettings()
+{
+	if (UPGGameUserSettings* UserSettings = Cast<UPGGameUserSettings>(UGameUserSettings::GetGameUserSettings()))
+	{
+		UserSettings->OnSFXVolumeChanged.AddUObject(this, &UPGRunEventFeedbackComponent::HandleSFXVolumeChanged);
+	}
+}
+
+void UPGRunEventFeedbackComponent::UnbindUserSettings()
+{
+	if (UPGGameUserSettings* UserSettings = Cast<UPGGameUserSettings>(UGameUserSettings::GetGameUserSettings()))
+	{
+		UserSettings->OnSFXVolumeChanged.RemoveAll(this);
+	}
+}
+
 const FPGRunEventPresentationEntry* UPGRunEventFeedbackComponent::FindPresentationEntry(EPGRunEventType EventType)
 {
 	if (!PresentationSet)
@@ -243,7 +270,7 @@ void UPGRunEventFeedbackComponent::PlayPreviewPresentation(const FPGRunEventPres
 
 		if (USoundBase* PreviewSound = Entry.PreviewSound.Get())
 		{
-			UGameplayStatics::PlaySound2D(PlayerController, PreviewSound);
+			UGameplayStatics::PlaySound2D(PlayerController, PreviewSound, UPGGameUserSettings::GetCurrentSFXVolumeScale());
 		}
 	}
 
@@ -288,12 +315,12 @@ void UPGRunEventFeedbackComponent::PlayActivePresentation(const FPGRunEventPrese
 
 		if (USoundBase* TriggerSound = Entry.TriggerSound.Get())
 		{
-			UGameplayStatics::PlaySound2D(PlayerController, TriggerSound);
+			UGameplayStatics::PlaySound2D(PlayerController, TriggerSound, UPGGameUserSettings::GetCurrentSFXVolumeScale());
 		}
 
 		if (USoundBase* ActiveLoopSound = Entry.ActiveLoopSound.Get())
 		{
-			ActiveLoopAudioComponent = UGameplayStatics::SpawnSound2D(PlayerController, ActiveLoopSound, 1.0f, 1.0f, 0.0f, nullptr, false, false);
+			ActiveLoopAudioComponent = UGameplayStatics::SpawnSound2D(PlayerController, ActiveLoopSound, UPGGameUserSettings::GetCurrentSFXVolumeScale(), 1.0f, 0.0f, nullptr, false, false);
 		}
 	}
 

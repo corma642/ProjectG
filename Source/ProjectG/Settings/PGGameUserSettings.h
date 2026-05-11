@@ -8,6 +8,8 @@
 #include "PGGameUserSettings.generated.h"
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPGShowFPSDisplayChangedSignature, bool);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPGMusicVolumeChangedSignature, float);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPGSFXVolumeChangedSignature, float);
 
 /**
  * 모바일 품질 프리셋과 런타임 그래픽 설정을 저장/적용하는 프로젝트 GameUserSettings입니다.
@@ -22,6 +24,8 @@ public:
 	UPGGameUserSettings();
 
 	FPGShowFPSDisplayChangedSignature OnShowFPSDisplayChanged;
+	FPGMusicVolumeChangedSignature OnMusicVolumeChanged;
+	FPGSFXVolumeChangedSignature OnSFXVolumeChanged;
 
 	virtual void SetToDefaults() override;
 
@@ -45,6 +49,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Debug UI")
 	void SetShowFPSDisplay(bool bShow, bool bSaveAfterApply = true);
 
+	// 배경음 볼륨을 0~150% 범위로 저장하고 즉시 반영합니다.
+	UFUNCTION(BlueprintCallable, Category = "Audio")
+	void SetMusicVolumePercent(float NewMusicVolumePercent, bool bSaveAfterApply = true);
+
+	// 효과음 볼륨을 0~150% 범위로 저장하고 즉시 반영합니다.
+	UFUNCTION(BlueprintCallable, Category = "Audio")
+	void SetSFXVolumePercent(float NewSFXVolumePercent, bool bSaveAfterApply = true);
+
 	UFUNCTION(BlueprintPure, Category = "Mobile Quality")
 	EPGMobileQualityPreset GetSelectedMobileQualityPreset() const { return SelectedMobileQualityPreset; }
 
@@ -56,6 +68,21 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Debug UI")
 	bool GetShowFPSDisplay() const { return bShowFPSDisplay; }
+
+	UFUNCTION(BlueprintPure, Category = "Audio")
+	float GetMusicVolumePercent() const { return MusicVolumePercent; }
+
+	UFUNCTION(BlueprintPure, Category = "Audio")
+	float GetSFXVolumePercent() const { return SFXVolumePercent; }
+
+	UFUNCTION(BlueprintPure, Category = "Audio")
+	float GetMusicVolumeScale() const { return MusicVolumePercent / 100.0f; }
+
+	UFUNCTION(BlueprintPure, Category = "Audio")
+	float GetSFXVolumeScale() const { return SFXVolumePercent / 100.0f; }
+
+	static float GetCurrentMusicVolumeScale();
+	static float GetCurrentSFXVolumeScale();
 
 private:
 	void CopyPresetToSavedSettings(EPGMobileQualityPreset Preset);
@@ -104,4 +131,12 @@ private:
 	// Android 프레임 테스트용 FPS 위젯 표시 여부
 	UPROPERTY(Config)
 	bool bShowFPSDisplay = false;
+
+	// 사용자 배경음 볼륨. 100은 원본 볼륨이며 Settings UI에서 0~150까지 조절한다.
+	UPROPERTY(Config)
+	float MusicVolumePercent = 100.0f;
+
+	// 사용자 효과음 볼륨. 100은 원본 볼륨이며 Settings UI에서 0~150까지 조절한다.
+	UPROPERTY(Config)
+	float SFXVolumePercent = 100.0f;
 };

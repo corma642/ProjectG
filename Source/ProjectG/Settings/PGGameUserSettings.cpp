@@ -9,6 +9,8 @@ namespace
 {
 constexpr float MinMobileResolutionScale = 50.0f;
 constexpr float MaxMobileResolutionScale = 100.0f;
+constexpr float MinUserVolumePercent = 0.0f;
+constexpr float MaxUserVolumePercent = 150.0f;
 }
 
 UPGGameUserSettings::UPGGameUserSettings()
@@ -16,6 +18,8 @@ UPGGameUserSettings::UPGGameUserSettings()
 	const UPGGameSettings* ProjectSettings = GetDefault<UPGGameSettings>();
 	const EPGMobileQualityPreset DefaultPreset = ProjectSettings ? ProjectSettings->MobileQuality.DefaultPreset : EPGMobileQualityPreset::Ultra;
 	CopyPresetToSavedSettings(DefaultPreset);
+	MusicVolumePercent = 100.0f;
+	SFXVolumePercent = 100.0f;
 }
 
 void UPGGameUserSettings::SetToDefaults()
@@ -70,6 +74,52 @@ void UPGGameUserSettings::SetShowFPSDisplay(bool bShow, bool bSaveAfterApply)
 	OnShowFPSDisplayChanged.Broadcast(bShowFPSDisplay);
 }
 
+void UPGGameUserSettings::SetMusicVolumePercent(float NewMusicVolumePercent, bool bSaveAfterApply)
+{
+	const float ClampedVolume = FMath::Clamp(NewMusicVolumePercent, MinUserVolumePercent, MaxUserVolumePercent);
+	if (FMath::IsNearlyEqual(MusicVolumePercent, ClampedVolume))
+	{
+		return;
+	}
+
+	MusicVolumePercent = ClampedVolume;
+	if (bSaveAfterApply)
+	{
+		SaveSettings();
+	}
+
+	OnMusicVolumeChanged.Broadcast(GetMusicVolumeScale());
+}
+
+void UPGGameUserSettings::SetSFXVolumePercent(float NewSFXVolumePercent, bool bSaveAfterApply)
+{
+	const float ClampedVolume = FMath::Clamp(NewSFXVolumePercent, MinUserVolumePercent, MaxUserVolumePercent);
+	if (FMath::IsNearlyEqual(SFXVolumePercent, ClampedVolume))
+	{
+		return;
+	}
+
+	SFXVolumePercent = ClampedVolume;
+	if (bSaveAfterApply)
+	{
+		SaveSettings();
+	}
+
+	OnSFXVolumeChanged.Broadcast(GetSFXVolumeScale());
+}
+
+float UPGGameUserSettings::GetCurrentMusicVolumeScale()
+{
+	const UPGGameUserSettings* UserSettings = Cast<UPGGameUserSettings>(UGameUserSettings::GetGameUserSettings());
+	return UserSettings ? UserSettings->GetMusicVolumeScale() : 1.0f;
+}
+
+float UPGGameUserSettings::GetCurrentSFXVolumeScale()
+{
+	const UPGGameUserSettings* UserSettings = Cast<UPGGameUserSettings>(UGameUserSettings::GetGameUserSettings());
+	return UserSettings ? UserSettings->GetSFXVolumeScale() : 1.0f;
+}
+
 void UPGGameUserSettings::CopyPresetToSavedSettings(EPGMobileQualityPreset Preset)
 {
 	const FPGMobileQualityPresetSettings& PresetSettings = GetPresetSettings(Preset);
@@ -90,6 +140,8 @@ void UPGGameUserSettings::CopyPresetToSavedSettings(EPGMobileQualityPreset Prese
 void UPGGameUserSettings::ApplySavedMobileQualityToEngine()
 {
 	ResolutionScalePercent = FMath::Clamp(ResolutionScalePercent, MinMobileResolutionScale, MaxMobileResolutionScale);
+	MusicVolumePercent = FMath::Clamp(MusicVolumePercent, MinUserVolumePercent, MaxUserVolumePercent);
+	SFXVolumePercent = FMath::Clamp(SFXVolumePercent, MinUserVolumePercent, MaxUserVolumePercent);
 	SavedMobileFrameRateLimit = FMath::Max(0, SavedMobileFrameRateLimit);
 	MobileAntiAliasingMode = FMath::Clamp(MobileAntiAliasingMode, 0, 3);
 	MaxAnisotropy = FMath::Clamp(MaxAnisotropy, 1, 8);

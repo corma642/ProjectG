@@ -6,6 +6,7 @@
 #include "GameModes/PGGameModeBase.h"
 #include "Kismet/GameplayStatics.h"
 #include "Loading/PGRuntimePreloadSubsystem.h"
+#include "Settings/PGGameUserSettings.h"
 #include "Sound/SoundBase.h"
 
 UPGMusicComponent::UPGMusicComponent()
@@ -19,6 +20,7 @@ void UPGMusicComponent::BeginPlay()
 
 	LoadSettings();
 	BindGameMode();
+	BindUserSettings();
 	BindRuntimePreloadIfNeeded();
 	if (bIsBoundToRuntimePreload)
 	{
@@ -32,6 +34,7 @@ void UPGMusicComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	UnbindGameMode();
 	UnbindRuntimePreload();
+	UnbindUserSettings();
 	FadeOutAllMusic();
 	Super::EndPlay(EndPlayReason);
 }
@@ -78,6 +81,16 @@ void UPGMusicComponent::HandleRuntimePreloadCompleted()
 {
 	UnbindRuntimePreload();
 	RefreshMusicForCurrentState();
+}
+
+void UPGMusicComponent::HandleMusicVolumeChanged(float MusicVolumeScale)
+{
+	if (HomeMusicComponent)
+	{
+		HomeMusicComponent->AdjustVolume(CachedMusicSettings.PauseDuckFadeDuration, GetBaseMusicVolume());
+	}
+
+	ApplyRunMusicVolume(CachedMusicSettings.PauseDuckFadeDuration);
 }
 
 void UPGMusicComponent::LoadSettings()
@@ -145,6 +158,22 @@ void UPGMusicComponent::UnbindRuntimePreload()
 	bIsBoundToRuntimePreload = false;
 }
 
+void UPGMusicComponent::BindUserSettings()
+{
+	if (UPGGameUserSettings* UserSettings = Cast<UPGGameUserSettings>(UGameUserSettings::GetGameUserSettings()))
+	{
+		UserSettings->OnMusicVolumeChanged.AddUObject(this, &UPGMusicComponent::HandleMusicVolumeChanged);
+	}
+}
+
+void UPGMusicComponent::UnbindUserSettings()
+{
+	if (UPGGameUserSettings* UserSettings = Cast<UPGGameUserSettings>(UGameUserSettings::GetGameUserSettings()))
+	{
+		UserSettings->OnMusicVolumeChanged.RemoveAll(this);
+	}
+}
+
 void UPGMusicComponent::RefreshMusicForCurrentState()
 {
 	if (!BoundGameMode)
@@ -201,7 +230,7 @@ void UPGMusicComponent::PlayMusic(USoundBase* Music, TObjectPtr<UAudioComponent>
 	TargetComponent = UGameplayStatics::CreateSound2D(
 		this,
 		Music,
-		CachedMusicSettings.MusicVolume,
+		GetBaseMusicVolume(),
 		1.0f,
 		0.0f,
 		nullptr,
@@ -214,7 +243,7 @@ void UPGMusicComponent::PlayMusic(USoundBase* Music, TObjectPtr<UAudioComponent>
 	}
 
 	TargetComponent->bIsUISound = true;
-	TargetComponent->FadeIn(FMath::Max(0.0f, CachedMusicSettings.MusicFadeDuration), CachedMusicSettings.MusicVolume);
+	TargetComponent->FadeIn(FMath::Max(0.0f, CachedMusicSettings.MusicFadeDuration), GetBaseMusicVolume());
 }
 
 void UPGMusicComponent::FadeOutMusic(TObjectPtr<UAudioComponent>& MusicComponent)
@@ -242,8 +271,18 @@ void UPGMusicComponent::ApplyRunMusicVolume(float FadeDuration)
 		return;
 	}
 
-	const float TargetVolume = bIsMusicDucked ? CachedMusicSettings.PauseDuckedVolume : CachedMusicSettings.MusicVolume;
-	RunMusicComponent->AdjustVolume(FMath::Max(0.0f, FadeDuration), TargetVolume);
+	RunMusicComponent->AdjustVolume(FMath::Max(0.0f, FadeDuration), GetRunMusicTargetVolume());
+}
+
+float UPGMusicComponent::GetBaseMusicVolume() const
+{
+	return CachedMusicSettings.MusicVolume * UPGGameUserSettings::GetCurrentMusicVolumeScale();
+}
+
+float UPGMusicComponent::GetRunMusicTargetVolume() const
+{
+	const float BaseVolume = GetBaseMusicVolume();
+	return bIsMusicDucked ? BaseVolume * CachedMusicSettings.PauseDuckedVolume : BaseVolume;
 }
 
 bool UPGMusicComponent::IsRetryCountdownLoad() const
