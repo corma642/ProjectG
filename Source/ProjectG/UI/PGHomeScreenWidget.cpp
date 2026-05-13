@@ -4,6 +4,7 @@
 
 #include "Components/Button.h"
 #include "Components/Image.h"
+#include "Components/TextBlock.h"
 #include "Components/Widget.h"
 
 namespace
@@ -127,6 +128,14 @@ void UPGHomeScreenWidget::SetHomeButtonsEnabled(bool bEnabled) const
 	}
 }
 
+void UPGHomeScreenWidget::SetReceiptBalance(int32 Balance) const
+{
+	if (ReceiptBalanceText)
+	{
+		ReceiptBalanceText->SetText(FText::AsNumber(FMath::Max(0, Balance)));
+	}
+}
+
 void UPGHomeScreenWidget::HandleStartDeliveryClicked()
 {
 	OnStartDeliveryRequested.Broadcast();
@@ -154,6 +163,7 @@ void UPGHomeScreenWidget::ApplyExitAnimation(float Alpha)
 	ApplyWidgetExitAnimation(SkinsButton, SubButtonExitDelay, SubButtonExitOffset, AnimationTime);
 	ApplyWidgetExitAnimation(SettingsButton, SubButtonExitDelay, SubButtonExitOffset, AnimationTime);
 	ApplyWidgetExitAnimation(HelpButton, SubButtonExitDelay, SubButtonExitOffset, AnimationTime);
+	ApplyWidgetExitAnimation(ReceiptBalanceText, LogoExitDelay, LogoExitOffset, AnimationTime);
 }
 
 void UPGHomeScreenWidget::ApplyWidgetExitAnimation(UWidget* Widget, float Delay, const FVector2D& TargetOffset, float AnimationTime) const

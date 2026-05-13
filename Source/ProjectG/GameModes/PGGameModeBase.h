@@ -47,6 +47,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Run")
 	void RequestRunFailed(FName FailureReason);
 
+	// 실패 연출 없이 현재 런 보상만 정산합니다. Pause Home처럼 런을 종료하고 홈으로 돌아갈 때 사용합니다.
+	UFUNCTION(BlueprintCallable, Category = "ProjectG | Run")
+	void SettleCurrentRunRewards(FName Reason);
+
 	// 현재 러너 플레이 상태입니다.
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run")
 	EPGRunState GetRunState() const { return RunState; }
@@ -72,4 +76,5 @@ private:
 
 	FTimerHandle RunCountdownTimerHandle;
 	FTimerHandle RetryCountdownFallbackTimerHandle;
+	bool bRunRewardsSettled = false;
 };

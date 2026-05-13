@@ -14,6 +14,7 @@
 #include "UI/PGSettingsScreenWidget.h"
 #include "UI/PGTutorialScreenWidget.h"
 #include "Tutorial/PGTutorialPageSet.h"
+#include "Wallet/PGPlayerWalletSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGHomeFlow, Log, All);
 
@@ -40,6 +41,7 @@ void UPGHomeFlowComponent::BeginPlay()
 
 	BindGameMode();
 	BindRuntimePreloadSubsystem();
+	BindPlayerWalletSubsystem();
 
 	const FString StartFlowOption = GetWorld() ? GetWorld()->URL.GetOption(TEXT("StartFlow="), TEXT("")) : FString();
 	bRetryCountdownRequested = StartFlowOption.Equals(TEXT("RetryCountdown"), ESearchCase::IgnoreCase);
@@ -77,6 +79,7 @@ void UPGHomeFlowComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		RuntimePreloadSubsystem = nullptr;
 	}
 	UnbindGameMode();
+	UnbindPlayerWalletSubsystem();
 	CleanupWidgets();
 	Super::EndPlay(EndPlayReason);
 }
@@ -130,6 +133,30 @@ void UPGHomeFlowComponent::BindRuntimePreloadSubsystem()
 
 	RuntimePreloadSubsystem->OnPreloadCompleted.AddDynamic(this, &UPGHomeFlowComponent::HandleRuntimePreloadCompleted);
 	RuntimePreloadSubsystem->StartPreload();
+}
+
+void UPGHomeFlowComponent::BindPlayerWalletSubsystem()
+{
+	UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	if (PlayerWalletSubsystem || !GameInstance)
+	{
+		return;
+	}
+
+	PlayerWalletSubsystem = GameInstance->GetSubsystem<UPGPlayerWalletSubsystem>();
+	if (PlayerWalletSubsystem)
+	{
+		PlayerWalletSubsystem->OnReceiptBalanceChanged.AddDynamic(this, &UPGHomeFlowComponent::HandleReceiptBalanceChanged);
+	}
+}
+
+void UPGHomeFlowComponent::UnbindPlayerWalletSubsystem()
+{
+	if (PlayerWalletSubsystem)
+	{
+		PlayerWalletSubsystem->OnReceiptBalanceChanged.RemoveDynamic(this, &UPGHomeFlowComponent::HandleReceiptBalanceChanged);
+		PlayerWalletSubsystem = nullptr;
+	}
 }
 
 void UPGHomeFlowComponent::RequestStartDeliveryAfterPreload()
@@ -186,6 +213,7 @@ void UPGHomeFlowComponent::ShowHomeScreen()
 	HomeScreenWidget->OnStartDeliveryRequested.AddUObject(this, &UPGHomeFlowComponent::HandleStartDeliveryRequested);
 	HomeScreenWidget->OnSettingsRequested.AddUObject(this, &UPGHomeFlowComponent::HandleSettingsRequested);
 	HomeScreenWidget->OnHelpRequested.AddUObject(this, &UPGHomeFlowComponent::HandleHelpRequested);
+	HomeScreenWidget->SetReceiptBalance(PlayerWalletSubsystem ? PlayerWalletSubsystem->GetReceiptBalance() : 0);
 	HomeScreenWidget->AddToViewport(10);
 }
 
@@ -464,6 +492,14 @@ void UPGHomeFlowComponent::HandleRuntimePreloadCompleted()
 	}
 
 	ShowHomeScreen();
+}
+
+void UPGHomeFlowComponent::HandleReceiptBalanceChanged(int32 NewBalance, FName Reason)
+{
+	if (HomeScreenWidget)
+	{
+		HomeScreenWidget->SetReceiptBalance(NewBalance);
+	}
 }
 
 void UPGHomeFlowComponent::ApplyHomeInputMode()

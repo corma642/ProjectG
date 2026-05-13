@@ -7,6 +7,7 @@
 #include "Player/PGPlayerController.h"
 #include "Settings/PGGameSettings.h"
 #include "TimerManager.h"
+#include "Wallet/PGPlayerWalletSubsystem.h"
 
 APGGameModeBase::APGGameModeBase()
 {
@@ -39,6 +40,7 @@ void APGGameModeBase::RequestStartDelivery()
 	const float CountdownDuration = Settings ? FMath::Max(0.0f, Settings->HomeFlow.RunStartCountdownDuration) : 3.0f;
 
 	RunState = EPGRunState::Countdown;
+	bRunRewardsSettled = false;
 	GetWorldTimerManager().ClearTimer(RetryCountdownFallbackTimerHandle);
 	OnRunCountdownStarted.Broadcast(CountdownDuration);
 
@@ -59,6 +61,7 @@ void APGGameModeBase::RequestRunFailed(FName FailureReason)
 	}
 
 	RunState = EPGRunState::Failed;
+	SettleCurrentRunRewards(FailureReason);
 	GetWorldTimerManager().ClearTimer(RunCountdownTimerHandle);
 	GetWorldTimerManager().ClearTimer(RetryCountdownFallbackTimerHandle);
 	OnRunFailed.Broadcast(FailureReason);
@@ -80,6 +83,32 @@ void APGGameModeBase::HandleRetryCountdownFallback()
 	if (RunState == EPGRunState::Home)
 	{
 		RequestStartDelivery();
+	}
+}
+
+void APGGameModeBase::SettleCurrentRunRewards(FName Reason)
+{
+	if (bRunRewardsSettled)
+	{
+		return;
+	}
+
+	bRunRewardsSettled = true;
+
+	UWorld* World = GetWorld();
+	const APlayerController* PlayerController = World ? World->GetFirstPlayerController() : nullptr;
+	const APGRunnerCharacter* RunnerCharacter = PlayerController ? Cast<APGRunnerCharacter>(PlayerController->GetPawn()) : nullptr;
+	const int32 RunReceipts = RunnerCharacter ? RunnerCharacter->GetRunReceipts() : 0;
+	if (RunReceipts <= 0)
+	{
+		return;
+	}
+
+	UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
+	UPGPlayerWalletSubsystem* WalletSubsystem = GameInstance ? GameInstance->GetSubsystem<UPGPlayerWalletSubsystem>() : nullptr;
+	if (WalletSubsystem)
+	{
+		WalletSubsystem->AddReceipts(RunReceipts, Reason);
 	}
 }
 

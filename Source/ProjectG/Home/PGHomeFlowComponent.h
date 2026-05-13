@@ -14,6 +14,7 @@ class UPGHomeScreenWidget;
 class UPGRunCountdownWidget;
 class UPGSettingsScreenWidget;
 class UPGTutorialScreenWidget;
+class UPGPlayerWalletSubsystem;
 
 /**
  * 홈 화면 표시, 홈 카메라 전환, START DELIVERY, 카운트다운 UI를 로컬 플레이어 기준으로 자동 관리합니다.
@@ -39,9 +40,14 @@ private:
 	UFUNCTION()
 	void HandleRuntimePreloadCompleted();
 
+	UFUNCTION()
+	void HandleReceiptBalanceChanged(int32 NewBalance, FName Reason);
+
 	void BindGameMode();
 	void UnbindGameMode();
 	void BindRuntimePreloadSubsystem();
+	void BindPlayerWalletSubsystem();
+	void UnbindPlayerWalletSubsystem();
 	void RequestStartDeliveryAfterPreload();
 	void ShowHomeScreen();
 	void SetHomeCameraViewTarget();
@@ -66,6 +72,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPGRuntimePreloadSubsystem> RuntimePreloadSubsystem;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UPGPlayerWalletSubsystem> PlayerWalletSubsystem;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPGHomeScreenWidget> HomeScreenWidget;

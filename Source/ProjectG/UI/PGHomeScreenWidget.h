@@ -8,6 +8,7 @@
 
 class UButton;
 class UImage;
+class UTextBlock;
 class UWidget;
 
 DECLARE_MULTICAST_DELEGATE(FPGHomeStartDeliveryRequestedSignature);
@@ -34,6 +35,9 @@ public:
 	// 리소스 예열 대기나 설정 화면 표시 중 홈 버튼 입력을 잠그거나 다시 엽니다.
 	void SetHomeButtonsEnabled(bool bEnabled) const;
 
+	// Home 화면에 표시할 누적 영수증 보유량을 갱신합니다.
+	void SetReceiptBalance(int32 Balance) const;
+
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
@@ -56,6 +60,9 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Home")
 	TObjectPtr<UButton> HelpButton;
+
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Home")
+	TObjectPtr<UTextBlock> ReceiptBalanceText;
 
 private:
 	UFUNCTION()
