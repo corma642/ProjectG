@@ -56,6 +56,10 @@ void UPGRunPauseWidget::NativeConstruct()
 	{
 		SettingsButton->OnClicked.AddDynamic(this, &UPGRunPauseWidget::HandleSettingsClicked);
 	}
+	if (HomeButton)
+	{
+		HomeButton->OnClicked.AddDynamic(this, &UPGRunPauseWidget::HandleHomeClicked);
+	}
 
 	ApplyAnimationState(0.0f, false);
 }
@@ -69,6 +73,10 @@ void UPGRunPauseWidget::NativeDestruct()
 	if (SettingsButton)
 	{
 		SettingsButton->OnClicked.RemoveDynamic(this, &UPGRunPauseWidget::HandleSettingsClicked);
+	}
+	if (HomeButton)
+	{
+		HomeButton->OnClicked.RemoveDynamic(this, &UPGRunPauseWidget::HandleHomeClicked);
 	}
 
 	Super::NativeDestruct();
@@ -131,6 +139,10 @@ void UPGRunPauseWidget::SetPauseButtonsEnabled(bool bEnabled) const
 	{
 		SettingsButton->SetIsEnabled(bEnabled);
 	}
+	if (HomeButton)
+	{
+		HomeButton->SetIsEnabled(bEnabled);
+	}
 }
 
 void UPGRunPauseWidget::HandleResumeClicked()
@@ -141,6 +153,12 @@ void UPGRunPauseWidget::HandleResumeClicked()
 void UPGRunPauseWidget::HandleSettingsClicked()
 {
 	OnSettingsRequested.Broadcast();
+}
+
+void UPGRunPauseWidget::HandleHomeClicked()
+{
+	SetPauseButtonsEnabled(false);
+	OnHomeRequested.Broadcast();
 }
 
 void UPGRunPauseWidget::ApplyAnimationState(float Alpha, bool bClosing)
@@ -168,6 +186,7 @@ void UPGRunPauseWidget::ApplyAnimationState(float Alpha, bool bClosing)
 	ApplyRunPauseWidgetState(PausePanel, RunPauseDelayedAlpha(EffectiveAlpha, PausePanelDelay), FVector2D::ZeroVector);
 	ApplyRunPauseWidgetState(ResumeButton, RunPauseDelayedAlpha(EffectiveAlpha, PauseButtonDelay), FVector2D(-PauseButtonSlideDistance, 0.0f));
 	ApplyRunPauseWidgetState(SettingsButton, RunPauseDelayedAlpha(EffectiveAlpha, PauseButtonDelay + PauseButtonStagger), FVector2D(PauseButtonSlideDistance, 0.0f));
+	ApplyRunPauseWidgetState(HomeButton, RunPauseDelayedAlpha(EffectiveAlpha, PauseButtonDelay + PauseButtonStagger * 2.0f), FVector2D(0.0f, PauseButtonSlideDistance));
 
 	if (!bClosing && Alpha >= 1.0f)
 	{

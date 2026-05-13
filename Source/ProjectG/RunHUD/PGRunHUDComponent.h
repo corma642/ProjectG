@@ -59,6 +59,7 @@ private:
 	void HandlePauseRequested();
 	void HandleResumeRequested();
 	void HandlePauseSettingsRequested();
+	void HandlePauseHomeRequested();
 	void HandleSettingsScreenClosed();
 
 	void LoadSettings();

@@ -12,6 +12,7 @@ class UWidget;
 
 DECLARE_MULTICAST_DELEGATE(FPGRunPauseResumeRequestedSignature);
 DECLARE_MULTICAST_DELEGATE(FPGRunPauseSettingsRequestedSignature);
+DECLARE_MULTICAST_DELEGATE(FPGRunPauseHomeRequestedSignature);
 
 /**
  * 러닝 중 일시 정지 화면의 로직 위젯입니다.
@@ -25,6 +26,7 @@ class PROJECTG_API UPGRunPauseWidget : public UUserWidget
 public:
 	FPGRunPauseResumeRequestedSignature OnResumeRequested;
 	FPGRunPauseSettingsRequestedSignature OnSettingsRequested;
+	FPGRunPauseHomeRequestedSignature OnHomeRequested;
 
 	void PlayOpenAnimation(float InTargetBlurStrength, float InTargetDimAlpha);
 	void PlayCloseForResume();
@@ -56,12 +58,18 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Pause")
 	TObjectPtr<UButton> SettingsButton;
 
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Pause")
+	TObjectPtr<UButton> HomeButton;
+
 private:
 	UFUNCTION()
 	void HandleResumeClicked();
 
 	UFUNCTION()
 	void HandleSettingsClicked();
+
+	UFUNCTION()
+	void HandleHomeClicked();
 
 	void ApplyAnimationState(float Alpha, bool bClosing);
 

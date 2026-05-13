@@ -202,6 +202,44 @@ void UPGRunHUDComponent::HandlePauseSettingsRequested()
 	ShowSettingsScreen();
 }
 
+void UPGRunHUDComponent::HandlePauseHomeRequested()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	if (BoundGameMode)
+	{
+		BoundGameMode->SettleCurrentRunRewards(TEXT("PauseHome"));
+	}
+
+	CleanupSettingsScreen();
+
+	if (PauseWidget)
+	{
+		PauseWidget->OnResumeRequested.RemoveAll(this);
+		PauseWidget->OnSettingsRequested.RemoveAll(this);
+		PauseWidget->OnHomeRequested.RemoveAll(this);
+		PauseWidget->RemoveFromParent();
+		PauseWidget = nullptr;
+	}
+
+	if (OwnerPlayerController)
+	{
+		if (UPGMusicComponent* MusicComponent = OwnerPlayerController->FindComponentByClass<UPGMusicComponent>())
+		{
+			MusicComponent->SetMusicDucked(false);
+		}
+	}
+
+	UGameplayStatics::SetGamePaused(World, false);
+
+	const FName CurrentLevelName = FName(*UGameplayStatics::GetCurrentLevelName(World, true));
+	UGameplayStatics::OpenLevel(World, CurrentLevelName);
+}
+
 void UPGRunHUDComponent::HandleSettingsScreenClosed()
 {
 	if (SettingsScreenWidget)
@@ -450,6 +488,7 @@ void UPGRunHUDComponent::ShowPauseScreen()
 
 	PauseWidget->OnResumeRequested.AddUObject(this, &UPGRunHUDComponent::HandleResumeRequested);
 	PauseWidget->OnSettingsRequested.AddUObject(this, &UPGRunHUDComponent::HandlePauseSettingsRequested);
+	PauseWidget->OnHomeRequested.AddUObject(this, &UPGRunHUDComponent::HandlePauseHomeRequested);
 	PauseWidget->AddToViewport(60);
 	PauseWidget->PlayOpenAnimation(CachedRunHUDSettings.PauseBackdropBlurStrength, CachedRunHUDSettings.PauseBackdropDimAlpha);
 	UGameplayStatics::SetGamePaused(GetWorld(), true);
@@ -464,6 +503,7 @@ void UPGRunHUDComponent::CleanupPauseScreen(bool bResumeGame)
 	{
 		PauseWidget->OnResumeRequested.RemoveAll(this);
 		PauseWidget->OnSettingsRequested.RemoveAll(this);
+		PauseWidget->OnHomeRequested.RemoveAll(this);
 		PauseWidget->RemoveFromParent();
 		PauseWidget = nullptr;
 	}
