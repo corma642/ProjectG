@@ -364,7 +364,7 @@ enum class EPGMobileQualityPreset : uint8
 	Low UMETA(DisplayName = "Low"),
 	Balanced UMETA(DisplayName = "Balanced"),
 	High UMETA(DisplayName = "High"),
-	Ultra UMETA(DisplayName = "Ultra")
+	Ultra UMETA(Hidden, DisplayName = "Deprecated Ultra")
 };
 
 /**
@@ -380,7 +380,7 @@ struct FPGMobileQualityPresetSettings
 	float ResolutionScalePercent = 90.0f;
 
 	// 모바일 프레임 제한. 0이면 엔진 기본값을 사용한다.
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality", meta = (ClampMin = "0", UIMin = "0", UIMax = "120"))
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality", meta = (ClampMin = "0", UIMin = "0", UIMax = "60"))
 	int32 FrameRateLimit = 60;
 
 	// 모바일 안티앨리어싱 방식 CVar 값. 기본값 2는 FXAA보다 외곽 자글거림을 줄이는 쪽으로 둔다.
@@ -388,27 +388,27 @@ struct FPGMobileQualityPresetSettings
 	int32 MobileAntiAliasingMode = 2;
 
 	// Scalability AntiAliasing 품질 단계
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality", meta = (ClampMin = "0", ClampMax = "4", UIMin = "0", UIMax = "4"))
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality", meta = (ClampMin = "0", ClampMax = "3", UIMin = "0", UIMax = "3"))
 	int32 AntiAliasingQuality = 2;
 
 	// Scalability Texture 품질 단계
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality", meta = (ClampMin = "0", ClampMax = "4", UIMin = "0", UIMax = "4"))
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality", meta = (ClampMin = "0", ClampMax = "3", UIMin = "0", UIMax = "3"))
 	int32 TextureQuality = 2;
 
 	// Scalability Shadow 품질 단계
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality", meta = (ClampMin = "0", ClampMax = "4", UIMin = "0", UIMax = "4"))
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality", meta = (ClampMin = "0", ClampMax = "3", UIMin = "0", UIMax = "3"))
 	int32 ShadowQuality = 1;
 
 	// Scalability PostProcess 품질 단계
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality", meta = (ClampMin = "0", ClampMax = "4", UIMin = "0", UIMax = "4"))
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality", meta = (ClampMin = "0", ClampMax = "3", UIMin = "0", UIMax = "3"))
 	int32 PostProcessQuality = 1;
 
 	// Scalability Effects 품질 단계
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality", meta = (ClampMin = "0", ClampMax = "4", UIMin = "0", UIMax = "4"))
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality", meta = (ClampMin = "0", ClampMax = "3", UIMin = "0", UIMax = "3"))
 	int32 EffectsQuality = 1;
 
 	// Scalability ViewDistance 품질 단계
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality", meta = (ClampMin = "0", ClampMax = "4", UIMin = "0", UIMax = "4"))
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality", meta = (ClampMin = "0", ClampMax = "3", UIMin = "0", UIMax = "3"))
 	int32 ViewDistanceQuality = 1;
 
 	// 사선 텍스처 선명도. 너무 높이면 저사양 GPU 비용이 증가한다.
@@ -426,7 +426,7 @@ struct FPGMobileQualitySettings
 
 	// 새 유저 또는 설정 파일이 없는 경우 적용할 기본 프리셋
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality")
-	EPGMobileQualityPreset DefaultPreset = EPGMobileQualityPreset::Ultra;
+	EPGMobileQualityPreset DefaultPreset = EPGMobileQualityPreset::High;
 
 	// 저전력/저사양 기기용 프리셋
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality")
@@ -440,9 +440,6 @@ struct FPGMobileQualitySettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality")
 	FPGMobileQualityPresetSettings High;
 
-	// 최고 품질 확인용 프리셋. 해상도는 우선 100%를 넘기지 않는다.
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality")
-	FPGMobileQualityPresetSettings Ultra;
 };
 
 /**

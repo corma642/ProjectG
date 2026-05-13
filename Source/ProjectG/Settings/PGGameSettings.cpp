@@ -41,15 +41,5 @@ UPGGameSettings::UPGGameSettings()
 	MobileQuality.High.ViewDistanceQuality = 3;
 	MobileQuality.High.MaxAnisotropy = 8;
 
-	MobileQuality.Ultra.ResolutionScalePercent = 100.0f;
-	MobileQuality.Ultra.FrameRateLimit = 120;
-	MobileQuality.Ultra.MobileAntiAliasingMode = 2;
-	MobileQuality.Ultra.AntiAliasingQuality = 4;
-	MobileQuality.Ultra.TextureQuality = 4;
-	MobileQuality.Ultra.ShadowQuality = 4;
-	MobileQuality.Ultra.PostProcessQuality = 4;
-	MobileQuality.Ultra.EffectsQuality = 4;
-	MobileQuality.Ultra.ViewDistanceQuality = 4;
-	MobileQuality.Ultra.MaxAnisotropy = 8;
-	MobileQuality.DefaultPreset = EPGMobileQualityPreset::Ultra;
+	MobileQuality.DefaultPreset = EPGMobileQualityPreset::High;
 }

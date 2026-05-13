@@ -50,10 +50,6 @@ void UPGSettingsScreenWidget::NativeConstruct()
 	{
 		HighPresetButton->OnClicked.AddDynamic(this, &UPGSettingsScreenWidget::HandleHighPresetClicked);
 	}
-	if (UltraPresetButton)
-	{
-		UltraPresetButton->OnClicked.AddDynamic(this, &UPGSettingsScreenWidget::HandleUltraPresetClicked);
-	}
 	if (ResolutionScaleSlider)
 	{
 		ResolutionScaleSlider->SetMinValue(MinResolutionScalePercent);
@@ -69,10 +65,6 @@ void UPGSettingsScreenWidget::NativeConstruct()
 	if (FrameRate60Button)
 	{
 		FrameRate60Button->OnClicked.AddDynamic(this, &UPGSettingsScreenWidget::HandleFrameRate60Clicked);
-	}
-	if (FrameRate120Button)
-	{
-		FrameRate120Button->OnClicked.AddDynamic(this, &UPGSettingsScreenWidget::HandleFrameRate120Clicked);
 	}
 	if (ShowFPSCheckBox)
 	{
@@ -117,10 +109,6 @@ void UPGSettingsScreenWidget::NativeDestruct()
 	{
 		HighPresetButton->OnClicked.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleHighPresetClicked);
 	}
-	if (UltraPresetButton)
-	{
-		UltraPresetButton->OnClicked.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleUltraPresetClicked);
-	}
 	if (ResolutionScaleSlider)
 	{
 		ResolutionScaleSlider->OnValueChanged.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleResolutionScaleChanged);
@@ -134,10 +122,6 @@ void UPGSettingsScreenWidget::NativeDestruct()
 	if (FrameRate60Button)
 	{
 		FrameRate60Button->OnClicked.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleFrameRate60Clicked);
-	}
-	if (FrameRate120Button)
-	{
-		FrameRate120Button->OnClicked.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleFrameRate120Clicked);
 	}
 	if (ShowFPSCheckBox)
 	{
@@ -230,11 +214,6 @@ void UPGSettingsScreenWidget::HandleHighPresetClicked()
 	ApplyPreset(EPGMobileQualityPreset::High);
 }
 
-void UPGSettingsScreenWidget::HandleUltraPresetClicked()
-{
-	ApplyPreset(EPGMobileQualityPreset::Ultra);
-}
-
 void UPGSettingsScreenWidget::HandleResolutionScaleChanged(float Value)
 {
 	if (bIsUpdatingControls)
@@ -268,11 +247,6 @@ void UPGSettingsScreenWidget::HandleFrameRate30Clicked()
 void UPGSettingsScreenWidget::HandleFrameRate60Clicked()
 {
 	ApplyFrameRate(60);
-}
-
-void UPGSettingsScreenWidget::HandleFrameRate120Clicked()
-{
-	ApplyFrameRate(120);
 }
 
 void UPGSettingsScreenWidget::HandleShowFPSCheckStateChanged(bool bIsChecked)
@@ -435,10 +409,6 @@ void UPGSettingsScreenWidget::SetAllButtonsEnabled(bool bEnabled) const
 	{
 		HighPresetButton->SetIsEnabled(bEnabled);
 	}
-	if (UltraPresetButton)
-	{
-		UltraPresetButton->SetIsEnabled(bEnabled);
-	}
 	if (FrameRate30Button)
 	{
 		FrameRate30Button->SetIsEnabled(bEnabled);
@@ -446,10 +416,6 @@ void UPGSettingsScreenWidget::SetAllButtonsEnabled(bool bEnabled) const
 	if (FrameRate60Button)
 	{
 		FrameRate60Button->SetIsEnabled(bEnabled);
-	}
-	if (FrameRate120Button)
-	{
-		FrameRate120Button->SetIsEnabled(bEnabled);
 	}
 	if (ResolutionScaleSlider)
 	{
@@ -483,10 +449,6 @@ void UPGSettingsScreenWidget::SetPresetSelectionState(EPGMobileQualityPreset Pre
 	{
 		HighPresetButton->SetIsEnabled(Preset != EPGMobileQualityPreset::High);
 	}
-	if (UltraPresetButton)
-	{
-		UltraPresetButton->SetIsEnabled(Preset != EPGMobileQualityPreset::Ultra);
-	}
 }
 
 void UPGSettingsScreenWidget::SetFrameRateSelectionState(int32 InFrameRateLimit) const
@@ -498,10 +460,6 @@ void UPGSettingsScreenWidget::SetFrameRateSelectionState(int32 InFrameRateLimit)
 	if (FrameRate60Button)
 	{
 		FrameRate60Button->SetIsEnabled(InFrameRateLimit != 60);
-	}
-	if (FrameRate120Button)
-	{
-		FrameRate120Button->SetIsEnabled(InFrameRateLimit != 120);
 	}
 }
 

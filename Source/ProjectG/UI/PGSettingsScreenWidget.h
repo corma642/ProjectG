@@ -61,9 +61,6 @@ protected:
 	TObjectPtr<UButton> HighPresetButton;
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
-	TObjectPtr<UButton> UltraPresetButton;
-
-	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
 	TObjectPtr<USlider> ResolutionScaleSlider;
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
@@ -74,9 +71,6 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
 	TObjectPtr<UButton> FrameRate60Button;
-
-	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
-	TObjectPtr<UButton> FrameRate120Button;
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
 	TObjectPtr<UCheckBox> ShowFPSCheckBox;
@@ -107,9 +101,6 @@ private:
 	void HandleHighPresetClicked();
 
 	UFUNCTION()
-	void HandleUltraPresetClicked();
-
-	UFUNCTION()
 	void HandleResolutionScaleChanged(float Value);
 
 	UFUNCTION()
@@ -120,9 +111,6 @@ private:
 
 	UFUNCTION()
 	void HandleFrameRate60Clicked();
-
-	UFUNCTION()
-	void HandleFrameRate120Clicked();
 
 	UFUNCTION()
 	void HandleShowFPSCheckStateChanged(bool bIsChecked);

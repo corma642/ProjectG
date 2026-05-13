@@ -86,6 +86,7 @@ public:
 
 private:
 	void CopyPresetToSavedSettings(EPGMobileQualityPreset Preset);
+	void NormalizeSavedMobileQualitySettings();
 	void ApplySavedMobileQualityToEngine();
 	const FPGMobileQualityPresetSettings& GetPresetSettings(EPGMobileQualityPreset Preset) const;
 	static void SetConsoleVariableInt(const TCHAR* Name, int32 Value);
@@ -93,7 +94,7 @@ private:
 
 	// 사용자가 마지막으로 선택한 모바일 품질 프리셋
 	UPROPERTY(Config)
-	EPGMobileQualityPreset SelectedMobileQualityPreset = EPGMobileQualityPreset::Ultra;
+	EPGMobileQualityPreset SelectedMobileQualityPreset = EPGMobileQualityPreset::High;
 
 	// 내부 렌더 해상도 비율
 	UPROPERTY(Config)
@@ -101,29 +102,29 @@ private:
 
 	// 모바일 프레임 제한
 	UPROPERTY(Config)
-	int32 SavedMobileFrameRateLimit = 120;
+	int32 SavedMobileFrameRateLimit = 60;
 
 	// 모바일 안티앨리어싱 방식 CVar 값
 	UPROPERTY(Config)
 	int32 MobileAntiAliasingMode = 2;
 
 	UPROPERTY(Config)
-	int32 AntiAliasingQuality = 4;
+	int32 AntiAliasingQuality = 3;
 
 	UPROPERTY(Config)
-	int32 TextureQuality = 4;
+	int32 TextureQuality = 3;
 
 	UPROPERTY(Config)
-	int32 ShadowQuality = 4;
+	int32 ShadowQuality = 3;
 
 	UPROPERTY(Config)
-	int32 PostProcessQuality = 4;
+	int32 PostProcessQuality = 3;
 
 	UPROPERTY(Config)
-	int32 EffectsQuality = 4;
+	int32 EffectsQuality = 3;
 
 	UPROPERTY(Config)
-	int32 ViewDistanceQuality = 4;
+	int32 ViewDistanceQuality = 3;
 
 	UPROPERTY(Config)
 	int32 MaxAnisotropy = 8;
