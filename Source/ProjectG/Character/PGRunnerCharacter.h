@@ -11,6 +11,7 @@
 #include "PGRunnerCharacter.generated.h"
 
 class UCameraComponent;
+class UPGCharacterSkinDefinition;
 class UPGRunProgressComponent;
 class USpringArmComponent;
 
@@ -31,6 +32,9 @@ public:
 
 	// 시작 위치와 Project Settings 값을 캐시하고 런타임 컴포넌트를 초기화한다.
 	virtual void BeginPlay() override;
+
+	// 런 중 생성한 Bowl Actor가 레벨 전환/재시작 때 남지 않도록 정리한다.
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	// 입력 방향(-1: 왼쪽, 1: 오른쪽)에 따라 인접 라인 이동을 요청한다.
 	void RequestLaneChange(int32 Direction);
@@ -76,6 +80,12 @@ public:
 	// HUD가 점수, 거리, 영수증 변화를 구독할 때 사용하는 진행 컴포넌트입니다.
 	UPGRunProgressComponent* GetRunProgressComponent() const { return RunProgressComponent; }
 
+	// 상점/저장 시스템에서 선택한 캐릭터 스킨을 러너 시각 메시로 적용합니다.
+	bool ApplyCharacterSkin(const UPGCharacterSkinDefinition* SkinDefinition);
+
+	// 현재 저장된 장착 캐릭터 스킨을 러너에 적용합니다.
+	void ApplyEquippedCharacterSkin();
+
 	// 물리 적재물이 손실됐을 때 런 실패를 요청한다.
 	UFUNCTION()
 	void HandleCargoLost(int32 CargoIndex);
@@ -97,6 +107,14 @@ protected:
 	// 3라인 이동 상태와 캡슐 lateral 이동을 담당하는 러너 전용 이동 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement")
 	TObjectPtr<UPGRunnerMovementComponent> RunnerMovementComponent;
+
+	// 런 시작 시 머리 소켓에 스폰/부착할 바구니 Actor 클래스
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo")
+	TSubclassOf<AActor> BowlActorClass;
+
+	// 바구니 부착 소켓 이름
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo")
+	FName BowlSocketName = FName(TEXT("s_HeadCargoSocket"));
 
 	// 물리 적재물 생성/대기/손실 상태를 관리하는 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cargo")
@@ -121,6 +139,12 @@ protected:
 private:
 	// Project Settings의 Go Deliver 설정값을 캐시하고 컴포넌트 기본값에 반영한다.
 	void ApplyGameSettings();
+
+	// 카운트다운 시작 시 현재 캐릭터 메시의 BowlSocketName에 바구니 Actor를 1회 부착한다.
+	void AttachBowlForRun();
+
+	// 런 실패/레벨 종료 시 런타임 바구니 Actor를 제거한다.
+	void DetachAndDestroyBowl();
 
 	// 러너 기준 전방 축으로 매 프레임 자동 전진 입력을 넣는다.
 	void UpdateForwardMovement();
@@ -200,4 +224,7 @@ private:
 
 	// 몸 기울기 연출을 더하기 위한 Skeletal Mesh 초기 상대 회전
 	FRotator InitialMeshRelativeRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(Transient)
+	TObjectPtr<AActor> AttachedBowlActor;
 };

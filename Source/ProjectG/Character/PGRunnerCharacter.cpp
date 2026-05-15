@@ -6,11 +6,16 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/Engine.h"
+#include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameModes/PGGameModeBase.h"
 #include "RunProgress/PGRunProgressComponent.h"
 #include "Settings/PGGameSettings.h"
+#include "Shop/PGCharacterSkinDefinition.h"
+#include "Shop/PGPlayerShopSubsystem.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogPGRunnerCharacter, Log, All);
 
 APGRunnerCharacter::APGRunnerCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UPGRunnerMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -111,10 +116,17 @@ void APGRunnerCharacter::BeginPlay()
 		}
 	}
 
+	ApplyEquippedCharacterSkin();
 	if (USkeletalMeshComponent* MeshComponent = GetMesh())
 	{
 		InitialMeshRelativeRotation = MeshComponent->GetRelativeRotation();
 	}
+}
+
+void APGRunnerCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	DetachAndDestroyBowl();
+	Super::EndPlay(EndPlayReason);
 }
 
 void APGRunnerCharacter::Tick(float DeltaSeconds)
@@ -241,6 +253,37 @@ int32 APGRunnerCharacter::GetDeliveredCargoCount() const
 	return CargoStackComponent ? CargoStackComponent->GetDeliveredCargoCount() : 0;
 }
 
+bool APGRunnerCharacter::ApplyCharacterSkin(const UPGCharacterSkinDefinition* SkinDefinition)
+{
+	USkeletalMeshComponent* MeshComponent = GetMesh();
+	if (!MeshComponent || !SkinDefinition || !SkinDefinition->SkeletalMesh)
+	{
+		return false;
+	}
+
+	MeshComponent->SetSkeletalMesh(SkinDefinition->SkeletalMesh);
+	if (SkinDefinition->AnimClass)
+	{
+		MeshComponent->SetAnimInstanceClass(SkinDefinition->AnimClass);
+	}
+	MeshComponent->SetRelativeLocation(SkinDefinition->MeshRelativeLocation);
+	MeshComponent->SetRelativeRotation(SkinDefinition->MeshRelativeRotation);
+	MeshComponent->SetRelativeScale3D(SkinDefinition->MeshRelativeScale);
+	InitialMeshRelativeRotation = MeshComponent->GetRelativeRotation();
+	CurrentBodyRoll = 0.0f;
+	return true;
+}
+
+void APGRunnerCharacter::ApplyEquippedCharacterSkin()
+{
+	UGameInstance* GameInstance = GetGameInstance();
+	UPGPlayerShopSubsystem* ShopSubsystem = GameInstance ? GameInstance->GetSubsystem<UPGPlayerShopSubsystem>() : nullptr;
+	if (ShopSubsystem)
+	{
+		ShopSubsystem->RestoreEquippedCharacter();
+	}
+}
+
 int32 APGRunnerCharacter::GetCurrentLaneIndex() const
 {
 	return RunnerMovementComponent ? RunnerMovementComponent->GetCurrentLaneIndex() : 0;
@@ -303,6 +346,8 @@ void APGRunnerCharacter::HandleRunCountdownStarted(float Duration)
 	{
 		RunProgressComponent->StopRunProgress(GetActorLocation());
 	}
+
+	AttachBowlForRun();
 }
 
 void APGRunnerCharacter::HandleRunStarted()
@@ -353,6 +398,8 @@ void APGRunnerCharacter::HandleRunFailed(FName FailureReason)
 	BalanceElapsedTime = 0.0f;
 	CurrentBodyRoll = 0.0f;
 
+	DetachAndDestroyBowl();
+
 	if (RunnerEnvironmentComponent)
 	{
 		RunnerEnvironmentComponent->SetRunActive(false);
@@ -400,6 +447,58 @@ void APGRunnerCharacter::ApplyGameSettings()
 	CameraBoom->SocketOffset = CachedCameraSettings.SocketOffset;
 	CameraBoom->CameraLagSpeed = CachedCameraSettings.LagSpeed;
 	FollowCamera->SetFieldOfView(CachedCameraSettings.DefaultFOV);
+}
+
+void APGRunnerCharacter::AttachBowlForRun()
+{
+	if (IsValid(AttachedBowlActor))
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* MeshComponent = GetMesh();
+	UWorld* World = GetWorld();
+	if (!World || !MeshComponent || !BowlActorClass || BowlSocketName.IsNone())
+	{
+		return;
+	}
+
+	if (!MeshComponent->DoesSocketExist(BowlSocketName))
+	{
+		UE_LOG(LogPGRunnerCharacter, Warning, TEXT("Bowl attach failed: socket '%s' was not found on mesh '%s'."), *BowlSocketName.ToString(), *GetNameSafe(MeshComponent->GetSkeletalMeshAsset()));
+		return;
+	}
+
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.Owner = this;
+	SpawnParameters.Instigator = this;
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	AActor* NewBowlActor = World->SpawnActor<AActor>(BowlActorClass, FTransform::Identity, SpawnParameters);
+	if (!NewBowlActor)
+	{
+		return;
+	}
+
+	NewBowlActor->AttachToComponent(
+		MeshComponent,
+		FAttachmentTransformRules(EAttachmentRule::SnapToTarget, EAttachmentRule::KeepRelative, EAttachmentRule::KeepRelative, true),
+		BowlSocketName);
+	NewBowlActor->SetActorEnableCollision(true);
+	AttachedBowlActor = NewBowlActor;
+}
+
+void APGRunnerCharacter::DetachAndDestroyBowl()
+{
+	if (!IsValid(AttachedBowlActor))
+	{
+		AttachedBowlActor = nullptr;
+		return;
+	}
+
+	AttachedBowlActor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	AttachedBowlActor->Destroy();
+	AttachedBowlActor = nullptr;
 }
 
 void APGRunnerCharacter::UpdateForwardMovement()
