@@ -92,6 +92,7 @@ void UPGRunHUDComponent::HandleRunnerUnpossessed()
 
 void UPGRunHUDComponent::HandleRunStarted()
 {
+	HandleRunnerPossessed(Cast<APGRunnerCharacter>(OwnerPlayerController ? OwnerPlayerController->GetPawn() : nullptr));
 	ShowHUD();
 	UpdateHUDInteractionState();
 	RefreshHUDValues();
@@ -100,6 +101,7 @@ void UPGRunHUDComponent::HandleRunStarted()
 
 void UPGRunHUDComponent::HandleRunCountdownStarted(float Duration)
 {
+	HandleRunnerPossessed(Cast<APGRunnerCharacter>(OwnerPlayerController ? OwnerPlayerController->GetPawn() : nullptr));
 	ShowHUD();
 	UpdateHUDInteractionState();
 	RefreshHUDValues();

@@ -86,9 +86,6 @@ public:
 	// 현재 저장된 장착 캐릭터 스킨을 러너에 적용합니다.
 	void ApplyEquippedCharacterSkin();
 
-	// Home/Shop 프리뷰 위치에서 실제 러닝 시작 지점으로 이동하고 라인/밸런스 기준을 재설정합니다.
-	void MoveToRunStartTransform(const FTransform& RunStartTransform);
-
 	// 물리 적재물이 손실됐을 때 런 실패를 요청한다.
 	UFUNCTION()
 	void HandleCargoLost(int32 CargoIndex);

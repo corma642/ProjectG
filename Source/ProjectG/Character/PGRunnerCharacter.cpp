@@ -116,7 +116,6 @@ void APGRunnerCharacter::BeginPlay()
 		}
 	}
 
-	ApplyEquippedCharacterSkin();
 	if (USkeletalMeshComponent* MeshComponent = GetMesh())
 	{
 		InitialMeshRelativeRotation = MeshComponent->GetRelativeRotation();
@@ -284,41 +283,6 @@ void APGRunnerCharacter::ApplyEquippedCharacterSkin()
 	}
 }
 
-void APGRunnerCharacter::MoveToRunStartTransform(const FTransform& RunStartTransform)
-{
-	const FVector RunStartLocationValue = RunStartTransform.GetLocation();
-	const FRotator RunStartRotationValue = RunStartTransform.GetRotation().Rotator();
-	SetActorLocationAndRotation(RunStartLocationValue, RunStartRotationValue, false, nullptr, ETeleportType::TeleportPhysics);
-
-	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
-	{
-		Movement->StopMovementImmediately();
-	}
-
-	BalanceInput = 0.0f;
-	BaseInstabilityInput = 0.0f;
-	BalanceElapsedTime = 0.0f;
-	CurrentBodyRoll = 0.0f;
-	StartLocationZ = GetActorLocation().Z;
-	RunStartLocation = GetActorLocation();
-	RunStartForwardVector = GetActorForwardVector().GetSafeNormal();
-	RunStartTimeSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-
-	if (RunnerMovementComponent)
-	{
-		// Home 프리뷰 위치에서 가져온 라인 원점/방향을 버리고, 실제 런 시작 지점 기준으로 다시 고정한다.
-		RunnerMovementComponent->InitializeRunnerMovement(CachedLaneSettings, CachedGyroSettings, CachedBalanceSettings, GetActorLocation(), GetActorForwardVector(), GetActorRightVector());
-		RunnerMovementComponent->SetBalanceMovementInput(0.0f, 0.0f);
-	}
-
-	if (RunProgressComponent)
-	{
-		RunProgressComponent->StopRunProgress(GetActorLocation());
-	}
-
-	UpdateBodyLean(0.0f);
-}
-
 int32 APGRunnerCharacter::GetCurrentLaneIndex() const
 {
 	return RunnerMovementComponent ? RunnerMovementComponent->GetCurrentLaneIndex() : 0;
@@ -357,6 +321,11 @@ void APGRunnerCharacter::HandleCargoDelivered(int32 CargoInstanceId, int32 Score
 
 void APGRunnerCharacter::HandleRunCountdownStarted(float Duration)
 {
+	if (!IsPlayerControlled())
+	{
+		return;
+	}
+
 	bIsRunActive = true;
 	bIsRunCountdownActive = true;
 	bIsGameplayInputLocked = true;
@@ -387,6 +356,11 @@ void APGRunnerCharacter::HandleRunCountdownStarted(float Duration)
 
 void APGRunnerCharacter::HandleRunStarted()
 {
+	if (!IsPlayerControlled())
+	{
+		return;
+	}
+
 	bIsRunActive = true;
 	bIsRunCountdownActive = false;
 	bIsGameplayInputLocked = false;

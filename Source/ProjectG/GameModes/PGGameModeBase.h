@@ -6,6 +6,8 @@
 #include "GameFramework/GameModeBase.h"
 #include "PGGameModeBase.generated.h"
 
+class APGRunnerCharacter;
+
 /**
  * 현재 러너 플레이가 어느 단계에 있는지 나타내는 상태입니다.
  */
@@ -70,7 +72,8 @@ public:
 private:
 	void FinishRunCountdown();
 	void HandleRetryCountdownFallback();
-	void MoveRunnerToRunStartPoint();
+	APGRunnerCharacter* EnsureRunnerPossessedForRun();
+	APGRunnerCharacter* FindSingleRunnerInWorld() const;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Run", meta = (AllowPrivateAccess = "true"))
 	EPGRunState RunState = EPGRunState::Home;
@@ -78,5 +81,4 @@ private:
 	FTimerHandle RunCountdownTimerHandle;
 	FTimerHandle RetryCountdownFallbackTimerHandle;
 	bool bRunRewardsSettled = false;
-	bool bRunStartPointWarningLogged = false;
 };

@@ -5,6 +5,7 @@
 #include "Character/PGRunnerCharacter.h"
 #include "Engine/EngineBaseTypes.h"
 #include "EngineUtils.h"
+#include "GameFramework/PlayerController.h"
 #include "Player/PGPlayerController.h"
 #include "Settings/PGGameSettings.h"
 #include "TimerManager.h"
@@ -42,7 +43,11 @@ void APGGameModeBase::RequestStartDelivery()
 	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
 	const float CountdownDuration = Settings ? FMath::Max(0.0f, Settings->HomeFlow.RunStartCountdownDuration) : 3.0f;
 
-	MoveRunnerToRunStartPoint();
+	if (!EnsureRunnerPossessedForRun())
+	{
+		UE_LOG(LogPGGameModeBase, Warning, TEXT("Start delivery aborted: no playable runner is possessed."));
+		return;
+	}
 
 	RunState = EPGRunState::Countdown;
 	bRunRewardsSettled = false;
@@ -91,38 +96,62 @@ void APGGameModeBase::HandleRetryCountdownFallback()
 	}
 }
 
-void APGGameModeBase::MoveRunnerToRunStartPoint()
+APGRunnerCharacter* APGGameModeBase::EnsureRunnerPossessedForRun()
 {
 	UWorld* World = GetWorld();
 	APlayerController* PlayerController = World ? World->GetFirstPlayerController() : nullptr;
-	APGRunnerCharacter* RunnerCharacter = PlayerController ? Cast<APGRunnerCharacter>(PlayerController->GetPawn()) : nullptr;
-	if (!World || !RunnerCharacter)
+	if (!World || !PlayerController)
 	{
-		return;
+		return nullptr;
 	}
 
-	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
-	const FName RunStartPointTag = Settings ? Settings->HomeFlow.RunStartPointTag : FName(TEXT("RunStartPoint"));
-	if (RunStartPointTag.IsNone())
+	if (APGRunnerCharacter* PossessedRunner = Cast<APGRunnerCharacter>(PlayerController->GetPawn()))
 	{
-		return;
+		return PossessedRunner;
 	}
 
-	for (TActorIterator<AActor> ActorIt(World); ActorIt; ++ActorIt)
+	APGRunnerCharacter* SingleRunner = FindSingleRunnerInWorld();
+	if (!SingleRunner)
 	{
-		AActor* CandidateActor = *ActorIt;
-		if (CandidateActor && CandidateActor != RunnerCharacter && CandidateActor->ActorHasTag(RunStartPointTag))
+		return nullptr;
+	}
+
+	PlayerController->Possess(SingleRunner);
+	return Cast<APGRunnerCharacter>(PlayerController->GetPawn());
+}
+
+APGRunnerCharacter* APGGameModeBase::FindSingleRunnerInWorld() const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return nullptr;
+	}
+
+	APGRunnerCharacter* FoundRunner = nullptr;
+	int32 RunnerCount = 0;
+	for (TActorIterator<APGRunnerCharacter> RunnerIt(World); RunnerIt; ++RunnerIt)
+	{
+		APGRunnerCharacter* Runner = *RunnerIt;
+		if (!IsValid(Runner))
 		{
-			RunnerCharacter->MoveToRunStartTransform(CandidateActor->GetActorTransform());
-			return;
+			continue;
+		}
+
+		FoundRunner = Runner;
+		++RunnerCount;
+		if (RunnerCount > 1)
+		{
+			UE_LOG(LogPGGameModeBase, Warning, TEXT("Found multiple APGRunnerCharacter actors. Set exactly one playable runner or possess it before starting."));
+			return nullptr;
 		}
 	}
 
-	if (!bRunStartPointWarningLogged)
+	if (!FoundRunner)
 	{
-		bRunStartPointWarningLogged = true;
-		UE_LOG(LogPGGameModeBase, Warning, TEXT("RunStartPoint actor with tag '%s' was not found. Runner will start from its current location."), *RunStartPointTag.ToString());
+		UE_LOG(LogPGGameModeBase, Warning, TEXT("No APGRunnerCharacter actor was found for run start."));
 	}
+	return FoundRunner;
 }
 
 void APGGameModeBase::SettleCurrentRunRewards(FName Reason)
