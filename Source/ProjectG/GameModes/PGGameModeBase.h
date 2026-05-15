@@ -70,6 +70,7 @@ public:
 private:
 	void FinishRunCountdown();
 	void HandleRetryCountdownFallback();
+	void MoveRunnerToRunStartPoint();
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Run", meta = (AllowPrivateAccess = "true"))
 	EPGRunState RunState = EPGRunState::Home;
@@ -77,4 +78,5 @@ private:
 	FTimerHandle RunCountdownTimerHandle;
 	FTimerHandle RetryCountdownFallbackTimerHandle;
 	bool bRunRewardsSettled = false;
+	bool bRunStartPointWarningLogged = false;
 };

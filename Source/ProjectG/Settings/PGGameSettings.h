@@ -315,6 +315,10 @@ struct FPGHomeFlowSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Home Flow | Camera", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3.0"))
 	float HomeToRunnerCameraBlendTime = 0.6f;
 
+	// 러닝 시작 위치와 회전을 제공하는 레벨 Actor 태그
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Home Flow | Run")
+	FName RunStartPointTag = TEXT("RunStartPoint");
+
 	// START DELIVERY 이후 홈 UI가 화면 밖으로 빠지는 시간
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Home Flow | Animation", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2.0"))
 	float HomeExitAnimationDuration = 0.35f;

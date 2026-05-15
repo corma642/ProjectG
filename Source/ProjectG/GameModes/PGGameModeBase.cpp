@@ -4,10 +4,13 @@
 
 #include "Character/PGRunnerCharacter.h"
 #include "Engine/EngineBaseTypes.h"
+#include "EngineUtils.h"
 #include "Player/PGPlayerController.h"
 #include "Settings/PGGameSettings.h"
 #include "TimerManager.h"
 #include "Wallet/PGPlayerWalletSubsystem.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogPGGameModeBase, Log, All);
 
 APGGameModeBase::APGGameModeBase()
 {
@@ -38,6 +41,8 @@ void APGGameModeBase::RequestStartDelivery()
 
 	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
 	const float CountdownDuration = Settings ? FMath::Max(0.0f, Settings->HomeFlow.RunStartCountdownDuration) : 3.0f;
+
+	MoveRunnerToRunStartPoint();
 
 	RunState = EPGRunState::Countdown;
 	bRunRewardsSettled = false;
@@ -83,6 +88,40 @@ void APGGameModeBase::HandleRetryCountdownFallback()
 	if (RunState == EPGRunState::Home)
 	{
 		RequestStartDelivery();
+	}
+}
+
+void APGGameModeBase::MoveRunnerToRunStartPoint()
+{
+	UWorld* World = GetWorld();
+	APlayerController* PlayerController = World ? World->GetFirstPlayerController() : nullptr;
+	APGRunnerCharacter* RunnerCharacter = PlayerController ? Cast<APGRunnerCharacter>(PlayerController->GetPawn()) : nullptr;
+	if (!World || !RunnerCharacter)
+	{
+		return;
+	}
+
+	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
+	const FName RunStartPointTag = Settings ? Settings->HomeFlow.RunStartPointTag : FName(TEXT("RunStartPoint"));
+	if (RunStartPointTag.IsNone())
+	{
+		return;
+	}
+
+	for (TActorIterator<AActor> ActorIt(World); ActorIt; ++ActorIt)
+	{
+		AActor* CandidateActor = *ActorIt;
+		if (CandidateActor && CandidateActor != RunnerCharacter && CandidateActor->ActorHasTag(RunStartPointTag))
+		{
+			RunnerCharacter->MoveToRunStartTransform(CandidateActor->GetActorTransform());
+			return;
+		}
+	}
+
+	if (!bRunStartPointWarningLogged)
+	{
+		bRunStartPointWarningLogged = true;
+		UE_LOG(LogPGGameModeBase, Warning, TEXT("RunStartPoint actor with tag '%s' was not found. Runner will start from its current location."), *RunStartPointTag.ToString());
 	}
 }
 
