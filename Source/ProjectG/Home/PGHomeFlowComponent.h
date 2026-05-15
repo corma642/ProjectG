@@ -9,9 +9,12 @@
 
 class APGGameModeBase;
 class APGPlayerController;
+class ACameraActor;
 class UPGRuntimePreloadSubsystem;
 class UPGHomeScreenWidget;
+class UPGPlayerShopSubsystem;
 class UPGRunCountdownWidget;
+class UPGShopScreenWidget;
 class UPGSettingsScreenWidget;
 class UPGTutorialScreenWidget;
 class UPGPlayerWalletSubsystem;
@@ -47,14 +50,21 @@ private:
 	void UnbindGameMode();
 	void BindRuntimePreloadSubsystem();
 	void BindPlayerWalletSubsystem();
+	void BindPlayerShopSubsystem();
 	void UnbindPlayerWalletSubsystem();
+	void UnbindPlayerShopSubsystem();
 	void RequestStartDeliveryAfterPreload();
 	void ShowHomeScreen();
 	void SetHomeCameraViewTarget();
+	void SetShopCameraViewTarget();
+	ACameraActor* FindCameraByTag(FName CameraTag, TWeakObjectPtr<ACameraActor>& CameraCache) const;
 	void BlendToRunnerCamera();
+	void BlendToHomeCamera();
 	void ShowCountdown(float Duration);
 	void CleanupWidgets();
 	void HandleStartDeliveryRequested();
+	void HandleShopRequested();
+	void HandleShopScreenClosed();
 	void HandleSettingsRequested();
 	void HandleSettingsScreenClosed();
 	void HandleHelpRequested();
@@ -77,10 +87,16 @@ private:
 	TObjectPtr<UPGPlayerWalletSubsystem> PlayerWalletSubsystem;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UPGPlayerShopSubsystem> PlayerShopSubsystem;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UPGHomeScreenWidget> HomeScreenWidget;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPGRunCountdownWidget> CountdownWidget;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UPGShopScreenWidget> ShopScreenWidget;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPGSettingsScreenWidget> SettingsScreenWidget;
@@ -88,7 +104,11 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UPGTutorialScreenWidget> TutorialScreenWidget;
 
+	TWeakObjectPtr<ACameraActor> CachedHomeCameraActor;
+	TWeakObjectPtr<ACameraActor> CachedShopCameraActor;
+
 	FPGHomeFlowSettings CachedHomeFlowSettings;
+	FPGShopSettings CachedShopSettings;
 	bool bIsBoundToGameMode = false;
 	bool bPendingStartDeliveryAfterPreload = false;
 	bool bRetryCountdownRequested = false;

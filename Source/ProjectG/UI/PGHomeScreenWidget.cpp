@@ -9,17 +9,27 @@
 
 namespace
 {
-constexpr float LogoExitDelay = 0.0f;
-constexpr float StartButtonExitDelay = 0.05f;
-constexpr float SubButtonExitDelay = 0.10f;
-const FVector2D LogoExitOffset(0.0f, -600.0f);
-const FVector2D StartButtonExitOffset(-900.0f, 0.0f);
-const FVector2D SubButtonExitOffset(0.0f, 700.0f);
+constexpr float LogoAnimationDelay = 0.0f;
+constexpr float MenuAnimationDelay = 0.08f;
+constexpr float ReceiptAnimationDelay = 0.14f;
+const FVector2D LogoEntryOffset(0.0f, -520.0f);
+const FVector2D MenuEntryOffset(0.0f, 620.0f);
+const FVector2D ReceiptEntryOffset(280.0f, -120.0f);
+const FVector2D LogoExitOffset(0.0f, -620.0f);
+const FVector2D MenuExitOffset(0.0f, 760.0f);
+const FVector2D ReceiptExitOffset(320.0f, -160.0f);
 
 float EaseInCubicHome(float Alpha)
 {
 	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
 	return ClampedAlpha * ClampedAlpha * ClampedAlpha;
+}
+
+float EaseOutCubicHome(float Alpha)
+{
+	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
+	const float InverseAlpha = 1.0f - ClampedAlpha;
+	return 1.0f - InverseAlpha * InverseAlpha * InverseAlpha;
 }
 }
 
@@ -31,9 +41,9 @@ void UPGHomeScreenWidget::NativeConstruct()
 	{
 		StartDeliveryButton->OnClicked.AddDynamic(this, &UPGHomeScreenWidget::HandleStartDeliveryClicked);
 	}
-	if (SkinsButton)
+	if (ShopButton)
 	{
-		SkinsButton->OnClicked.AddDynamic(this, &UPGHomeScreenWidget::HandleSkinsClicked);
+		ShopButton->OnClicked.AddDynamic(this, &UPGHomeScreenWidget::HandleShopClicked);
 	}
 	if (SettingsButton)
 	{
@@ -44,7 +54,7 @@ void UPGHomeScreenWidget::NativeConstruct()
 		HelpButton->OnClicked.AddDynamic(this, &UPGHomeScreenWidget::HandleHelpClicked);
 	}
 
-	ApplyExitAnimation(0.0f);
+	StartEntryAnimation();
 }
 
 void UPGHomeScreenWidget::NativeDestruct()
@@ -53,9 +63,9 @@ void UPGHomeScreenWidget::NativeDestruct()
 	{
 		StartDeliveryButton->OnClicked.RemoveDynamic(this, &UPGHomeScreenWidget::HandleStartDeliveryClicked);
 	}
-	if (SkinsButton)
+	if (ShopButton)
 	{
-		SkinsButton->OnClicked.RemoveDynamic(this, &UPGHomeScreenWidget::HandleSkinsClicked);
+		ShopButton->OnClicked.RemoveDynamic(this, &UPGHomeScreenWidget::HandleShopClicked);
 	}
 	if (SettingsButton)
 	{
@@ -72,6 +82,21 @@ void UPGHomeScreenWidget::NativeDestruct()
 void UPGHomeScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	if (bIsEntryAnimating)
+	{
+		EntryAnimationElapsed += InDeltaTime;
+		const float Alpha = EntryAnimationDuration > KINDA_SMALL_NUMBER
+			? FMath::Clamp(EntryAnimationElapsed / EntryAnimationDuration, 0.0f, 1.0f)
+			: 1.0f;
+		ApplyEntryAnimation(Alpha);
+
+		if (Alpha >= 1.0f)
+		{
+			bIsEntryAnimating = false;
+			SetHomeButtonsEnabled(true);
+		}
+	}
 
 	if (!bIsExitAnimating)
 	{
@@ -95,6 +120,7 @@ void UPGHomeScreenWidget::PlayExitAnimation(float Duration)
 {
 	ExitAnimationDuration = FMath::Max(0.0f, Duration);
 	ExitAnimationElapsed = 0.0f;
+	bIsEntryAnimating = false;
 	bIsExitAnimating = true;
 
 	SetHomeButtonsEnabled(false);
@@ -114,9 +140,9 @@ void UPGHomeScreenWidget::SetHomeButtonsEnabled(bool bEnabled) const
 	{
 		StartDeliveryButton->SetIsEnabled(bEnabled);
 	}
-	if (SkinsButton)
+	if (ShopButton)
 	{
-		SkinsButton->SetIsEnabled(bEnabled);
+		ShopButton->SetIsEnabled(bEnabled);
 	}
 	if (SettingsButton)
 	{
@@ -141,8 +167,9 @@ void UPGHomeScreenWidget::HandleStartDeliveryClicked()
 	OnStartDeliveryRequested.Broadcast();
 }
 
-void UPGHomeScreenWidget::HandleSkinsClicked()
+void UPGHomeScreenWidget::HandleShopClicked()
 {
+	OnShopRequested.Broadcast();
 }
 
 void UPGHomeScreenWidget::HandleSettingsClicked()
@@ -155,30 +182,49 @@ void UPGHomeScreenWidget::HandleHelpClicked()
 	OnHelpRequested.Broadcast();
 }
 
+void UPGHomeScreenWidget::StartEntryAnimation()
+{
+	EntryAnimationElapsed = 0.0f;
+	bIsEntryAnimating = true;
+	bIsExitAnimating = false;
+	SetHomeButtonsEnabled(false);
+	ApplyEntryAnimation(0.0f);
+}
+
+void UPGHomeScreenWidget::ApplyEntryAnimation(float Alpha)
+{
+	const float AnimationTime = FMath::Max(0.0f, EntryAnimationDuration) * FMath::Clamp(Alpha, 0.0f, 1.0f);
+	ApplyWidgetAnimationState(LogoImage, LogoEntryOffset, LogoAnimationDelay, AnimationTime, false, 0.96f, 1.0f);
+	ApplyWidgetAnimationState(MenuPanel, MenuEntryOffset, MenuAnimationDelay, AnimationTime, false, 0.96f, 1.0f);
+	ApplyWidgetAnimationState(ReceiptPanel, ReceiptEntryOffset, ReceiptAnimationDelay, AnimationTime, false, 1.0f, 1.0f);
+}
+
 void UPGHomeScreenWidget::ApplyExitAnimation(float Alpha)
 {
 	const float AnimationTime = FMath::Max(0.0f, ExitAnimationDuration) * FMath::Clamp(Alpha, 0.0f, 1.0f);
-	ApplyWidgetExitAnimation(LogoImage, LogoExitDelay, LogoExitOffset, AnimationTime);
-	ApplyWidgetExitAnimation(StartDeliveryButton, StartButtonExitDelay, StartButtonExitOffset, AnimationTime);
-	ApplyWidgetExitAnimation(SkinsButton, SubButtonExitDelay, SubButtonExitOffset, AnimationTime);
-	ApplyWidgetExitAnimation(SettingsButton, SubButtonExitDelay, SubButtonExitOffset, AnimationTime);
-	ApplyWidgetExitAnimation(HelpButton, SubButtonExitDelay, SubButtonExitOffset, AnimationTime);
-	ApplyWidgetExitAnimation(ReceiptBalanceText, LogoExitDelay, LogoExitOffset, AnimationTime);
+	ApplyWidgetAnimationState(LogoImage, LogoExitOffset, LogoAnimationDelay, AnimationTime, true, 1.0f, 0.92f);
+	ApplyWidgetAnimationState(MenuPanel, MenuExitOffset, MenuAnimationDelay, AnimationTime, true, 1.0f, 0.92f);
+	ApplyWidgetAnimationState(ReceiptPanel, ReceiptExitOffset, ReceiptAnimationDelay, AnimationTime, true, 1.0f, 0.92f);
 }
 
-void UPGHomeScreenWidget::ApplyWidgetExitAnimation(UWidget* Widget, float Delay, const FVector2D& TargetOffset, float AnimationTime) const
+void UPGHomeScreenWidget::ApplyWidgetAnimationState(UWidget* Widget, const FVector2D& StartOffset, float Delay, float AnimationTime, bool bReverse, float StartScale, float EndScale) const
 {
 	if (!Widget)
 	{
 		return;
 	}
 
-	const float EffectiveDuration = FMath::Max(KINDA_SMALL_NUMBER, ExitAnimationDuration - Delay);
+	const float TotalDuration = bReverse ? ExitAnimationDuration : EntryAnimationDuration;
+	const float EffectiveDuration = FMath::Max(KINDA_SMALL_NUMBER, TotalDuration - Delay);
 	const float LocalAlpha = FMath::Clamp((AnimationTime - Delay) / EffectiveDuration, 0.0f, 1.0f);
-	const float EasedAlpha = EaseInCubicHome(LocalAlpha);
-	const float Scale = FMath::Lerp(1.0f, 0.92f, EasedAlpha);
+	const float EasedAlpha = bReverse ? EaseInCubicHome(LocalAlpha) : EaseOutCubicHome(LocalAlpha);
+	const float Scale = FMath::Lerp(StartScale, EndScale, EasedAlpha);
+	const FVector2D Translation = bReverse
+		? StartOffset * EasedAlpha
+		: StartOffset * (1.0f - EasedAlpha);
+	const float Opacity = bReverse ? 1.0f - EasedAlpha : EasedAlpha;
 
-	Widget->SetRenderTranslation(TargetOffset * EasedAlpha);
-	Widget->SetRenderOpacity(1.0f - EasedAlpha);
+	Widget->SetRenderTranslation(Translation);
+	Widget->SetRenderOpacity(Opacity);
 	Widget->SetRenderScale(FVector2D(Scale, Scale));
 }

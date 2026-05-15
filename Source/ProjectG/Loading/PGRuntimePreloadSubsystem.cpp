@@ -6,6 +6,8 @@
 #include "Engine/StreamableManager.h"
 #include "RunEvents/PGRunEventPresentationSet.h"
 #include "Settings/PGGameSettings.h"
+#include "Shop/PGCharacterShopCatalog.h"
+#include "Shop/PGCharacterSkinDefinition.h"
 #include "Tutorial/PGTutorialPageSet.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGRuntimePreload, Log, All);
@@ -62,6 +64,9 @@ void UPGRuntimePreloadSubsystem::CollectPrimaryResourcePaths(TArray<FSoftObjectP
 	AddUniquePath(OutPaths, Settings->HomeFlow.SettingsScreenWidgetClass.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->HomeFlow.TutorialScreenWidgetClass.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->HomeFlow.TutorialPageSet.ToSoftObjectPath());
+	AddUniquePath(OutPaths, Settings->Shop.ShopScreenWidgetClass.ToSoftObjectPath());
+	AddUniquePath(OutPaths, Settings->Shop.CharacterShopItemWidgetClass.ToSoftObjectPath());
+	AddUniquePath(OutPaths, Settings->Shop.CharacterShopCatalog.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->Music.HomeMusic.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->Music.RunMusic.ToSoftObjectPath());
 
@@ -114,6 +119,32 @@ void UPGRuntimePreloadSubsystem::CollectNestedResourcePaths(TArray<FSoftObjectPa
 		for (const TSoftObjectPtr<UTexture2D>& PageTexture : TutorialPageSet->Pages)
 		{
 			AddUniquePath(OutPaths, PageTexture.ToSoftObjectPath());
+		}
+	}
+
+	const UPGCharacterShopCatalog* ShopCatalog = Settings->Shop.CharacterShopCatalog.Get();
+	if (ShopCatalog)
+	{
+		for (const UPGCharacterSkinDefinition* SkinDefinition : ShopCatalog->CharacterSkins)
+		{
+			if (!SkinDefinition)
+			{
+				continue;
+			}
+
+			AddUniquePath(OutPaths, FSoftObjectPath(SkinDefinition));
+			if (SkinDefinition->Thumbnail)
+			{
+				AddUniquePath(OutPaths, FSoftObjectPath(SkinDefinition->Thumbnail.Get()));
+			}
+			if (SkinDefinition->SkeletalMesh)
+			{
+				AddUniquePath(OutPaths, FSoftObjectPath(SkinDefinition->SkeletalMesh.Get()));
+			}
+			if (SkinDefinition->AnimClass)
+			{
+				AddUniquePath(OutPaths, FSoftObjectPath(SkinDefinition->AnimClass));
+			}
 		}
 	}
 }

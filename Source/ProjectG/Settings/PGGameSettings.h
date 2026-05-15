@@ -8,6 +8,8 @@
 
 class UPGCargoTypeDefinition;
 class UPGCargoDropSet;
+class UPGCharacterShopCatalog;
+class UPGCharacterShopItemWidget;
 class UPGRunResultWidget;
 class UPGRunEventPresentationSet;
 class UPGRunEventSet;
@@ -320,6 +322,39 @@ struct FPGHomeFlowSettings
 	// 3-2-1-Go 카운트다운 전체 시간
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Home Flow | Countdown", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "10.0"))
 	float RunStartCountdownDuration = 3.0f;
+};
+
+/**
+ * Home 상점 화면과 캐릭터 스킨 카탈로그 설정
+ */
+USTRUCT(BlueprintType)
+struct FPGShopSettings
+{
+	GENERATED_BODY()
+
+	// Home Shop 버튼으로 표시할 상점 위젯 클래스
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Shop | UI")
+	TSoftClassPtr<UUserWidget> ShopScreenWidgetClass;
+
+	// 상점 캐릭터 리스트에 사용할 카드 위젯 클래스
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Shop | UI")
+	TSoftClassPtr<UUserWidget> CharacterShopItemWidgetClass;
+
+	// 판매할 캐릭터 스킨 목록과 기본 캐릭터를 담은 카탈로그
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Shop | Character")
+	TSoftObjectPtr<UPGCharacterShopCatalog> CharacterShopCatalog;
+
+	// 상점 화면에서 사용할 CameraActor 태그
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Shop | Camera")
+	FName ShopCameraTag = TEXT("ShopCamera");
+
+	// HomeCamera에서 ShopCamera로 전환하는 블렌드 시간
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Shop | Camera", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3.0"))
+	float HomeToShopCameraBlendTime = 0.45f;
+
+	// ShopCamera에서 HomeCamera로 복귀하는 블렌드 시간
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Shop | Camera", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3.0"))
+	float ShopToHomeCameraBlendTime = 0.35f;
 };
 
 /**
@@ -685,6 +720,10 @@ public:
 	// 홈/러닝 배경음 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Music")
 	FPGMusicSettings Music;
+
+	// Home 상점과 캐릭터 스킨 카탈로그 설정
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Shop")
+	FPGShopSettings Shop;
 
 	// 모바일 런타임 품질 프리셋 기본값
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Mobile Quality")

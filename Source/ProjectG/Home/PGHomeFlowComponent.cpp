@@ -11,9 +11,12 @@
 #include "Player/PGPlayerController.h"
 #include "UI/PGHomeScreenWidget.h"
 #include "UI/PGRunCountdownWidget.h"
+#include "UI/PGCharacterShopItemWidget.h"
+#include "UI/PGShopScreenWidget.h"
 #include "UI/PGSettingsScreenWidget.h"
 #include "UI/PGTutorialScreenWidget.h"
 #include "Tutorial/PGTutorialPageSet.h"
+#include "Shop/PGPlayerShopSubsystem.h"
 #include "Wallet/PGPlayerWalletSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGHomeFlow, Log, All);
@@ -37,11 +40,13 @@ void UPGHomeFlowComponent::BeginPlay()
 	if (const UPGGameSettings* Settings = GetDefault<UPGGameSettings>())
 	{
 		CachedHomeFlowSettings = Settings->HomeFlow;
+		CachedShopSettings = Settings->Shop;
 	}
 
 	BindGameMode();
 	BindRuntimePreloadSubsystem();
 	BindPlayerWalletSubsystem();
+	BindPlayerShopSubsystem();
 
 	const FString StartFlowOption = GetWorld() ? GetWorld()->URL.GetOption(TEXT("StartFlow="), TEXT("")) : FString();
 	bRetryCountdownRequested = StartFlowOption.Equals(TEXT("RetryCountdown"), ESearchCase::IgnoreCase);
@@ -80,6 +85,7 @@ void UPGHomeFlowComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 	UnbindGameMode();
 	UnbindPlayerWalletSubsystem();
+	UnbindPlayerShopSubsystem();
 	CleanupWidgets();
 	Super::EndPlay(EndPlayReason);
 }
@@ -150,12 +156,32 @@ void UPGHomeFlowComponent::BindPlayerWalletSubsystem()
 	}
 }
 
+void UPGHomeFlowComponent::BindPlayerShopSubsystem()
+{
+	UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	if (PlayerShopSubsystem || !GameInstance)
+	{
+		return;
+	}
+
+	PlayerShopSubsystem = GameInstance->GetSubsystem<UPGPlayerShopSubsystem>();
+}
+
 void UPGHomeFlowComponent::UnbindPlayerWalletSubsystem()
 {
 	if (PlayerWalletSubsystem)
 	{
 		PlayerWalletSubsystem->OnReceiptBalanceChanged.RemoveDynamic(this, &UPGHomeFlowComponent::HandleReceiptBalanceChanged);
 		PlayerWalletSubsystem = nullptr;
+	}
+}
+
+void UPGHomeFlowComponent::UnbindPlayerShopSubsystem()
+{
+	if (PlayerShopSubsystem)
+	{
+		PlayerShopSubsystem->RestoreEquippedCharacter();
+		PlayerShopSubsystem = nullptr;
 	}
 }
 
@@ -169,6 +195,11 @@ void UPGHomeFlowComponent::RequestStartDeliveryAfterPreload()
 	if (!RuntimePreloadSubsystem || RuntimePreloadSubsystem->IsReady())
 	{
 		bPendingStartDeliveryAfterPreload = false;
+		if (PlayerShopSubsystem)
+		{
+			PlayerShopSubsystem->RefreshShopCatalog();
+			PlayerShopSubsystem->RestoreEquippedCharacter();
+		}
 		BoundGameMode->RequestStartDelivery();
 		if (HomeScreenWidget && BoundGameMode->GetRunState() == EPGRunState::Home)
 		{
@@ -210,7 +241,14 @@ void UPGHomeFlowComponent::ShowHomeScreen()
 		return;
 	}
 
+	if (PlayerShopSubsystem)
+	{
+		PlayerShopSubsystem->RefreshShopCatalog();
+		PlayerShopSubsystem->RestoreEquippedCharacter();
+	}
+
 	HomeScreenWidget->OnStartDeliveryRequested.AddUObject(this, &UPGHomeFlowComponent::HandleStartDeliveryRequested);
+	HomeScreenWidget->OnShopRequested.AddUObject(this, &UPGHomeFlowComponent::HandleShopRequested);
 	HomeScreenWidget->OnSettingsRequested.AddUObject(this, &UPGHomeFlowComponent::HandleSettingsRequested);
 	HomeScreenWidget->OnHelpRequested.AddUObject(this, &UPGHomeFlowComponent::HandleHelpRequested);
 	HomeScreenWidget->SetReceiptBalance(PlayerWalletSubsystem ? PlayerWalletSubsystem->GetReceiptBalance() : 0);
@@ -224,17 +262,54 @@ void UPGHomeFlowComponent::SetHomeCameraViewTarget()
 		return;
 	}
 
-	for (TActorIterator<ACameraActor> CameraIt(GetWorld()); CameraIt; ++CameraIt)
+	if (ACameraActor* CameraActor = FindCameraByTag(CachedHomeFlowSettings.HomeCameraTag, CachedHomeCameraActor))
 	{
-		ACameraActor* CameraActor = *CameraIt;
-		if (CameraActor && CameraActor->ActorHasTag(CachedHomeFlowSettings.HomeCameraTag))
-		{
-			OwnerPlayerController->SetViewTarget(CameraActor);
-			return;
-		}
+		OwnerPlayerController->SetViewTarget(CameraActor);
+		return;
 	}
 
 	UE_LOG(LogPGHomeFlow, Warning, TEXT("Home camera with tag '%s' was not found. Player camera will be used."), *CachedHomeFlowSettings.HomeCameraTag.ToString());
+}
+
+void UPGHomeFlowComponent::SetShopCameraViewTarget()
+{
+	if (!OwnerPlayerController || !GetWorld())
+	{
+		return;
+	}
+
+	if (ACameraActor* CameraActor = FindCameraByTag(CachedShopSettings.ShopCameraTag, CachedShopCameraActor))
+	{
+		OwnerPlayerController->SetViewTargetWithBlend(CameraActor, CachedShopSettings.HomeToShopCameraBlendTime);
+		return;
+	}
+
+	UE_LOG(LogPGHomeFlow, Warning, TEXT("Shop camera with tag '%s' was not found. Current camera will be used."), *CachedShopSettings.ShopCameraTag.ToString());
+}
+
+ACameraActor* UPGHomeFlowComponent::FindCameraByTag(FName CameraTag, TWeakObjectPtr<ACameraActor>& CameraCache) const
+{
+	if (CameraCache.IsValid())
+	{
+		return CameraCache.Get();
+	}
+
+	if (CameraTag.IsNone() || !GetWorld())
+	{
+		return nullptr;
+	}
+
+	for (TActorIterator<ACameraActor> CameraIt(GetWorld()); CameraIt; ++CameraIt)
+	{
+		ACameraActor* CameraActor = *CameraIt;
+		if (CameraActor && CameraActor->ActorHasTag(CameraTag))
+		{
+			CameraCache = CameraActor;
+			return CameraActor;
+		}
+	}
+
+	return nullptr;
 }
 
 void UPGHomeFlowComponent::BlendToRunnerCamera()
@@ -290,6 +365,7 @@ void UPGHomeFlowComponent::CleanupWidgets()
 	if (HomeScreenWidget)
 	{
 		HomeScreenWidget->OnStartDeliveryRequested.RemoveAll(this);
+		HomeScreenWidget->OnShopRequested.RemoveAll(this);
 		HomeScreenWidget->OnSettingsRequested.RemoveAll(this);
 		HomeScreenWidget->OnHelpRequested.RemoveAll(this);
 		HomeScreenWidget->RemoveFromParent();
@@ -300,6 +376,13 @@ void UPGHomeFlowComponent::CleanupWidgets()
 	{
 		CountdownWidget->RemoveFromParent();
 		CountdownWidget = nullptr;
+	}
+
+	if (ShopScreenWidget)
+	{
+		ShopScreenWidget->OnShopScreenClosed.RemoveAll(this);
+		ShopScreenWidget->RemoveFromParent();
+		ShopScreenWidget = nullptr;
 	}
 
 	if (SettingsScreenWidget)
@@ -317,9 +400,25 @@ void UPGHomeFlowComponent::CleanupWidgets()
 	}
 }
 
+void UPGHomeFlowComponent::BlendToHomeCamera()
+{
+	if (!OwnerPlayerController || !GetWorld())
+	{
+		return;
+	}
+
+	if (ACameraActor* CameraActor = FindCameraByTag(CachedHomeFlowSettings.HomeCameraTag, CachedHomeCameraActor))
+	{
+		OwnerPlayerController->SetViewTargetWithBlend(CameraActor, CachedShopSettings.ShopToHomeCameraBlendTime);
+		return;
+	}
+
+	SetHomeCameraViewTarget();
+}
+
 void UPGHomeFlowComponent::HandleStartDeliveryRequested()
 {
-	if (SettingsScreenWidget || TutorialScreenWidget)
+	if (SettingsScreenWidget || TutorialScreenWidget || ShopScreenWidget)
 	{
 		return;
 	}
@@ -327,9 +426,80 @@ void UPGHomeFlowComponent::HandleStartDeliveryRequested()
 	RequestStartDeliveryAfterPreload();
 }
 
+void UPGHomeFlowComponent::HandleShopRequested()
+{
+	if (SettingsScreenWidget || TutorialScreenWidget || ShopScreenWidget || !BoundGameMode || BoundGameMode->GetRunState() != EPGRunState::Home)
+	{
+		return;
+	}
+
+	if (!OwnerPlayerController || !PlayerShopSubsystem || !PlayerWalletSubsystem)
+	{
+		return;
+	}
+	PlayerShopSubsystem->RefreshShopCatalog();
+
+	UClass* WidgetClass = CachedShopSettings.ShopScreenWidgetClass.Get();
+	UClass* ItemWidgetClass = CachedShopSettings.CharacterShopItemWidgetClass.Get();
+	if (!WidgetClass)
+	{
+		UE_LOG(LogPGHomeFlow, Warning, TEXT("ShopScreenWidgetClass is not set. Create WBP_ShopScreen and assign it in Go Deliver Settings > Shop."));
+		return;
+	}
+	if (!WidgetClass->IsChildOf(UPGShopScreenWidget::StaticClass()))
+	{
+		UE_LOG(LogPGHomeFlow, Warning, TEXT("ShopScreenWidgetClass '%s' must inherit UPGShopScreenWidget."), *GetNameSafe(WidgetClass));
+		return;
+	}
+	if (!ItemWidgetClass || !ItemWidgetClass->IsChildOf(UPGCharacterShopItemWidget::StaticClass()))
+	{
+		UE_LOG(LogPGHomeFlow, Warning, TEXT("CharacterShopItemWidgetClass must inherit UPGCharacterShopItemWidget."));
+		return;
+	}
+
+	ShopScreenWidget = CreateWidget<UPGShopScreenWidget>(OwnerPlayerController, TSubclassOf<UPGShopScreenWidget>(WidgetClass));
+	if (!ShopScreenWidget)
+	{
+		return;
+	}
+
+	if (HomeScreenWidget)
+	{
+		HomeScreenWidget->SetHomeButtonsEnabled(false);
+		HomeScreenWidget->SetRenderOpacity(0.0f);
+	}
+
+	SetShopCameraViewTarget();
+	ShopScreenWidget->OnShopScreenClosed.AddUObject(this, &UPGHomeFlowComponent::HandleShopScreenClosed);
+	ShopScreenWidget->AddToViewport(30);
+	ShopScreenWidget->InitializeShop(PlayerShopSubsystem, PlayerWalletSubsystem, TSubclassOf<UPGCharacterShopItemWidget>(ItemWidgetClass));
+	ShopScreenWidget->PlayOpenAnimation();
+}
+
+void UPGHomeFlowComponent::HandleShopScreenClosed()
+{
+	if (ShopScreenWidget)
+	{
+		ShopScreenWidget->OnShopScreenClosed.RemoveAll(this);
+		ShopScreenWidget = nullptr;
+	}
+
+	if (PlayerShopSubsystem)
+	{
+		PlayerShopSubsystem->RestoreEquippedCharacter();
+	}
+
+	BlendToHomeCamera();
+	if (HomeScreenWidget)
+	{
+		HomeScreenWidget->SetRenderOpacity(1.0f);
+		HomeScreenWidget->SetHomeButtonsEnabled(true);
+	}
+}
+
 void UPGHomeFlowComponent::HandleSettingsRequested()
 {
-	if (TutorialScreenWidget)
+	if (TutorialScreenWidget || ShopScreenWidget)
 	{
 		return;
 	}
@@ -348,7 +518,7 @@ void UPGHomeFlowComponent::HandleSettingsScreenClosed()
 
 void UPGHomeFlowComponent::HandleHelpRequested()
 {
-	if (SettingsScreenWidget)
+	if (SettingsScreenWidget || ShopScreenWidget)
 	{
 		return;
 	}
@@ -456,6 +626,13 @@ void UPGHomeFlowComponent::HandleRunCountdownStarted(float Duration)
 		TutorialScreenWidget->OnTutorialClosed.RemoveAll(this);
 		TutorialScreenWidget->RemoveFromParent();
 		TutorialScreenWidget = nullptr;
+	}
+
+	if (ShopScreenWidget)
+	{
+		ShopScreenWidget->OnShopScreenClosed.RemoveAll(this);
+		ShopScreenWidget->RemoveFromParent();
+		ShopScreenWidget = nullptr;
 	}
 
 	if (HomeScreenWidget)

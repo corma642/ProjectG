@@ -14,6 +14,7 @@ class UWidget;
 DECLARE_MULTICAST_DELEGATE(FPGHomeStartDeliveryRequestedSignature);
 DECLARE_MULTICAST_DELEGATE(FPGHomeSettingsRequestedSignature);
 DECLARE_MULTICAST_DELEGATE(FPGHomeHelpRequestedSignature);
+DECLARE_MULTICAST_DELEGATE(FPGHomeShopRequestedSignature);
 
 /**
  * 홈 화면 Blueprint Widget의 로직 클래스입니다.
@@ -28,6 +29,7 @@ public:
 	FPGHomeStartDeliveryRequestedSignature OnStartDeliveryRequested;
 	FPGHomeSettingsRequestedSignature OnSettingsRequested;
 	FPGHomeHelpRequestedSignature OnHelpRequested;
+	FPGHomeShopRequestedSignature OnShopRequested;
 
 	// START DELIVERY 이후 홈 화면 요소들이 각 방향으로 빠지며 사라지는 애니메이션을 시작합니다.
 	void PlayExitAnimation(float Duration);
@@ -50,16 +52,22 @@ protected:
 	TObjectPtr<UImage> LogoImage;
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Home")
+	TObjectPtr<UWidget> MenuPanel;
+
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Home")
 	TObjectPtr<UButton> StartDeliveryButton;
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Home")
-	TObjectPtr<UButton> SkinsButton;
+	TObjectPtr<UButton> ShopButton;
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Home")
 	TObjectPtr<UButton> SettingsButton;
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Home")
 	TObjectPtr<UButton> HelpButton;
+
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Home")
+	TObjectPtr<UWidget> ReceiptPanel;
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Home")
 	TObjectPtr<UTextBlock> ReceiptBalanceText;
@@ -69,7 +77,7 @@ private:
 	void HandleStartDeliveryClicked();
 
 	UFUNCTION()
-	void HandleSkinsClicked();
+	void HandleShopClicked();
 
 	UFUNCTION()
 	void HandleSettingsClicked();
@@ -77,10 +85,15 @@ private:
 	UFUNCTION()
 	void HandleHelpClicked();
 
+	void StartEntryAnimation();
+	void ApplyEntryAnimation(float Alpha);
 	void ApplyExitAnimation(float Alpha);
-	void ApplyWidgetExitAnimation(UWidget* Widget, float Delay, const FVector2D& TargetOffset, float AnimationTime) const;
+	void ApplyWidgetAnimationState(UWidget* Widget, const FVector2D& StartOffset, float Delay, float AnimationTime, bool bReverse, float StartScale = 1.0f, float EndScale = 1.0f) const;
 
+	bool bIsEntryAnimating = false;
 	bool bIsExitAnimating = false;
+	float EntryAnimationElapsed = 0.0f;
+	float EntryAnimationDuration = 0.45f;
 	float ExitAnimationElapsed = 0.0f;
 	float ExitAnimationDuration = 0.35f;
 };
