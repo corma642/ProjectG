@@ -301,6 +301,7 @@ void UPGShopScreenWidget::SelectCharacterByIndex(int32 NewIndex)
 	const UPGCharacterSkinDefinition* SelectedSkin = Shop->GetCharacterSkins()[SelectedCharacterIndex];
 	if (SelectedSkin)
 	{
+		Shop->SetLastSelectedCharacterSkinId(SelectedSkin->SkinId);
 		Shop->PreviewCharacter(SelectedSkin->SkinId);
 	}
 	RefreshSelectedCharacterState();
@@ -339,13 +340,42 @@ void UPGShopScreenWidget::RebuildCharacterList()
 	CharacterItemWidgets.Reset();
 
 	const auto& CharacterSkins = Shop->GetCharacterSkins();
-	if (SelectedCharacterIndex == INDEX_NONE && CharacterSkins.Num() > 0)
+	if (CharacterSkins.Num() > 0)
 	{
-		SelectedCharacterIndex = 0;
-	}
-	else if (CharacterSkins.Num() > 0)
-	{
-		SelectedCharacterIndex = FMath::Clamp(SelectedCharacterIndex, 0, CharacterSkins.Num() - 1);
+		if (SelectedCharacterIndex == INDEX_NONE)
+		{
+			const auto FindSkinIndex = [&CharacterSkins](FName SkinId) -> int32
+			{
+				if (SkinId.IsNone())
+				{
+					return INDEX_NONE;
+				}
+
+				for (int32 Index = 0; Index < CharacterSkins.Num(); ++Index)
+				{
+					if (CharacterSkins[Index] && CharacterSkins[Index]->SkinId == SkinId)
+					{
+						return Index;
+					}
+				}
+				return INDEX_NONE;
+			};
+
+			SelectedCharacterIndex = FindSkinIndex(Shop->GetLastSelectedCharacterSkinId());
+			if (SelectedCharacterIndex == INDEX_NONE)
+			{
+				const UPGCharacterSkinDefinition* EquippedSkin = Shop->GetEquippedCharacterSkin();
+				SelectedCharacterIndex = EquippedSkin ? FindSkinIndex(EquippedSkin->SkinId) : INDEX_NONE;
+			}
+			if (SelectedCharacterIndex == INDEX_NONE)
+			{
+				SelectedCharacterIndex = 0;
+			}
+		}
+		else
+		{
+			SelectedCharacterIndex = FMath::Clamp(SelectedCharacterIndex, 0, CharacterSkins.Num() - 1);
+		}
 	}
 	else
 	{
@@ -376,6 +406,11 @@ void UPGShopScreenWidget::RebuildCharacterList()
 	}
 
 	RefreshCharacterItems();
+	if (const UPGCharacterSkinDefinition* SelectedSkin = CharacterSkins.IsValidIndex(SelectedCharacterIndex) ? CharacterSkins[SelectedCharacterIndex] : nullptr)
+	{
+		Shop->SetLastSelectedCharacterSkinId(SelectedSkin->SkinId);
+		Shop->PreviewCharacter(SelectedSkin->SkinId);
+	}
 	RefreshSelectedCharacterState();
 	ScrollSelectedCharacterIntoView();
 }

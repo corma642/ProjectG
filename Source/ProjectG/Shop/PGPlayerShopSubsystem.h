@@ -36,6 +36,8 @@ public:
 
 	// Home/Shop 프리뷰에서 메시를 교체할 월드 러너를 지정합니다.
 	void SetPreviewRunner(APGRunnerCharacter* RunnerCharacter);
+	void SetLastSelectedCharacterSkinId(FName SkinId);
+	FName GetLastSelectedCharacterSkinId() const { return LastSelectedCharacterSkinId; }
 
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Shop")
 	bool IsCharacterOwned(FName SkinId) const;
@@ -86,4 +88,5 @@ private:
 	TArray<TObjectPtr<UPGCharacterSkinDefinition>> CachedCharacterSkins;
 
 	TWeakObjectPtr<APGRunnerCharacter> PreviewRunnerCharacter;
+	FName LastSelectedCharacterSkinId;
 };

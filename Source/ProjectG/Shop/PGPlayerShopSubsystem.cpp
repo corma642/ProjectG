@@ -103,6 +103,11 @@ void UPGPlayerShopSubsystem::SetPreviewRunner(APGRunnerCharacter* RunnerCharacte
 	PreviewRunnerCharacter = RunnerCharacter;
 }
 
+void UPGPlayerShopSubsystem::SetLastSelectedCharacterSkinId(FName SkinId)
+{
+	LastSelectedCharacterSkinId = SkinId;
+}
+
 bool UPGPlayerShopSubsystem::IsCharacterOwned(FName SkinId) const
 {
 	if (SkinId.IsNone())
