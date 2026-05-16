@@ -4,7 +4,6 @@
 
 #include "Components/Button.h"
 #include "Components/Image.h"
-#include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "Shop/PGCharacterSkinDefinition.h"
 
@@ -65,25 +64,6 @@ void UPGCharacterShopItemWidget::SetCharacterSkin(const UPGCharacterSkinDefiniti
 	if (ThumbnailImage)
 	{
 		ThumbnailImage->SetBrushFromTexture(InSkinDefinition ? InSkinDefinition->Thumbnail.Get() : nullptr);
-	}
-	if (PriceText)
-	{
-		if (!InSkinDefinition)
-		{
-			PriceText->SetText(FText::GetEmpty());
-		}
-		else if (bEquipped)
-		{
-			PriceText->SetText(NSLOCTEXT("ProjectGShop", "Equipped", "EQUIPPED"));
-		}
-		else if (bOwned)
-		{
-			PriceText->SetText(NSLOCTEXT("ProjectGShop", "Owned", "OWNED"));
-		}
-		else
-		{
-			PriceText->SetText(FText::AsNumber(FMath::Max(0, InSkinDefinition->PriceReceipts)));
-		}
 	}
 
 	StartStateAnimation(bOwned, bEquipped, bSelected);
@@ -152,11 +132,6 @@ void UPGCharacterShopItemWidget::ApplyStateAnimation(float Alpha)
 		const float Scale = FMath::Lerp(StartThumbnailScale, TargetThumbnailScale, EasedAlpha);
 		ThumbnailImage->SetRenderScale(FVector2D(Scale, Scale));
 	}
-	if (PricePanel)
-	{
-		PricePanel->SetRenderOpacity(1.0f);
-		PricePanel->SetRenderScale(FVector2D(1.0f, 1.0f));
-	}
 	if (LockImage)
 	{
 		LockImage->SetVisibility(bLastOwned ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
@@ -183,11 +158,6 @@ void UPGCharacterShopItemWidget::ApplyFinalState()
 	{
 		const float TargetScale = bLastSelected ? 1.04f : 1.0f;
 		ThumbnailImage->SetRenderScale(FVector2D(TargetScale, TargetScale));
-	}
-	if (PricePanel)
-	{
-		PricePanel->SetRenderOpacity(1.0f);
-		PricePanel->SetRenderScale(FVector2D(1.0f, 1.0f));
 	}
 	if (LockImage)
 	{

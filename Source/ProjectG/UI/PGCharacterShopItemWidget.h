@@ -43,12 +43,6 @@ protected:
 	TObjectPtr<UImage> ThumbnailImage;
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Shop Item")
-	TObjectPtr<UWidget> PricePanel;
-
-	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Shop Item")
-	TObjectPtr<class UTextBlock> PriceText;
-
-	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Shop Item")
 	TObjectPtr<UWidget> LockImage;
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Shop Item")
