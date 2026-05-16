@@ -238,7 +238,7 @@ void UPGHomeFlowComponent::ShowHomeScreen()
 		return;
 	}
 
-	RestoreShopPreviewRunner();
+	RestoreShopPreviewRunner(true);
 
 	HomeScreenWidget->OnStartDeliveryRequested.AddUObject(this, &UPGHomeFlowComponent::HandleStartDeliveryRequested);
 	HomeScreenWidget->OnShopRequested.AddUObject(this, &UPGHomeFlowComponent::HandleShopRequested);
@@ -335,15 +335,21 @@ APGRunnerCharacter* UPGHomeFlowComponent::FindPreviewRunner() const
 	return FoundRunner;
 }
 
-void UPGHomeFlowComponent::RestoreShopPreviewRunner()
+void UPGHomeFlowComponent::RestoreShopPreviewRunner(bool bRestoreHomeTransform)
 {
 	if (!PlayerShopSubsystem)
 	{
 		return;
 	}
 
+	APGRunnerCharacter* PreviewRunner = FindPreviewRunner();
+	if (bRestoreHomeTransform && PreviewRunner)
+	{
+		PreviewRunner->RestoreHomePreviewTransform();
+	}
+
 	PlayerShopSubsystem->RefreshShopCatalog();
-	PlayerShopSubsystem->SetPreviewRunner(FindPreviewRunner());
+	PlayerShopSubsystem->SetPreviewRunner(PreviewRunner);
 	PlayerShopSubsystem->RestoreEquippedCharacter();
 }
 

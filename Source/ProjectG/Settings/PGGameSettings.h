@@ -313,7 +313,7 @@ struct FPGHomeFlowSettings
 
 	// 홈 카메라에서 러너 카메라로 전환하는 블렌드 시간
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Home Flow | Camera", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3.0"))
-	float HomeToRunnerCameraBlendTime = 0.6f;
+	float HomeToRunnerCameraBlendTime = 0.0f;
 
 	// START DELIVERY 이후 홈 UI가 화면 밖으로 빠지는 시간
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Home Flow | Animation", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2.0"))

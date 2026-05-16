@@ -86,6 +86,12 @@ public:
 	// 현재 저장된 장착 캐릭터 스킨을 러너에 적용합니다.
 	void ApplyEquippedCharacterSkin();
 
+	// Home/Shop 프리뷰 회전과 분리해 실제 런 시작은 위치 유지 + 회전 0 기준으로 정렬합니다.
+	void PrepareTransformForRunStart();
+
+	// Home 화면에 다시 표시될 때 BeginPlay에서 저장한 Home 배치 Transform으로 복구합니다.
+	void RestoreHomePreviewTransform();
+
 	// 물리 적재물이 손실됐을 때 런 실패를 요청한다.
 	UFUNCTION()
 	void HandleCargoLost(int32 CargoIndex);
@@ -218,6 +224,11 @@ private:
 
 	// 런 경과 시간 계산에 사용하는 월드 시간
 	float RunStartTimeSeconds = 0.0f;
+
+	// Home/Shop 프리뷰에 사용할 에디터 배치 기준 Transform
+	FTransform HomePreviewTransform = FTransform::Identity;
+
+	bool bHasHomePreviewTransform = false;
 
 	// 메시 연출에 적용 중인 현재 롤 각도
 	float CurrentBodyRoll = 0.0f;

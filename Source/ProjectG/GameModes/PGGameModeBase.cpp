@@ -49,11 +49,13 @@ void APGGameModeBase::RequestStartDelivery()
 	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
 	const float CountdownDuration = Settings ? FMath::Max(0.0f, Settings->HomeFlow.RunStartCountdownDuration) : 3.0f;
 
-	if (!EnsureRunnerPossessedForRun())
+	APGRunnerCharacter* RunnerCharacter = EnsureRunnerPossessedForRun();
+	if (!RunnerCharacter)
 	{
 		UE_LOG(LogPGGameModeBase, Warning, TEXT("Start delivery aborted: no playable runner is possessed."));
 		return;
 	}
+	RunnerCharacter->PrepareTransformForRunStart();
 
 	RunState = EPGRunState::Countdown;
 	bRunRewardsSettled = false;

@@ -61,6 +61,8 @@ void APGRunnerCharacter::BeginPlay()
 	Super::BeginPlay();
 
 	ApplyGameSettings();
+	HomePreviewTransform = GetActorTransform();
+	bHasHomePreviewTransform = true;
 	StartLocationZ = GetActorLocation().Z;
 	RunStartLocation = GetActorLocation();
 	RunStartForwardVector = GetActorForwardVector().GetSafeNormal();
@@ -279,6 +281,63 @@ void APGRunnerCharacter::ApplyEquippedCharacterSkin()
 	if (ShopSubsystem)
 	{
 		ShopSubsystem->RestoreEquippedCharacter();
+	}
+}
+
+void APGRunnerCharacter::PrepareTransformForRunStart()
+{
+	const FVector CurrentLocation = GetActorLocation();
+	const FRotator RunStartRotation = FRotator::ZeroRotator;
+
+	SetActorLocationAndRotation(CurrentLocation, RunStartRotation, false, nullptr, ETeleportType::TeleportPhysics);
+	if (Controller)
+	{
+		Controller->SetControlRotation(RunStartRotation);
+	}
+
+	BalanceInput = 0.0f;
+	BaseInstabilityInput = 0.0f;
+	BalanceElapsedTime = 0.0f;
+	CurrentBodyRoll = 0.0f;
+	StartLocationZ = CurrentLocation.Z;
+	RunStartLocation = CurrentLocation;
+	RunStartForwardVector = GetActorForwardVector().GetSafeNormal();
+	RunStartTimeSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+
+	if (USkeletalMeshComponent* MeshComponent = GetMesh())
+	{
+		MeshComponent->SetRelativeRotation(InitialMeshRelativeRotation);
+	}
+
+	if (RunnerMovementComponent)
+	{
+		RunnerMovementComponent->InitializeRunnerMovement(CachedLaneSettings, CachedGyroSettings, CachedBalanceSettings, CurrentLocation, GetActorForwardVector(), GetActorRightVector());
+		RunnerMovementComponent->SetBalanceMovementInput(0.0f, 0.0f);
+		RunnerMovementComponent->StopMovementImmediately();
+	}
+}
+
+void APGRunnerCharacter::RestoreHomePreviewTransform()
+{
+	if (!bHasHomePreviewTransform)
+	{
+		return;
+	}
+
+	SetActorTransform(HomePreviewTransform, false, nullptr, ETeleportType::TeleportPhysics);
+	if (Controller)
+	{
+		Controller->SetControlRotation(HomePreviewTransform.GetRotation().Rotator());
+	}
+
+	BalanceInput = 0.0f;
+	BaseInstabilityInput = 0.0f;
+	BalanceElapsedTime = 0.0f;
+	CurrentBodyRoll = 0.0f;
+
+	if (USkeletalMeshComponent* MeshComponent = GetMesh())
+	{
+		MeshComponent->SetRelativeRotation(InitialMeshRelativeRotation);
 	}
 }
 
