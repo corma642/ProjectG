@@ -15,8 +15,14 @@ DEFINE_LOG_CATEGORY_STATIC(LogPGGameModeBase, Log, All);
 
 APGGameModeBase::APGGameModeBase()
 {
-	DefaultPawnClass = APGRunnerCharacter::StaticClass();
+	DefaultPawnClass = nullptr;
 	PlayerControllerClass = APGPlayerController::StaticClass();
+}
+
+APawn* APGGameModeBase::SpawnDefaultPawnFor_Implementation(AController* NewPlayer, AActor* StartSpot)
+{
+	// Home/Shop에서 보여줄 레벨 배치 러너를 그대로 사용하기 위해 GameMode의 자동 Pawn 스폰을 사용하지 않는다.
+	return nullptr;
 }
 
 void APGGameModeBase::BeginPlay()

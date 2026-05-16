@@ -9,6 +9,7 @@
 
 class APGGameModeBase;
 class APGPlayerController;
+class APGRunnerCharacter;
 class ACameraActor;
 class UPGRuntimePreloadSubsystem;
 class UPGHomeScreenWidget;
@@ -58,6 +59,8 @@ private:
 	void SetHomeCameraViewTarget();
 	void SetShopCameraViewTarget();
 	ACameraActor* FindCameraByTag(FName CameraTag, TWeakObjectPtr<ACameraActor>& CameraCache) const;
+	APGRunnerCharacter* FindPreviewRunner() const;
+	void RestoreShopPreviewRunner();
 	void BlendToRunnerCamera();
 	void BlendToHomeCamera();
 	void ShowCountdown(float Duration);

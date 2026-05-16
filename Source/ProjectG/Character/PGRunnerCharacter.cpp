@@ -265,9 +265,8 @@ bool APGRunnerCharacter::ApplyCharacterSkin(const UPGCharacterSkinDefinition* Sk
 	{
 		MeshComponent->SetAnimInstanceClass(SkinDefinition->AnimClass);
 	}
-	MeshComponent->SetRelativeLocation(SkinDefinition->MeshRelativeLocation);
-	MeshComponent->SetRelativeRotation(SkinDefinition->MeshRelativeRotation);
-	MeshComponent->SetRelativeScale3D(SkinDefinition->MeshRelativeScale);
+
+	// 캐릭터별 피벗/스케일은 DCC에서 통일하고, BP_Runner의 Mesh 상대 Transform을 단일 기준으로 사용한다.
 	InitialMeshRelativeRotation = MeshComponent->GetRelativeRotation();
 	CurrentBodyRoll = 0.0f;
 	return true;

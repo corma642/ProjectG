@@ -38,6 +38,9 @@ class PROJECTG_API APGGameModeBase : public AGameModeBase
 public:
 	APGGameModeBase();
 
+	// 러너는 레벨에 배치한 BP_Runner를 START 시점에 Possess하므로 기본 Pawn 자동 스폰을 막습니다.
+	virtual APawn* SpawnDefaultPawnFor_Implementation(AController* NewPlayer, AActor* StartSpot) override;
+
 	// 게임 시작 직후 초기 런 상태를 준비합니다.
 	virtual void BeginPlay() override;
 

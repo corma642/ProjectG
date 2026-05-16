@@ -3,6 +3,7 @@
 #include "Home/PGHomeFlowComponent.h"
 
 #include "Camera/CameraActor.h"
+#include "Character/PGRunnerCharacter.h"
 #include "Engine/World.h"
 #include "Engine/EngineBaseTypes.h"
 #include "EngineUtils.h"
@@ -195,11 +196,7 @@ void UPGHomeFlowComponent::RequestStartDeliveryAfterPreload()
 	if (!RuntimePreloadSubsystem || RuntimePreloadSubsystem->IsReady())
 	{
 		bPendingStartDeliveryAfterPreload = false;
-		if (PlayerShopSubsystem)
-		{
-			PlayerShopSubsystem->RefreshShopCatalog();
-			PlayerShopSubsystem->RestoreEquippedCharacter();
-		}
+		RestoreShopPreviewRunner();
 		BoundGameMode->RequestStartDelivery();
 		if (HomeScreenWidget && BoundGameMode->GetRunState() == EPGRunState::Home)
 		{
@@ -241,11 +238,7 @@ void UPGHomeFlowComponent::ShowHomeScreen()
 		return;
 	}
 
-	if (PlayerShopSubsystem)
-	{
-		PlayerShopSubsystem->RefreshShopCatalog();
-		PlayerShopSubsystem->RestoreEquippedCharacter();
-	}
+	RestoreShopPreviewRunner();
 
 	HomeScreenWidget->OnStartDeliveryRequested.AddUObject(this, &UPGHomeFlowComponent::HandleStartDeliveryRequested);
 	HomeScreenWidget->OnShopRequested.AddUObject(this, &UPGHomeFlowComponent::HandleShopRequested);
@@ -310,6 +303,48 @@ ACameraActor* UPGHomeFlowComponent::FindCameraByTag(FName CameraTag, TWeakObject
 	}
 
 	return nullptr;
+}
+
+APGRunnerCharacter* UPGHomeFlowComponent::FindPreviewRunner() const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return nullptr;
+	}
+
+	APGRunnerCharacter* FoundRunner = nullptr;
+	int32 RunnerCount = 0;
+	for (TActorIterator<APGRunnerCharacter> RunnerIt(World); RunnerIt; ++RunnerIt)
+	{
+		APGRunnerCharacter* Runner = *RunnerIt;
+		if (!IsValid(Runner))
+		{
+			continue;
+		}
+
+		FoundRunner = Runner;
+		++RunnerCount;
+		if (RunnerCount > 1)
+		{
+			UE_LOG(LogPGHomeFlow, Warning, TEXT("Shop preview runner was not selected because multiple APGRunnerCharacter actors exist."));
+			return nullptr;
+		}
+	}
+
+	return FoundRunner;
+}
+
+void UPGHomeFlowComponent::RestoreShopPreviewRunner()
+{
+	if (!PlayerShopSubsystem)
+	{
+		return;
+	}
+
+	PlayerShopSubsystem->RefreshShopCatalog();
+	PlayerShopSubsystem->SetPreviewRunner(FindPreviewRunner());
+	PlayerShopSubsystem->RestoreEquippedCharacter();
 }
 
 void UPGHomeFlowComponent::BlendToRunnerCamera()
@@ -438,6 +473,7 @@ void UPGHomeFlowComponent::HandleShopRequested()
 		return;
 	}
 	PlayerShopSubsystem->RefreshShopCatalog();
+	PlayerShopSubsystem->SetPreviewRunner(FindPreviewRunner());
 
 	UClass* WidgetClass = CachedShopSettings.ShopScreenWidgetClass.Get();
 	UClass* ItemWidgetClass = CachedShopSettings.CharacterShopItemWidgetClass.Get();
@@ -486,7 +522,7 @@ void UPGHomeFlowComponent::HandleShopScreenClosed()
 
 	if (PlayerShopSubsystem)
 	{
-		PlayerShopSubsystem->RestoreEquippedCharacter();
+		RestoreShopPreviewRunner();
 	}
 
 	BlendToHomeCamera();

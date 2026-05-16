@@ -98,6 +98,11 @@ void UPGPlayerShopSubsystem::RefreshShopCatalog()
 	EnsureDefaultOwnership();
 }
 
+void UPGPlayerShopSubsystem::SetPreviewRunner(APGRunnerCharacter* RunnerCharacter)
+{
+	PreviewRunnerCharacter = RunnerCharacter;
+}
+
 bool UPGPlayerShopSubsystem::IsCharacterOwned(FName SkinId) const
 {
 	if (SkinId.IsNone())
@@ -339,5 +344,10 @@ bool UPGPlayerShopSubsystem::ApplySkinToRunner(const UPGCharacterSkinDefinition*
 
 APGRunnerCharacter* UPGPlayerShopSubsystem::GetRunnerCharacter() const
 {
+	if (PreviewRunnerCharacter.IsValid())
+	{
+		return PreviewRunnerCharacter.Get();
+	}
+
 	return Cast<APGRunnerCharacter>(UGameplayStatics::GetPlayerPawn(this, 0));
 }
