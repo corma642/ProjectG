@@ -13,6 +13,17 @@ void UPGAudioStatics::PlayCommonButtonClick(const UObject* WorldContextObject)
 	PlaySFX2D(WorldContextObject, Settings ? Settings->SFX.CommonButtonClickSound.Get() : nullptr);
 }
 
+void UPGAudioStatics::PlayUIButtonSound(const UObject* WorldContextObject, USoundBase* SpecificSound, float VolumeMultiplier)
+{
+	if (SpecificSound)
+	{
+		PlaySFX2D(WorldContextObject, SpecificSound, VolumeMultiplier);
+		return;
+	}
+
+	PlayCommonButtonClick(WorldContextObject);
+}
+
 void UPGAudioStatics::PlaySFX2D(const UObject* WorldContextObject, USoundBase* Sound, float VolumeMultiplier)
 {
 	if (!WorldContextObject || !Sound)

@@ -417,6 +417,18 @@ struct FPGSFXSettings
 	// 상점 구매 실패 또는 재화 부족 시 재생할 사운드
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "SFX | Shop")
 	TSoftObjectPtr<USoundBase> ShopPurchaseFailSound;
+
+	// 남자 캐릭터가 라인 점프를 시작할 때 랜덤으로 재생할 사운드 목록
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "SFX | Runner")
+	TArray<TSoftObjectPtr<USoundBase>> MaleLaneJumpSounds;
+
+	// 여자 캐릭터가 라인 점프를 시작할 때 랜덤으로 재생할 사운드 목록
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "SFX | Runner")
+	TArray<TSoftObjectPtr<USoundBase>> FemaleLaneJumpSounds;
+
+	// CargoDrop Hold가 끝나고 실제 물리 적재물로 전환될 때 재생할 사운드
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "SFX | Cargo")
+	TSoftObjectPtr<USoundBase> CargoDropSound;
 };
 
 /**

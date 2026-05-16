@@ -7,9 +7,15 @@
 #include "PGCharacterSkinDefinition.generated.h"
 
 class UAnimInstance;
-class USoundBase;
 class USkeletalMesh;
 class UTexture2D;
+
+UENUM(BlueprintType)
+enum class EPGCharacterGender : uint8
+{
+	Male UMETA(DisplayName = "Male"),
+	Female UMETA(DisplayName = "Female")
+};
 
 /**
  * 상점에서 판매하고 러너에 적용할 캐릭터 스킨 데이터입니다.
@@ -46,8 +52,8 @@ public:
 	TSubclassOf<UAnimInstance> AnimClass;
 
 	// 이 캐릭터로 라인 이동 점프를 시작할 때 재생할 사운드입니다.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Skin | SFX")
-	TObjectPtr<USoundBase> LaneJumpSound;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Skin")
+	EPGCharacterGender Gender = EPGCharacterGender::Male;
 
 	// 첫 실행부터 보유 중인 기본 캐릭터인지 여부입니다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Skin")

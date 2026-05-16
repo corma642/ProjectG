@@ -204,16 +204,17 @@ void UPGShopScreenWidget::HandleNextCharacterClicked()
 
 void UPGShopScreenWidget::HandleActionClicked()
 {
-	UPGAudioStatics::PlayCommonButtonClick(this);
 	UPGPlayerShopSubsystem* Shop = ShopSubsystem.Get();
 	if (!Shop)
 	{
+		UPGAudioStatics::PlayCommonButtonClick(this);
 		return;
 	}
 
 	const auto& CharacterSkins = Shop->GetCharacterSkins();
 	if (!CharacterSkins.IsValidIndex(SelectedCharacterIndex) || !CharacterSkins[SelectedCharacterIndex])
 	{
+		UPGAudioStatics::PlayCommonButtonClick(this);
 		return;
 	}
 
@@ -241,8 +242,16 @@ void UPGShopScreenWidget::HandleActionClicked()
 	{
 		if (const UPGGameSettings* Settings = GetDefault<UPGGameSettings>())
 		{
-			UPGAudioStatics::PlaySFX2D(this, bSuccess ? Settings->SFX.ShopPurchaseSuccessSound.Get() : Settings->SFX.ShopPurchaseFailSound.Get());
+			UPGAudioStatics::PlayUIButtonSound(this, bSuccess ? Settings->SFX.ShopPurchaseSuccessSound.Get() : Settings->SFX.ShopPurchaseFailSound.Get());
 		}
+		else
+		{
+			UPGAudioStatics::PlayCommonButtonClick(this);
+		}
+	}
+	else
+	{
+		UPGAudioStatics::PlayCommonButtonClick(this);
 	}
 	RefreshSelectedCharacterState();
 }

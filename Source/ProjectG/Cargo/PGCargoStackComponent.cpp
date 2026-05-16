@@ -2,6 +2,7 @@
 
 #include "Cargo/PGCargoStackComponent.h"
 
+#include "Audio/PGAudioStatics.h"
 #include "Cargo/PGCargoTypeDefinition.h"
 #include "Cargo/PGPhysicsCargoActor.h"
 #include "Components/StaticMeshComponent.h"
@@ -180,7 +181,14 @@ void UPGCargoStackComponent::FinishCargoDropHold()
 		ScriptedCargoMeshComponent->SetHiddenInGame(true, true);
 	}
 
-	SpawnPhysicsCargo(CargoType, MakeCargoWorldTransform());
+	APGPhysicsCargoActor* SpawnedCargoActor = SpawnPhysicsCargo(CargoType, MakeCargoWorldTransform());
+	if (SpawnedCargoActor)
+	{
+		if (const UPGGameSettings* Settings = GetDefault<UPGGameSettings>())
+		{
+			UPGAudioStatics::PlaySFXAtLocation(this, Settings->SFX.CargoDropSound.Get(), SpawnedCargoActor->GetActorLocation());
+		}
+	}
 	OnCargoListChanged.Broadcast();
 }
 

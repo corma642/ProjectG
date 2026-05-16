@@ -99,6 +99,9 @@ public:
 	// 적재물 배달 완료 시 점수 보상을 반영합니다.
 	void HandleCargoDelivered(int32 CargoInstanceId, int32 Score, int32 Receipts, FVector DeliveryLocation);
 
+	// 실제 라인 이동 점프가 시작된 순간 캐릭터 성별에 맞는 점프 사운드를 재생합니다.
+	void HandleLaneChangeStarted();
+
 	// 런 실패 이벤트를 받으면 자동 전진과 입력 반응을 정지한다.
 	UFUNCTION()
 	void HandleRunFailed(FName FailureReason);

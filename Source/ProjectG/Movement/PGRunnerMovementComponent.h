@@ -7,6 +7,8 @@
 #include "Settings/PGGameSettings.h"
 #include "PGRunnerMovementComponent.generated.h"
 
+DECLARE_MULTICAST_DELEGATE(FPGOnLaneChangeStarted);
+
 /**
  * Go Deliver! 러너의 자동 전진 축과 3라인 이동 상태를 관리하는 전용 이동 컴포넌트
  */
@@ -23,6 +25,8 @@ public:
 
 	// 입력 방향(-1: 왼쪽, 1: 오른쪽)에 따라 인접 라인 이동을 요청한다.
 	bool RequestLaneChange(int32 Direction);
+
+	FPGOnLaneChangeStarted OnLaneChangeStarted;
 
 	// 현재 캐릭터가 위치한 라인 인덱스
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner Movement")

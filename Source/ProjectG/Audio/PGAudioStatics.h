@@ -19,6 +19,8 @@ public:
 	// 모든 기본 UI 버튼에서 공유하는 클릭음을 2D 사운드로 재생합니다.
 	static void PlayCommonButtonClick(const UObject* WorldContextObject);
 
+	static void PlayUIButtonSound(const UObject* WorldContextObject, class USoundBase* SpecificSound = nullptr, float VolumeMultiplier = 1.0f);
+
 	// 지정한 사운드를 사용자 SFX 볼륨과 추가 볼륨 배율을 적용해 2D로 재생합니다.
 	static void PlaySFX2D(const UObject* WorldContextObject, class USoundBase* Sound, float VolumeMultiplier = 1.0f);
 

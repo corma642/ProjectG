@@ -15,6 +15,7 @@
 #include "Settings/PGGameSettings.h"
 #include "Shop/PGCharacterSkinDefinition.h"
 #include "Shop/PGPlayerShopSubsystem.h"
+#include "Sound/SoundBase.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGRunnerCharacter, Log, All);
 
@@ -83,6 +84,7 @@ void APGRunnerCharacter::BeginPlay()
 	{
 		// 시작 위치와 방향을 러너 기준 트랙 좌표계로 고정해 월드 X/Y축 의존성을 제거한다.
 		RunnerMovementComponent->InitializeRunnerMovement(CachedLaneSettings, CachedGyroSettings, CachedBalanceSettings, GetActorLocation(), GetActorForwardVector(), GetActorRightVector());
+		RunnerMovementComponent->OnLaneChangeStarted.AddUObject(this, &APGRunnerCharacter::HandleLaneChangeStarted);
 	}
 
 	if (CargoStackComponent)
@@ -194,11 +196,7 @@ void APGRunnerCharacter::RequestLaneChange(int32 Direction)
 
 	if (RunnerMovementComponent)
 	{
-		const bool bAccepted = RunnerMovementComponent->RequestLaneChange(Direction);
-		if (bAccepted && CurrentCharacterSkinDefinition && CurrentCharacterSkinDefinition->LaneJumpSound)
-		{
-			UPGAudioStatics::PlaySFXAtLocation(this, CurrentCharacterSkinDefinition->LaneJumpSound, GetActorLocation());
-		}
+		RunnerMovementComponent->RequestLaneChange(Direction);
 	}
 }
 
@@ -380,6 +378,43 @@ void APGRunnerCharacter::HandleCargoDelivered(int32 CargoInstanceId, int32 Score
 	{
 		RunProgressComponent->AddScore(Score, TEXT("CargoDelivered"));
 		RunProgressComponent->AddReceipts(Receipts, TEXT("CargoDelivered"));
+	}
+}
+
+void APGRunnerCharacter::HandleLaneChangeStarted()
+{
+	if (!CurrentCharacterSkinDefinition)
+	{
+		return;
+	}
+
+	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
+	const TArray<TSoftObjectPtr<USoundBase>>* JumpSounds = nullptr;
+	if (Settings)
+	{
+		JumpSounds = CurrentCharacterSkinDefinition->Gender == EPGCharacterGender::Female
+			? &Settings->SFX.FemaleLaneJumpSounds
+			: &Settings->SFX.MaleLaneJumpSounds;
+	}
+
+	if (!JumpSounds || JumpSounds->IsEmpty())
+	{
+		return;
+	}
+
+	TArray<USoundBase*> LoadedSounds;
+	LoadedSounds.Reserve(JumpSounds->Num());
+	for (const TSoftObjectPtr<USoundBase>& JumpSound : *JumpSounds)
+	{
+		if (USoundBase* LoadedSound = JumpSound.Get())
+		{
+			LoadedSounds.Add(LoadedSound);
+		}
+	}
+
+	if (!LoadedSounds.IsEmpty())
+	{
+		UPGAudioStatics::PlaySFXAtLocation(this, LoadedSounds[FMath::RandRange(0, LoadedSounds.Num() - 1)], GetActorLocation());
 	}
 }
 

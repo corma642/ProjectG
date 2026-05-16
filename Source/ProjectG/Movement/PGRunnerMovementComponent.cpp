@@ -236,6 +236,7 @@ bool UPGRunnerMovementComponent::StartLaneChange(int32 NewLaneIndex)
 	LaneMoveElapsed = 0.0f;
 	bIsChangingLane = true;
 	bIsWaitingForLaneJumpLanding = false;
+	OnLaneChangeStarted.Broadcast();
 
 	const float JumpVelocity = CalculateLaneJumpVelocity();
 	if (JumpVelocity > 0.0f)

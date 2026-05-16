@@ -8,6 +8,7 @@
 #include "Settings/PGGameSettings.h"
 #include "Shop/PGCharacterShopCatalog.h"
 #include "Shop/PGCharacterSkinDefinition.h"
+#include "Sound/SoundBase.h"
 #include "Tutorial/PGTutorialPageSet.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGRuntimePreload, Log, All);
@@ -73,6 +74,15 @@ void UPGRuntimePreloadSubsystem::CollectPrimaryResourcePaths(TArray<FSoftObjectP
 	AddUniquePath(OutPaths, Settings->SFX.CountdownTickSound.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->SFX.ShopPurchaseSuccessSound.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->SFX.ShopPurchaseFailSound.ToSoftObjectPath());
+	AddUniquePath(OutPaths, Settings->SFX.CargoDropSound.ToSoftObjectPath());
+	for (const TSoftObjectPtr<USoundBase>& LaneJumpSound : Settings->SFX.MaleLaneJumpSounds)
+	{
+		AddUniquePath(OutPaths, LaneJumpSound.ToSoftObjectPath());
+	}
+	for (const TSoftObjectPtr<USoundBase>& LaneJumpSound : Settings->SFX.FemaleLaneJumpSounds)
+	{
+		AddUniquePath(OutPaths, LaneJumpSound.ToSoftObjectPath());
+	}
 
 	AddUniquePath(OutPaths, Settings->RunHUD.RunHUDWidgetClass.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->RunHUD.RunPauseWidgetClass.ToSoftObjectPath());
@@ -148,10 +158,6 @@ void UPGRuntimePreloadSubsystem::CollectNestedResourcePaths(TArray<FSoftObjectPa
 			if (SkinDefinition->AnimClass)
 			{
 				AddUniquePath(OutPaths, FSoftObjectPath(SkinDefinition->AnimClass));
-			}
-			if (SkinDefinition->LaneJumpSound)
-			{
-				AddUniquePath(OutPaths, FSoftObjectPath(SkinDefinition->LaneJumpSound.Get()));
 			}
 		}
 	}
