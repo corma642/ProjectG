@@ -22,7 +22,7 @@ public:
 	void InitializeRunnerMovement(const FPGLaneSettings& InLaneSettings, const FPGGyroSettings& InGyroSettings, const FPGBalanceSettings& InBalanceSettings, const FVector& InLaneOriginLocation, const FVector& InRunnerForwardVector, const FVector& InRunnerRightVector);
 
 	// 입력 방향(-1: 왼쪽, 1: 오른쪽)에 따라 인접 라인 이동을 요청한다.
-	void RequestLaneChange(int32 Direction);
+	bool RequestLaneChange(int32 Direction);
 
 	// 현재 캐릭터가 위치한 라인 인덱스
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner Movement")
@@ -75,7 +75,7 @@ private:
 	void UpdateBalanceMovement(float DeltaSeconds);
 
 	// 지정한 라인 인덱스로 이동을 시작한다.
-	void StartLaneChange(int32 NewLaneIndex);
+	bool StartLaneChange(int32 NewLaneIndex);
 
 	// 라인 점프가 실제 바닥에 착지했을 때 안정화 시간과 버퍼 입력을 처리한다.
 	void CompleteLaneJumpLanding();

@@ -2,6 +2,7 @@
 
 #include "UI/PGTutorialScreenWidget.h"
 
+#include "Audio/PGAudioStatics.h"
 #include "Components/Button.h"
 #include "Components/Image.h"
 #include "Components/Widget.h"
@@ -106,16 +107,19 @@ void UPGTutorialScreenWidget::InitializeTutorial(UPGTutorialPageSet* InPageSet)
 
 void UPGTutorialScreenWidget::HandlePrevClicked()
 {
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	StartPageTransition(CurrentPageIndex - 1, -1);
 }
 
 void UPGTutorialScreenWidget::HandleNextClicked()
 {
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	StartPageTransition(CurrentPageIndex + 1, 1);
 }
 
 void UPGTutorialScreenWidget::HandleCloseClicked()
 {
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	OnTutorialClosed.Broadcast();
 	RemoveFromParent();
 }

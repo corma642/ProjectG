@@ -2,6 +2,7 @@
 
 #include "UI/PGCharacterShopItemWidget.h"
 
+#include "Audio/PGAudioStatics.h"
 #include "Components/Button.h"
 #include "Components/Image.h"
 #include "Components/Widget.h"
@@ -71,6 +72,7 @@ void UPGCharacterShopItemWidget::SetCharacterSkin(const UPGCharacterSkinDefiniti
 
 void UPGCharacterShopItemWidget::HandleSelectButtonClicked()
 {
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	BroadcastSelected();
 }
 

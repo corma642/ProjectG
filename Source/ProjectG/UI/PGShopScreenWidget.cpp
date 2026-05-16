@@ -1,11 +1,13 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UI/PGShopScreenWidget.h"
 
+#include "Audio/PGAudioStatics.h"
 #include "Components/Button.h"
 #include "Components/ScrollBox.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
+#include "Settings/PGGameSettings.h"
 #include "Shop/PGCharacterSkinDefinition.h"
 #include "Shop/PGPlayerShopSubsystem.h"
 #include "UI/PGCharacterShopItemWidget.h"
@@ -184,21 +186,25 @@ void UPGShopScreenWidget::PlayCloseAnimation()
 
 void UPGShopScreenWidget::HandleCloseClicked()
 {
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	PlayCloseAnimation();
 }
 
 void UPGShopScreenWidget::HandlePrevCharacterClicked()
 {
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	SelectCharacterByIndex(SelectedCharacterIndex - 1);
 }
 
 void UPGShopScreenWidget::HandleNextCharacterClicked()
 {
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	SelectCharacterByIndex(SelectedCharacterIndex + 1);
 }
 
 void UPGShopScreenWidget::HandleActionClicked()
 {
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	UPGPlayerShopSubsystem* Shop = ShopSubsystem.Get();
 	if (!Shop)
 	{
@@ -213,8 +219,10 @@ void UPGShopScreenWidget::HandleActionClicked()
 
 	const FName SkinId = CharacterSkins[SelectedCharacterIndex]->SkinId;
 	bool bSuccess = false;
+	bool bWasPurchaseAction = false;
 	if (!Shop->IsCharacterOwned(SkinId))
 	{
+		bWasPurchaseAction = true;
 		bSuccess = Shop->PurchaseCharacter(SkinId);
 	}
 	else if (!Shop->IsCharacterEquipped(SkinId))
@@ -229,11 +237,19 @@ void UPGShopScreenWidget::HandleActionClicked()
 	bActionFeedbackActive = true;
 	ActionFeedbackElapsed = 0.0f;
 	bActionFeedbackSuccess = bSuccess;
+	if (bWasPurchaseAction)
+	{
+		if (const UPGGameSettings* Settings = GetDefault<UPGGameSettings>())
+		{
+			UPGAudioStatics::PlaySFX2D(this, bSuccess ? Settings->SFX.ShopPurchaseSuccessSound.Get() : Settings->SFX.ShopPurchaseFailSound.Get());
+		}
+	}
 	RefreshSelectedCharacterState();
 }
 
 void UPGShopScreenWidget::HandleMapsTabClicked()
 {
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	if (MapsTabButton)
 	{
 		MapsTabButton->SetIsEnabled(false);

@@ -2,6 +2,7 @@
 
 #include "UI/PGSettingsScreenWidget.h"
 
+#include "Audio/PGAudioStatics.h"
 #include "Components/BackgroundBlur.h"
 #include "Components/Button.h"
 #include "Components/CheckBox.h"
@@ -188,6 +189,7 @@ void UPGSettingsScreenWidget::PlayOpenAnimation()
 
 void UPGSettingsScreenWidget::HandleCloseClicked()
 {
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	if (UPGGameUserSettings* UserSettings = Cast<UPGGameUserSettings>(UGameUserSettings::GetGameUserSettings()))
 	{
 		UserSettings->SaveSettings();
@@ -201,16 +203,19 @@ void UPGSettingsScreenWidget::HandleCloseClicked()
 
 void UPGSettingsScreenWidget::HandleLowPresetClicked()
 {
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	ApplyPreset(EPGMobileQualityPreset::Low);
 }
 
 void UPGSettingsScreenWidget::HandleBalancedPresetClicked()
 {
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	ApplyPreset(EPGMobileQualityPreset::Balanced);
 }
 
 void UPGSettingsScreenWidget::HandleHighPresetClicked()
 {
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	ApplyPreset(EPGMobileQualityPreset::High);
 }
 
@@ -241,11 +246,13 @@ void UPGSettingsScreenWidget::HandleResolutionScaleCommit()
 
 void UPGSettingsScreenWidget::HandleFrameRate30Clicked()
 {
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	ApplyFrameRate(30);
 }
 
 void UPGSettingsScreenWidget::HandleFrameRate60Clicked()
 {
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	ApplyFrameRate(60);
 }
 
@@ -256,6 +263,7 @@ void UPGSettingsScreenWidget::HandleShowFPSCheckStateChanged(bool bIsChecked)
 		return;
 	}
 
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	if (UPGGameUserSettings* UserSettings = Cast<UPGGameUserSettings>(UGameUserSettings::GetGameUserSettings()))
 	{
 		UserSettings->SetShowFPSDisplay(bIsChecked, true);

@@ -2,8 +2,10 @@
 
 #include "UI/PGRunCountdownWidget.h"
 
+#include "Audio/PGAudioStatics.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
+#include "Settings/PGGameSettings.h"
 
 namespace
 {
@@ -96,6 +98,10 @@ void UPGRunCountdownWidget::UpdateCountdownText(int32 StepIndex)
 
 	static const TCHAR* CountdownLabels[] = { TEXT("3"), TEXT("2"), TEXT("1"), TEXT("GO!") };
 	CountdownText->SetText(FText::FromString(CountdownLabels[FMath::Clamp(StepIndex, 0, 3)]));
+
+	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
+	const float VolumeMultiplier = StepIndex == 3 && Settings ? Settings->SFX.CountdownGoVolumeMultiplier : 1.0f;
+	UPGAudioStatics::PlaySFX2D(this, Settings ? Settings->SFX.CountdownTickSound.Get() : nullptr, VolumeMultiplier);
 
 	if (RootPanel)
 	{

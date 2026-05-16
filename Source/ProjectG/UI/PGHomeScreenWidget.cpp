@@ -2,6 +2,7 @@
 
 #include "UI/PGHomeScreenWidget.h"
 
+#include "Audio/PGAudioStatics.h"
 #include "Components/Button.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
@@ -164,21 +165,25 @@ void UPGHomeScreenWidget::SetReceiptBalance(int32 Balance) const
 
 void UPGHomeScreenWidget::HandleStartDeliveryClicked()
 {
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	OnStartDeliveryRequested.Broadcast();
 }
 
 void UPGHomeScreenWidget::HandleShopClicked()
 {
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	OnShopRequested.Broadcast();
 }
 
 void UPGHomeScreenWidget::HandleSettingsClicked()
 {
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	OnSettingsRequested.Broadcast();
 }
 
 void UPGHomeScreenWidget::HandleHelpClicked()
 {
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	OnHelpRequested.Broadcast();
 }
 

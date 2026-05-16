@@ -10,6 +10,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameModes/PGGameModeBase.h"
+#include "Audio/PGAudioStatics.h"
 #include "RunProgress/PGRunProgressComponent.h"
 #include "Settings/PGGameSettings.h"
 #include "Shop/PGCharacterSkinDefinition.h"
@@ -193,7 +194,11 @@ void APGRunnerCharacter::RequestLaneChange(int32 Direction)
 
 	if (RunnerMovementComponent)
 	{
-		RunnerMovementComponent->RequestLaneChange(Direction);
+		const bool bAccepted = RunnerMovementComponent->RequestLaneChange(Direction);
+		if (bAccepted && CurrentCharacterSkinDefinition && CurrentCharacterSkinDefinition->LaneJumpSound)
+		{
+			UPGAudioStatics::PlaySFXAtLocation(this, CurrentCharacterSkinDefinition->LaneJumpSound, GetActorLocation());
+		}
 	}
 }
 
@@ -269,6 +274,7 @@ bool APGRunnerCharacter::ApplyCharacterSkin(const UPGCharacterSkinDefinition* Sk
 	}
 
 	// 캐릭터별 피벗/스케일은 DCC에서 통일하고, BP_Runner의 Mesh 상대 Transform을 단일 기준으로 사용한다.
+	CurrentCharacterSkinDefinition = const_cast<UPGCharacterSkinDefinition*>(SkinDefinition);
 	InitialMeshRelativeRotation = MeshComponent->GetRelativeRotation();
 	CurrentBodyRoll = 0.0f;
 	return true;

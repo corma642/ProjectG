@@ -38,11 +38,11 @@ void UPGRunnerMovementComponent::InitializeRunnerMovement(const FPGLaneSettings&
 	bIsWaitingForLaneJumpLanding = false;
 }
 
-void UPGRunnerMovementComponent::RequestLaneChange(int32 Direction)
+bool UPGRunnerMovementComponent::RequestLaneChange(int32 Direction)
 {
 	if (Direction == 0)
 	{
-		return;
+		return false;
 	}
 
 	const int32 NormalizedDirection = Direction > 0 ? 1 : -1;
@@ -51,10 +51,10 @@ void UPGRunnerMovementComponent::RequestLaneChange(int32 Direction)
 		// 이동 중 입력은 버퍼에 저장해 착지 직후 다음 라인 이동으로 이어지게 한다.
 		BufferedLaneDirection = NormalizedDirection;
 		BufferedLaneInputRemainingTime = CachedLaneSettings.LaneInputBufferTime;
-		return;
+		return true;
 	}
 
-	StartLaneChange(CurrentLaneIndex + NormalizedDirection);
+	return StartLaneChange(CurrentLaneIndex + NormalizedDirection);
 }
 
 FVector UPGRunnerMovementComponent::GetLaneWorldLocation(int32 LaneIndex) const
@@ -221,12 +221,12 @@ void UPGRunnerMovementComponent::UpdateBalanceMovement(float DeltaSeconds)
 	}
 }
 
-void UPGRunnerMovementComponent::StartLaneChange(int32 NewLaneIndex)
+bool UPGRunnerMovementComponent::StartLaneChange(int32 NewLaneIndex)
 {
 	const int32 ClampedLaneIndex = ClampLaneIndex(NewLaneIndex);
 	if (ClampedLaneIndex == CurrentLaneIndex || IsFalling())
 	{
-		return;
+		return false;
 	}
 
 	// 이동 시작/목표 오프셋을 고정해 이동 중 기준값이 흔들리지 않도록 한다.
@@ -244,6 +244,8 @@ void UPGRunnerMovementComponent::StartLaneChange(int32 NewLaneIndex)
 		Velocity.Z = FMath::Max(Velocity.Z, JumpVelocity);
 		SetMovementMode(MOVE_Falling);
 	}
+
+	return true;
 }
 
 void UPGRunnerMovementComponent::CompleteLaneJumpLanding()

@@ -69,6 +69,10 @@ void UPGRuntimePreloadSubsystem::CollectPrimaryResourcePaths(TArray<FSoftObjectP
 	AddUniquePath(OutPaths, Settings->Shop.CharacterShopCatalog.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->Music.HomeMusic.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->Music.RunMusic.ToSoftObjectPath());
+	AddUniquePath(OutPaths, Settings->SFX.CommonButtonClickSound.ToSoftObjectPath());
+	AddUniquePath(OutPaths, Settings->SFX.CountdownTickSound.ToSoftObjectPath());
+	AddUniquePath(OutPaths, Settings->SFX.ShopPurchaseSuccessSound.ToSoftObjectPath());
+	AddUniquePath(OutPaths, Settings->SFX.ShopPurchaseFailSound.ToSoftObjectPath());
 
 	AddUniquePath(OutPaths, Settings->RunHUD.RunHUDWidgetClass.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->RunHUD.RunPauseWidgetClass.ToSoftObjectPath());
@@ -144,6 +148,10 @@ void UPGRuntimePreloadSubsystem::CollectNestedResourcePaths(TArray<FSoftObjectPa
 			if (SkinDefinition->AnimClass)
 			{
 				AddUniquePath(OutPaths, FSoftObjectPath(SkinDefinition->AnimClass));
+			}
+			if (SkinDefinition->LaneJumpSound)
+			{
+				AddUniquePath(OutPaths, FSoftObjectPath(SkinDefinition->LaneJumpSound.Get()));
 			}
 		}
 	}

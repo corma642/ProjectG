@@ -2,6 +2,7 @@
 
 #include "UI/PGRunResultWidget.h"
 
+#include "Audio/PGAudioStatics.h"
 #include "Components/BackgroundBlur.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
@@ -299,6 +300,7 @@ FText UPGRunResultWidget::FormatNumber(int32 Value) const
 
 void UPGRunResultWidget::HandleRetryClicked()
 {
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
 	if (!CurrentLevelName.IsEmpty())
 	{
@@ -318,6 +320,7 @@ void UPGRunResultWidget::HandleRetryReleased()
 
 void UPGRunResultWidget::HandleHomeClicked()
 {
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
 	if (!CurrentLevelName.IsEmpty())
 	{

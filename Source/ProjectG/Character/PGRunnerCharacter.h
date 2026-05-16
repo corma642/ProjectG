@@ -230,6 +230,10 @@ private:
 
 	bool bHasHomePreviewTransform = false;
 
+	// 현재 적용된 캐릭터 스킨 데이터. 캐릭터별 라인 점프 사운드 재생에 사용합니다.
+	UPROPERTY(Transient)
+	TObjectPtr<UPGCharacterSkinDefinition> CurrentCharacterSkinDefinition;
+
 	// 메시 연출에 적용 중인 현재 롤 각도
 	float CurrentBodyRoll = 0.0f;
 

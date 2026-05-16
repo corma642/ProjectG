@@ -7,6 +7,7 @@
 #include "PGCharacterSkinDefinition.generated.h"
 
 class UAnimInstance;
+class USoundBase;
 class USkeletalMesh;
 class UTexture2D;
 
@@ -43,6 +44,10 @@ public:
 	// 러너 MeshComponent에 적용할 AnimInstance 클래스입니다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Skin | Mesh")
 	TSubclassOf<UAnimInstance> AnimClass;
+
+	// 이 캐릭터로 라인 이동 점프를 시작할 때 재생할 사운드입니다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Skin | SFX")
+	TObjectPtr<USoundBase> LaneJumpSound;
 
 	// 첫 실행부터 보유 중인 기본 캐릭터인지 여부입니다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Skin")

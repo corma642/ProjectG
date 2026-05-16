@@ -2,6 +2,7 @@
 
 #include "UI/PGRunHUDWidget.h"
 
+#include "Audio/PGAudioStatics.h"
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -205,6 +206,7 @@ void UPGRunHUDWidget::PlayExitAnimation()
 
 void UPGRunHUDWidget::HandlePauseClicked()
 {
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	OnPauseRequested.Broadcast();
 }
 

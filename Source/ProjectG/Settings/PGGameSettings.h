@@ -391,6 +391,35 @@ struct FPGMusicSettings
 };
 
 /**
+ * 공통 UI/SFX 연출에 사용할 사운드 설정입니다.
+ */
+USTRUCT(BlueprintType)
+struct FPGSFXSettings
+{
+	GENERATED_BODY()
+
+	// 모든 기본 UI 버튼 클릭에 공통으로 사용할 사운드
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "SFX | UI")
+	TSoftObjectPtr<USoundBase> CommonButtonClickSound;
+
+	// 3-2-1-Go 카운트다운 단계가 바뀔 때 재생할 사운드
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "SFX | Countdown")
+	TSoftObjectPtr<USoundBase> CountdownTickSound;
+
+	// GO! 단계에서 카운트다운 사운드에 곱할 볼륨 배율
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "SFX | Countdown", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3.0"))
+	float CountdownGoVolumeMultiplier = 1.35f;
+
+	// 상점 구매 성공 시 재생할 사운드
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "SFX | Shop")
+	TSoftObjectPtr<USoundBase> ShopPurchaseSuccessSound;
+
+	// 상점 구매 실패 또는 재화 부족 시 재생할 사운드
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "SFX | Shop")
+	TSoftObjectPtr<USoundBase> ShopPurchaseFailSound;
+};
+
+/**
  * 모바일 런타임 품질 프리셋 종류
  */
 UENUM(BlueprintType)
@@ -720,6 +749,10 @@ public:
 	// 홈/러닝 배경음 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Music")
 	FPGMusicSettings Music;
+
+	// 공통 UI 클릭음, 카운트다운, 상점 결과음 설정
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "SFX")
+	FPGSFXSettings SFX;
 
 	// Home 상점과 캐릭터 스킨 카탈로그 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Shop")

@@ -2,6 +2,7 @@
 
 #include "UI/PGRunPauseWidget.h"
 
+#include "Audio/PGAudioStatics.h"
 #include "Components/BackgroundBlur.h"
 #include "Components/Button.h"
 #include "Components/Widget.h"
@@ -147,16 +148,19 @@ void UPGRunPauseWidget::SetPauseButtonsEnabled(bool bEnabled) const
 
 void UPGRunPauseWidget::HandleResumeClicked()
 {
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	PlayCloseForResume();
 }
 
 void UPGRunPauseWidget::HandleSettingsClicked()
 {
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	OnSettingsRequested.Broadcast();
 }
 
 void UPGRunPauseWidget::HandleHomeClicked()
 {
+	UPGAudioStatics::PlayCommonButtonClick(this);
 	SetPauseButtonsEnabled(false);
 	OnHomeRequested.Broadcast();
 }
