@@ -83,8 +83,7 @@ void APGRunnerCharacter::BeginPlay()
 	if (RunnerMovementComponent)
 	{
 		// 시작 위치와 방향을 러너 기준 트랙 좌표계로 고정해 월드 X/Y축 의존성을 제거한다.
-		RunnerMovementComponent->InitializeRunnerMovement(CachedLaneSettings, CachedGyroSettings, CachedBalanceSettings, GetActorLocation(), GetActorForwardVector(), GetActorRightVector());
-		RunnerMovementComponent->OnLaneChangeStarted.AddUObject(this, &APGRunnerCharacter::HandleLaneChangeStarted);
+		RunnerMovementComponent->InitializeRunnerMovement(CachedJumpSettings, CachedGyroSettings, CachedBalanceSettings, GetActorLocation(), GetActorForwardVector(), GetActorRightVector());
 	}
 
 	if (CargoStackComponent)
@@ -181,22 +180,22 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 	UpdateForwardMovement();
 	if (CargoStackComponent)
 	{
-		const bool bIsChangingLane = RunnerMovementComponent && RunnerMovementComponent->IsChangingLane();
-		CargoStackComponent->UpdateCargoReaction(DeltaSeconds, GetCargoBalanceInputForPhysics(), bIsChangingLane);
+		const bool bIsAirborne = RunnerMovementComponent && RunnerMovementComponent->IsFalling();
+		CargoStackComponent->UpdateCargoReaction(DeltaSeconds, GetCargoBalanceInputForPhysics(), bIsAirborne);
 	}
 	UpdateBodyLean(DeltaSeconds);
 }
 
-void APGRunnerCharacter::RequestLaneChange(int32 Direction)
+void APGRunnerCharacter::RequestJump()
 {
-	if (!bIsRunActive || bIsGameplayInputLocked || Direction == 0)
+	if (!bIsRunActive || bIsGameplayInputLocked)
 	{
 		return;
 	}
 
-	if (RunnerMovementComponent)
+	if (RunnerMovementComponent && RunnerMovementComponent->RequestJump())
 	{
-		RunnerMovementComponent->RequestLaneChange(Direction);
+		PlayJumpSound();
 	}
 }
 
@@ -210,13 +209,11 @@ void APGRunnerCharacter::SetBalanceInput(float InBalanceInput)
 
 	const float ClampedInput = FMath::Clamp(InBalanceInput, -CachedGyroSettings.MaxTiltInput, CachedGyroSettings.MaxTiltInput);
 
-	// 점프 중이나 착지 직후에는 조작 영향력을 줄여 급격한 흔들림을 완화한다.
-	const bool bIsChangingLane = RunnerMovementComponent && RunnerMovementComponent->IsChangingLane();
+	// 착지 직후에만 조작 영향력을 잠깐 줄여 급격한 흔들림을 완화한다.
 	const bool bIsLandingStabilizing = RunnerMovementComponent && RunnerMovementComponent->GetLandingStabilizeRemainingTime() > 0.0f;
-	const float DampingScale = bIsChangingLane ? CachedGyroSettings.JumpTiltDampingScale : 1.0f;
 	const float LandingScale = bIsLandingStabilizing ? 0.5f : 1.0f;
 
-	BalanceInput = ClampedInput * DampingScale * LandingScale;
+	BalanceInput = ClampedInput * LandingScale;
 }
 
 float APGRunnerCharacter::GetRunElapsedTime() const
@@ -315,7 +312,7 @@ void APGRunnerCharacter::PrepareTransformForRunStart()
 
 	if (RunnerMovementComponent)
 	{
-		RunnerMovementComponent->InitializeRunnerMovement(CachedLaneSettings, CachedGyroSettings, CachedBalanceSettings, CurrentLocation, GetActorForwardVector(), GetActorRightVector());
+		RunnerMovementComponent->InitializeRunnerMovement(CachedJumpSettings, CachedGyroSettings, CachedBalanceSettings, CurrentLocation, GetActorForwardVector(), GetActorRightVector());
 		RunnerMovementComponent->SetBalanceMovementInput(0.0f, 0.0f);
 		RunnerMovementComponent->StopMovementImmediately();
 	}
@@ -345,16 +342,6 @@ void APGRunnerCharacter::RestoreHomePreviewTransform()
 	}
 }
 
-int32 APGRunnerCharacter::GetCurrentLaneIndex() const
-{
-	return RunnerMovementComponent ? RunnerMovementComponent->GetCurrentLaneIndex() : 0;
-}
-
-int32 APGRunnerCharacter::GetTargetLaneIndex() const
-{
-	return RunnerMovementComponent ? RunnerMovementComponent->GetTargetLaneIndex() : 0;
-}
-
 void APGRunnerCharacter::HandleCargoLost(int32 CargoIndex)
 {
 	if (RunProgressComponent)
@@ -381,7 +368,7 @@ void APGRunnerCharacter::HandleCargoDelivered(int32 CargoInstanceId, int32 Score
 	}
 }
 
-void APGRunnerCharacter::HandleLaneChangeStarted()
+void APGRunnerCharacter::PlayJumpSound()
 {
 	if (!CurrentCharacterSkinDefinition)
 	{
@@ -393,8 +380,8 @@ void APGRunnerCharacter::HandleLaneChangeStarted()
 	if (Settings)
 	{
 		JumpSounds = CurrentCharacterSkinDefinition->Gender == EPGCharacterGender::Female
-			? &Settings->SFX.FemaleLaneJumpSounds
-			: &Settings->SFX.MaleLaneJumpSounds;
+			? &Settings->SFX.FemaleJumpSounds
+			: &Settings->SFX.MaleJumpSounds;
 	}
 
 	if (!JumpSounds || JumpSounds->IsEmpty())
@@ -540,7 +527,7 @@ void APGRunnerCharacter::ApplyGameSettings()
 	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
 	CachedRunnerSettings = Settings->Runner;
 	CachedBalanceSettings = Settings->Balance;
-	CachedLaneSettings = Settings->Lane;
+	CachedJumpSettings = Settings->Jump;
 	CachedGyroSettings = Settings->Gyro;
 	CachedCameraSettings = Settings->Camera;
 	CachedCargoSettings = Settings->Cargo;
@@ -640,12 +627,6 @@ void APGRunnerCharacter::CheckFallFailure()
 
 void APGRunnerCharacter::UpdateBaseInstability(float DeltaSeconds)
 {
-	if (!CachedBalanceSettings.bEnableBaseInstability)
-	{
-		BaseInstabilityInput = 0.0f;
-		return;
-	}
-
 	BalanceElapsedTime += DeltaSeconds;
 
 	// 결정론적 사인파를 사용해 같은 조건에서 반복 검증 가능한 기본 줄타기 흔들림을 만든다.
@@ -657,7 +638,7 @@ void APGRunnerCharacter::UpdateBaseInstability(float DeltaSeconds)
 float APGRunnerCharacter::GetEffectiveBalanceInput() const
 {
 	const float EnvironmentBalanceInput = RunnerEnvironmentComponent ? RunnerEnvironmentComponent->GetProcessedBalanceInput() : BalanceInput;
-	const float FinalBalanceInput = BaseInstabilityInput + EnvironmentBalanceInput * CachedBalanceSettings.PlayerCorrectionScale;
+	const float FinalBalanceInput = BaseInstabilityInput + EnvironmentBalanceInput;
 
 	// 환경 효과와 기본 불안정성을 모두 합산한 뒤 자이로 최대 입력 설정으로 최종 제한한다.
 	return FMath::Clamp(FinalBalanceInput, -CachedGyroSettings.MaxTiltInput, CachedGyroSettings.MaxTiltInput);
@@ -668,7 +649,7 @@ float APGRunnerCharacter::GetCargoBalanceInputForPhysics() const
 	if (RunnerEnvironmentComponent && RunnerEnvironmentComponent->IsSnowstormActive())
 	{
 		// 눈바람 중에는 기본 흔들림은 그대로 두고, 플레이어 입력으로 인한 적재물 반응만 더 민감하게 만든다.
-		return BaseInstabilityInput + RunnerEnvironmentComponent->GetProcessedCargoBalanceInput() * CachedBalanceSettings.PlayerCorrectionScale;
+		return BaseInstabilityInput + RunnerEnvironmentComponent->GetProcessedCargoBalanceInput();
 	}
 
 	return GetEffectiveBalanceInput();

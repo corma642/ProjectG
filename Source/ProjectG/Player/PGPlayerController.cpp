@@ -64,10 +64,10 @@ void APGPlayerController::BeginPlay()
 	EnsureInputAssets();
 	CacheRunnerPawn(GetPawn());
 
-	if ((DefaultMappingContext || TouchLaneAction || LaneLeftAction || LaneRightAction || GyroCalibrationAction || BalanceLeftAction || BalanceRightAction) && !HasCompleteConfiguredInputAssets())
+	if ((DefaultMappingContext || JumpAction || GyroCalibrationAction || BalanceLeftAction || BalanceRightAction) && !HasCompleteConfiguredInputAssets())
 	{
 		// 입력 에셋은 일부만 지정하면 액션/매핑 불일치가 생기므로 안전한 C++ 기본 매핑으로 되돌린다.
-		UE_LOG(LogTemp, Warning, TEXT("PGPlayerController input assets are incomplete. Falling back to native Sprint 1 input mapping."));
+		UE_LOG(LogTemp, Warning, TEXT("PGPlayerController input assets are incomplete. Falling back to native input mapping."));
 	}
 
 	if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
@@ -135,10 +135,7 @@ void APGPlayerController::SetupInputComponent()
 		return;
 	}
 
-	// Sprint 1 입력은 Enhanced Input 액션을 기준으로 통일한다.
-	EnhancedInputComponent->BindAction(GetResolvedTouchLaneAction(), ETriggerEvent::Started, this, &APGPlayerController::HandleTouchLaneStarted);
-	EnhancedInputComponent->BindAction(GetResolvedLaneLeftAction(), ETriggerEvent::Started, this, &APGPlayerController::HandleLaneLeftStarted);
-	EnhancedInputComponent->BindAction(GetResolvedLaneRightAction(), ETriggerEvent::Started, this, &APGPlayerController::HandleLaneRightStarted);
+	EnhancedInputComponent->BindAction(GetResolvedJumpAction(), ETriggerEvent::Started, this, &APGPlayerController::HandleJumpStarted);
 	EnhancedInputComponent->BindAction(GetResolvedGyroCalibrationAction(), ETriggerEvent::Started, this, &APGPlayerController::HandleGyroCalibrationStarted);
 	EnhancedInputComponent->BindAction(GetResolvedBalanceLeftAction(), ETriggerEvent::Started, this, &APGPlayerController::HandleBalanceLeftStarted);
 	EnhancedInputComponent->BindAction(GetResolvedBalanceLeftAction(), ETriggerEvent::Completed, this, &APGPlayerController::HandleBalanceLeftCompleted);
@@ -165,22 +162,10 @@ void APGPlayerController::CacheRunnerPawn(APawn* InPawn)
 
 void APGPlayerController::EnsureInputAssets()
 {
-	if (!NativeTouchLaneAction)
+	if (!NativeJumpAction)
 	{
-		NativeTouchLaneAction = NewObject<UInputAction>(this, TEXT("IA_PG_NativeTouchLane"));
-		NativeTouchLaneAction->ValueType = EInputActionValueType::Boolean;
-	}
-
-	if (!NativeLaneLeftAction)
-	{
-		NativeLaneLeftAction = NewObject<UInputAction>(this, TEXT("IA_PG_NativeLaneLeft"));
-		NativeLaneLeftAction->ValueType = EInputActionValueType::Boolean;
-	}
-
-	if (!NativeLaneRightAction)
-	{
-		NativeLaneRightAction = NewObject<UInputAction>(this, TEXT("IA_PG_NativeLaneRight"));
-		NativeLaneRightAction->ValueType = EInputActionValueType::Boolean;
+		NativeJumpAction = NewObject<UInputAction>(this, TEXT("IA_PG_NativeJump"));
+		NativeJumpAction->ValueType = EInputActionValueType::Boolean;
 	}
 
 	if (!NativeGyroCalibrationAction)
@@ -205,12 +190,9 @@ void APGPlayerController::EnsureInputAssets()
 	{
 		NativeMappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_PG_NativeDefault"));
 
-		// 에셋이 없어도 Sprint 1 검증이 가능하도록 C++ 기본 키 매핑을 제공한다.
-		NativeMappingContext->MapKey(NativeTouchLaneAction.Get(), EKeys::TouchKeys[static_cast<int32>(ETouchIndex::Touch1)]);
-		NativeMappingContext->MapKey(NativeLaneLeftAction.Get(), EKeys::A);
-		NativeMappingContext->MapKey(NativeLaneLeftAction.Get(), EKeys::Left);
-		NativeMappingContext->MapKey(NativeLaneRightAction.Get(), EKeys::D);
-		NativeMappingContext->MapKey(NativeLaneRightAction.Get(), EKeys::Right);
+		// 에셋이 없어도 기본 플레이 테스트가 가능하도록 C++ 기본 키 매핑을 제공한다.
+		NativeMappingContext->MapKey(NativeJumpAction.Get(), EKeys::TouchKeys[static_cast<int32>(ETouchIndex::Touch1)]);
+		NativeMappingContext->MapKey(NativeJumpAction.Get(), EKeys::SpaceBar);
 		NativeMappingContext->MapKey(NativeGyroCalibrationAction.Get(), EKeys::C);
 		NativeMappingContext->MapKey(NativeBalanceLeftAction.Get(), EKeys::Q);
 		NativeMappingContext->MapKey(NativeBalanceRightAction.Get(), EKeys::E);
@@ -224,22 +206,12 @@ UInputMappingContext* APGPlayerController::GetResolvedMappingContext() const
 
 bool APGPlayerController::HasCompleteConfiguredInputAssets() const
 {
-	return DefaultMappingContext && TouchLaneAction && LaneLeftAction && LaneRightAction && GyroCalibrationAction && BalanceLeftAction && BalanceRightAction;
+	return DefaultMappingContext && JumpAction && GyroCalibrationAction && BalanceLeftAction && BalanceRightAction;
 }
 
-UInputAction* APGPlayerController::GetResolvedTouchLaneAction() const
+UInputAction* APGPlayerController::GetResolvedJumpAction() const
 {
-	return HasCompleteConfiguredInputAssets() ? TouchLaneAction.Get() : NativeTouchLaneAction.Get();
-}
-
-UInputAction* APGPlayerController::GetResolvedLaneLeftAction() const
-{
-	return HasCompleteConfiguredInputAssets() ? LaneLeftAction.Get() : NativeLaneLeftAction.Get();
-}
-
-UInputAction* APGPlayerController::GetResolvedLaneRightAction() const
-{
-	return HasCompleteConfiguredInputAssets() ? LaneRightAction.Get() : NativeLaneRightAction.Get();
+	return HasCompleteConfiguredInputAssets() ? JumpAction.Get() : NativeJumpAction.Get();
 }
 
 UInputAction* APGPlayerController::GetResolvedGyroCalibrationAction() const
@@ -257,34 +229,9 @@ UInputAction* APGPlayerController::GetResolvedBalanceRightAction() const
 	return HasCompleteConfiguredInputAssets() ? BalanceRightAction.Get() : NativeBalanceRightAction.Get();
 }
 
-void APGPlayerController::HandleTouchLaneStarted(const FInputActionValue& ActionValue)
+void APGPlayerController::HandleJumpStarted(const FInputActionValue& ActionValue)
 {
-	int32 ViewportSizeX = 0;
-	int32 ViewportSizeY = 0;
-	GetViewportSize(ViewportSizeX, ViewportSizeY);
-
-	float TouchX = 0.0f;
-	float TouchY = 0.0f;
-	bool bIsTouchPressed = false;
-	GetInputTouchState(ETouchIndex::Touch1, TouchX, TouchY, bIsTouchPressed);
-
-	if (ViewportSizeX <= 0 || !bIsTouchPressed)
-	{
-		return;
-	}
-
-	// 화면 중앙을 기준으로 왼쪽 터치는 -1, 오른쪽 터치는 +1 라인 이동으로 해석한다.
-	SendLaneChange(TouchX < static_cast<float>(ViewportSizeX) * 0.5f ? -1 : 1);
-}
-
-void APGPlayerController::HandleLaneLeftStarted(const FInputActionValue& ActionValue)
-{
-	SendLaneChange(-1);
-}
-
-void APGPlayerController::HandleLaneRightStarted(const FInputActionValue& ActionValue)
-{
-	SendLaneChange(1);
+	SendJumpRequest();
 }
 
 void APGPlayerController::HandleGyroCalibrationStarted(const FInputActionValue& ActionValue)
@@ -324,11 +271,11 @@ void APGPlayerController::HandleBalanceRightCompleted(const FInputActionValue& A
 	bIsBalanceRightHeld = false;
 }
 
-void APGPlayerController::SendLaneChange(int32 Direction)
+void APGPlayerController::SendJumpRequest()
 {
 	if (APGRunnerCharacter* RunnerCharacter = CachedRunnerCharacter.Get())
 	{
-		RunnerCharacter->RequestLaneChange(Direction);
+		RunnerCharacter->RequestJump();
 	}
 }
 

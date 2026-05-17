@@ -52,10 +52,6 @@ struct FPGBalanceSettings
 {
 	GENERATED_BODY()
 
-	// 직선 주행 중 기본 좌우 흔들림을 사용할지 여부
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance")
-	bool bEnableBaseInstability = true;
-
 	// 기본 흔들림이 최종 중심 입력에 더해지는 최대 크기
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float BaseInstabilityAmplitude = 0.25f;
@@ -64,10 +60,6 @@ struct FPGBalanceSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3.0"))
 	float BaseInstabilityFrequency = 0.75f;
 
-	// 플레이어 보정 입력이 기본 흔들림을 상쇄하는 영향 비율
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2.0"))
-	float PlayerCorrectionScale = 1.0f;
-
 	// 기본 중심 흔들림이 플레이어 캡슐을 좌우로 밀어내는 가속도
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance | Movement", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2000.0"))
 	float BalanceDriftAcceleration = 420.0f;
@@ -75,10 +67,6 @@ struct FPGBalanceSettings
 	// 플레이어 입력이 라인 중심으로 되돌리기 위해 적용하는 보정 가속도
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance | Movement", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3000.0"))
 	float PlayerCorrectionAcceleration = 720.0f;
-
-	// 현재 라인 중심에서 허용하는 최대 좌우 이탈 거리
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance | Movement", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "300.0"))
-	float BalanceMaxOffset = 90.0f;
 
 	// 중심 흔들림으로 발생하는 최대 좌우 이동 속도
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance | Movement", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1000.0"))
@@ -94,32 +82,24 @@ struct FPGBalanceSettings
 };
 
 /**
- * 3라인 점프 이동 설정
+ * 화면 터치/Space 입력으로 실행하는 수직 점프 설정
  */
 USTRUCT(BlueprintType)
-struct FPGLaneSettings
+struct FPGJumpSettings
 {
 	GENERATED_BODY()
 
-	// 러닝 레인의 개수. 현재 기획 기준은 Left / Center / Right 3라인이다.
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Lane", meta = (ClampMin = "1", ClampMax = "5", UIMin = "1", UIMax = "5"))
-	int32 LaneCount = 3;
+	// 점프가 도달할 목표 높이. 실제 초기 Z 속도는 중력값을 기준으로 계산한다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Jump", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "300.0"))
+	float JumpHeight = 150.0f;
 
-	// 인접 라인 사이의 월드 거리
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Lane", meta = (ClampMin = "1.0", UIMin = "100.0", UIMax = "400.0"))
-	float LaneWidth = 220.0f;
+	// 연속 점프를 막기 위한 쿨타임
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Jump", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3.0"))
+	float JumpCooldownDuration = 1.0f;
 
-	// 라인 변경 점프가 완료되는 시간
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Lane", meta = (ClampMin = "0.01", UIMin = "0.05", UIMax = "0.6"))
-	float LaneChangeDuration = 0.22f;
-
-	// 라인 변경 중 점프 포물선의 최대 높이
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Lane", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "200.0"))
-	float LaneJumpHeight = 80.0f;
-
-	// 라인 이동 중 입력을 잠시 보관하는 시간
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Lane", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "0.5"))
-	float LaneInputBufferTime = 0.1f;
+	// 공중 상태에서 플레이어 좌우 보정 반응을 강화하는 배율
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Jump | Airborne Control", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
+	float AirborneBalanceControlScale = 2.5f;
 };
 
 /**
@@ -156,10 +136,6 @@ struct FPGGyroSettings
 	// 캘리브레이션 기준값으로 보간되는 속도
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Gyro", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "20.0"))
 	float CalibrationBlendSpeed = 8.0f;
-
-	// 점프 중 자이로 영향력을 완화하는 비율
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Gyro", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-	float JumpTiltDampingScale = 0.5f;
 
 	// 착지 직후 조작 안정화를 보조하는 시간
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Gyro", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "0.5"))
@@ -418,13 +394,13 @@ struct FPGSFXSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "SFX | Shop")
 	TSoftObjectPtr<USoundBase> ShopPurchaseFailSound;
 
-	// 남자 캐릭터가 라인 점프를 시작할 때 랜덤으로 재생할 사운드 목록
+	// 남자 캐릭터가 점프를 시작할 때 랜덤으로 재생할 사운드 목록
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "SFX | Runner")
-	TArray<TSoftObjectPtr<USoundBase>> MaleLaneJumpSounds;
+	TArray<TSoftObjectPtr<USoundBase>> MaleJumpSounds;
 
-	// 여자 캐릭터가 라인 점프를 시작할 때 랜덤으로 재생할 사운드 목록
+	// 여자 캐릭터가 점프를 시작할 때 랜덤으로 재생할 사운드 목록
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "SFX | Runner")
-	TArray<TSoftObjectPtr<USoundBase>> FemaleLaneJumpSounds;
+	TArray<TSoftObjectPtr<USoundBase>> FemaleJumpSounds;
 
 	// CargoDrop Hold가 끝나고 실제 물리 적재물로 전환될 때 재생할 사운드
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "SFX | Cargo")
@@ -575,17 +551,17 @@ struct FPGCargoSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
 	float CargoIdleShakeFrequency = 1.15f;
 
-	// 라인 점프 중과 착지 직후 적재물 이탈을 줄이기 위해 상대속도 제한을 유지하는 시간
+	// 점프 또는 트랙 높이 차이로 공중에 떠 있는 동안 적재물 이탈을 줄이기 위해 상대속도 제한을 유지하는 시간
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0"))
-	float LaneJumpCargoAssistDuration = 0.2f;
+	float AirborneCargoAssistDuration = 0.2f;
 
-	// 라인 점프 보정 중 CargoStack 앵커 기준 적재물 최대 상대속도
+	// 공중 보정 중 CargoStack 앵커 기준 적재물 최대 상대속도
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1000.0"))
-	float LaneJumpMaxRelativeSpeed = 180.0f;
+	float AirborneCargoMaxRelativeSpeed = 180.0f;
 
-	// 라인 점프 보정 중 CargoStack 앵커 기준 적재물 최대 위쪽 상대속도
+	// 공중 보정 중 CargoStack 앵커 기준 적재물 최대 위쪽 상대속도
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "500.0"))
-	float LaneJumpMaxUpwardRelativeSpeed = 60.0f;
+	float AirborneCargoMaxUpwardRelativeSpeed = 60.0f;
 
 	// 플레이어 Actor 위치 기준 이 높이보다 아래로 적재물이 떨어지면 손실로 처리한다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Loss", meta = (ClampMin = "10.0", UIMin = "50.0", UIMax = "500.0"))
@@ -738,9 +714,9 @@ public:
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance")
 	FPGBalanceSettings Balance;
 
-	// 3라인 점프 이동 설정
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Lane")
-	FPGLaneSettings Lane;
+	// 화면 터치/Space 수직 점프 설정
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Jump")
+	FPGJumpSettings Jump;
 
 	// 모바일 자이로 중심 제어 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Gyro")

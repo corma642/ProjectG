@@ -63,14 +63,8 @@ private:
 	// 블루프린트에서 지정한 필수 입력 에셋이 모두 준비됐는지 확인합니다.
 	bool HasCompleteConfiguredInputAssets() const;
 
-	// 실제 바인딩에 사용할 터치 라인 이동 액션을 반환합니다.
-	UInputAction* GetResolvedTouchLaneAction() const;
-
-	// 실제 바인딩에 사용할 왼쪽 라인 이동 액션을 반환합니다.
-	UInputAction* GetResolvedLaneLeftAction() const;
-
-	// 실제 바인딩에 사용할 오른쪽 라인 이동 액션을 반환합니다.
-	UInputAction* GetResolvedLaneRightAction() const;
+	// 실제 바인딩에 사용할 점프 액션을 반환합니다.
+	UInputAction* GetResolvedJumpAction() const;
 
 	// 실제 바인딩에 사용할 자이로 캘리브레이션 액션을 반환합니다.
 	UInputAction* GetResolvedGyroCalibrationAction() const;
@@ -81,14 +75,8 @@ private:
 	// 데스크탑 테스트용 오른쪽 중심 보정 액션을 반환합니다.
 	UInputAction* GetResolvedBalanceRightAction() const;
 
-	// 화면 터치 위치를 좌/우 라인 이동 요청으로 변환합니다.
-	void HandleTouchLaneStarted(const FInputActionValue& ActionValue);
-
-	// 왼쪽 라인 이동을 요청합니다.
-	void HandleLaneLeftStarted(const FInputActionValue& ActionValue);
-
-	// 오른쪽 라인 이동을 요청합니다.
-	void HandleLaneRightStarted(const FInputActionValue& ActionValue);
+	// 화면 터치/Space 입력으로 점프를 요청합니다.
+	void HandleJumpStarted(const FInputActionValue& ActionValue);
 
 	// 현재 기기 기울기를 새로운 자이로 기준값으로 보정합니다.
 	void HandleGyroCalibrationStarted(const FInputActionValue& ActionValue);
@@ -105,8 +93,8 @@ private:
 	// E에서 손을 떼면 오른쪽 중심 보정 입력을 해제합니다.
 	void HandleBalanceRightCompleted(const FInputActionValue& ActionValue);
 
-	// 현재 Pawn이 러너 캐릭터라면 라인 이동 요청을 전달합니다.
-	void SendLaneChange(int32 Direction);
+	// 현재 Pawn이 러너 캐릭터라면 점프 요청을 전달합니다.
+	void SendJumpRequest();
 
 	// 자이로 또는 에디터 마우스 시뮬레이션 값을 중심 입력으로 변환해 전달합니다.
 	void UpdateGyroInput(float DeltaTime);
@@ -124,17 +112,9 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputMappingContext> DefaultMappingContext;
 
-	// 화면 터치 시작을 감지하고 좌/우 라인 이동으로 변환하는 액션
+	// 화면 터치/Space 점프 액션
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UInputAction> TouchLaneAction;
-
-	// 왼쪽 라인 이동 액션
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UInputAction> LaneLeftAction;
-
-	// 오른쪽 라인 이동 액션
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UInputAction> LaneRightAction;
+	TObjectPtr<UInputAction> JumpAction;
 
 	// 자이로 캘리브레이션 액션
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
@@ -180,17 +160,9 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UInputMappingContext> NativeMappingContext;
 
-	// 에셋이 없을 때 사용하는 C++ 기본 터치 액션
+	// 에셋이 없을 때 사용하는 C++ 기본 점프 액션
 	UPROPERTY(Transient)
-	TObjectPtr<UInputAction> NativeTouchLaneAction;
-
-	// 에셋이 없을 때 사용하는 C++ 기본 왼쪽 라인 이동 액션
-	UPROPERTY(Transient)
-	TObjectPtr<UInputAction> NativeLaneLeftAction;
-
-	// 에셋이 없을 때 사용하는 C++ 기본 오른쪽 라인 이동 액션
-	UPROPERTY(Transient)
-	TObjectPtr<UInputAction> NativeLaneRightAction;
+	TObjectPtr<UInputAction> NativeJumpAction;
 
 	// 에셋이 없을 때 사용하는 C++ 기본 캘리브레이션 액션
 	UPROPERTY(Transient)

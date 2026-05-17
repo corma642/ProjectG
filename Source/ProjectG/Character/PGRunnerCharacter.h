@@ -16,8 +16,8 @@ class UPGRunProgressComponent;
 class USpringArmComponent;
 
 /**
- * 자동 전진, 3라인 이동, 중심 보정, 적재물 반응을 연결하는 러너 캐릭터입니다.
- * 실제 라인 이동은 전용 MovementComponent가 담당하고, 적재물 물리는 CargoStackComponent가 담당합니다.
+ * 자동 전진, 터치 점프, 중심 보정, 적재물 반응을 연결하는 러너 캐릭터입니다.
+ * 실제 좌우 이동은 전용 MovementComponent의 밸런스 오프셋이 담당하고, 적재물 물리는 CargoStackComponent가 담당합니다.
  */
 UCLASS()
 class PROJECTG_API APGRunnerCharacter : public ACharacter
@@ -36,19 +36,11 @@ public:
 	// 런 중 생성한 Bowl Actor가 레벨 전환/재시작 때 남지 않도록 정리한다.
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	// 입력 방향(-1: 왼쪽, 1: 오른쪽)에 따라 인접 라인 이동을 요청한다.
-	void RequestLaneChange(int32 Direction);
+	// 화면 터치/Space 입력으로 수직 점프를 요청한다.
+	void RequestJump();
 
 	// 자이로/키보드에서 계산한 플레이어 중심 보정 입력을 캐릭터에 반영한다.
 	void SetBalanceInput(float InBalanceInput);
-
-	// 현재 캐릭터가 위치한 라인 인덱스
-	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner")
-	int32 GetCurrentLaneIndex() const;
-
-	// 라인 이동 중 목표로 삼는 라인 인덱스
-	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner")
-	int32 GetTargetLaneIndex() const;
 
 	// 현재 플레이어가 입력 중인 좌우 중심 보정값
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner")
@@ -99,9 +91,6 @@ public:
 	// 적재물 배달 완료 시 점수 보상을 반영합니다.
 	void HandleCargoDelivered(int32 CargoInstanceId, int32 Score, int32 Receipts, FVector DeliveryLocation);
 
-	// 실제 라인 이동 점프가 시작된 순간 캐릭터 성별에 맞는 점프 사운드를 재생합니다.
-	void HandleLaneChangeStarted();
-
 	// 런 실패 이벤트를 받으면 자동 전진과 입력 반응을 정지한다.
 	UFUNCTION()
 	void HandleRunFailed(FName FailureReason);
@@ -113,7 +102,7 @@ public:
 	void HandleRunStarted();
 
 protected:
-	// 3라인 이동 상태와 캡슐 lateral 이동을 담당하는 러너 전용 이동 컴포넌트
+	// 점프와 캡슐 좌우 밸런스 이동을 담당하는 러너 전용 이동 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement")
 	TObjectPtr<UPGRunnerMovementComponent> RunnerMovementComponent;
 
@@ -170,6 +159,9 @@ private:
 	// 적재물 물리 흔들림에 사용할 중심 입력값을 반환합니다. 눈바람 중에는 플레이어 입력 기여분만 추가 증폭합니다.
 	float GetCargoBalanceInputForPhysics() const;
 
+	// 실제 점프가 시작된 순간 캐릭터 성별에 맞는 점프 사운드를 재생합니다.
+	void PlayJumpSound();
+
 	// 중심 입력값을 캐릭터 메시의 좌우 기울기 연출로 변환한다.
 	void UpdateBodyLean(float DeltaSeconds);
 
@@ -183,8 +175,8 @@ private:
 	// BeginPlay에서 캐시한 기본 중심 불안정성 설정
 	FPGBalanceSettings CachedBalanceSettings;
 
-	// BeginPlay에서 캐시한 3라인 이동 설정
-	FPGLaneSettings CachedLaneSettings;
+	// BeginPlay에서 캐시한 점프 설정
+	FPGJumpSettings CachedJumpSettings;
 
 	// BeginPlay에서 캐시한 자이로 중심 제어 설정
 	FPGGyroSettings CachedGyroSettings;

@@ -35,8 +35,8 @@ void UPGCargoStackComponent::InitializeCargoStack(const FPGCargoSettings& InCarg
 	CargoShakeElapsedTime = 0.0f;
 	PreviousAnchorLocation = GetComponentLocation();
 	AnchorVelocity = FVector::ZeroVector;
-	LaneJumpCargoAssistRemainingTime = 0.0f;
-	bWasChangingLaneLastFrame = false;
+	AirborneCargoAssistRemainingTime = 0.0f;
+	bWasAirborneLastFrame = false;
 	bHasPreviousAnchorLocation = true;
 	NextCargoInstanceId = 1;
 	DeliveredCargoCount = 0;
@@ -51,12 +51,12 @@ void UPGCargoStackComponent::InitializeCargoStack(const FPGCargoSettings& InCarg
 	OnCargoListChanged.Broadcast();
 }
 
-void UPGCargoStackComponent::UpdateCargoReaction(float DeltaSeconds, float BalanceInput, bool bIsChangingLane)
+void UPGCargoStackComponent::UpdateCargoReaction(float DeltaSeconds, float BalanceInput, bool bIsAirborne)
 {
 	CleanupInvalidCargoActors();
-	UpdateAnchorMotion(DeltaSeconds, bIsChangingLane);
+	UpdateAnchorMotion(DeltaSeconds, bIsAirborne);
 	ApplyCargoPhysicsForces(DeltaSeconds, BalanceInput);
-	ApplyLaneJumpCargoAssist();
+	ApplyAirborneCargoAssist();
 
 	if (bHasPendingCargoDrop)
 	{
@@ -324,7 +324,7 @@ void UPGCargoStackComponent::UpdateCargoDeliveries(float DeltaSeconds)
 	}
 }
 
-void UPGCargoStackComponent::UpdateAnchorMotion(float DeltaSeconds, bool bIsChangingLane)
+void UPGCargoStackComponent::UpdateAnchorMotion(float DeltaSeconds, bool bIsAirborne)
 {
 	const FVector CurrentAnchorLocation = GetComponentLocation();
 	if (bHasPreviousAnchorLocation && DeltaSeconds > KINDA_SMALL_NUMBER)
@@ -339,27 +339,27 @@ void UPGCargoStackComponent::UpdateAnchorMotion(float DeltaSeconds, bool bIsChan
 
 	PreviousAnchorLocation = CurrentAnchorLocation;
 
-	if (bIsChangingLane || (bWasChangingLaneLastFrame && !bIsChangingLane))
+	if (bIsAirborne || (bWasAirborneLastFrame && !bIsAirborne))
 	{
-		LaneJumpCargoAssistRemainingTime = FMath::Max(0.0f, CachedCargoSettings.LaneJumpCargoAssistDuration);
+		AirborneCargoAssistRemainingTime = FMath::Max(0.0f, CachedCargoSettings.AirborneCargoAssistDuration);
 	}
-	else if (LaneJumpCargoAssistRemainingTime > 0.0f)
+	else if (AirborneCargoAssistRemainingTime > 0.0f)
 	{
-		LaneJumpCargoAssistRemainingTime = FMath::Max(0.0f, LaneJumpCargoAssistRemainingTime - DeltaSeconds);
+		AirborneCargoAssistRemainingTime = FMath::Max(0.0f, AirborneCargoAssistRemainingTime - DeltaSeconds);
 	}
 
-	bWasChangingLaneLastFrame = bIsChangingLane;
+	bWasAirborneLastFrame = bIsAirborne;
 }
 
-void UPGCargoStackComponent::ApplyLaneJumpCargoAssist()
+void UPGCargoStackComponent::ApplyAirborneCargoAssist()
 {
-	if (LaneJumpCargoAssistRemainingTime <= 0.0f)
+	if (AirborneCargoAssistRemainingTime <= 0.0f)
 	{
 		return;
 	}
 
-	const float MaxRelativeSpeed = FMath::Max(0.0f, CachedCargoSettings.LaneJumpMaxRelativeSpeed);
-	const float MaxUpwardRelativeSpeed = FMath::Max(0.0f, CachedCargoSettings.LaneJumpMaxUpwardRelativeSpeed);
+	const float MaxRelativeSpeed = FMath::Max(0.0f, CachedCargoSettings.AirborneCargoMaxRelativeSpeed);
+	const float MaxUpwardRelativeSpeed = FMath::Max(0.0f, CachedCargoSettings.AirborneCargoMaxUpwardRelativeSpeed);
 	if (MaxRelativeSpeed <= KINDA_SMALL_NUMBER && MaxUpwardRelativeSpeed <= KINDA_SMALL_NUMBER)
 	{
 		return;

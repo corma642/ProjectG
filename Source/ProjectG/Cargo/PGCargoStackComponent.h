@@ -86,7 +86,7 @@ public:
 	void InitializeCargoStack(const FPGCargoSettings& InCargoSettings);
 
 	// 중심 입력, 적재물 대기 타이머, 물리 보정, 배달 완료, 손실 판정을 갱신합니다.
-	void UpdateCargoReaction(float DeltaSeconds, float BalanceInput, bool bIsChangingLane);
+	void UpdateCargoReaction(float DeltaSeconds, float BalanceInput, bool bIsAirborne);
 
 	// 기본 적재물 타입으로 적재물 대기/드롭 흐름을 시작합니다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Cargo")
@@ -126,8 +126,8 @@ private:
 	void ApplyScriptedCargoDisplayTransform(const UPGCargoTypeDefinition* CargoType);
 	void ApplyCargoPhysicsForces(float DeltaSeconds, float BalanceInput);
 	void UpdateCargoDeliveries(float DeltaSeconds);
-	void UpdateAnchorMotion(float DeltaSeconds, bool bIsChangingLane);
-	void ApplyLaneJumpCargoAssist();
+	void UpdateAnchorMotion(float DeltaSeconds, bool bIsAirborne);
+	void ApplyAirborneCargoAssist();
 	FVector GetLossOriginLocation() const;
 	void CheckCargoLoss();
 	void LoseCargoAt(int32 CargoIndex);
@@ -151,8 +151,8 @@ private:
 	float CargoShakeElapsedTime = 0.0f;
 	FVector PreviousAnchorLocation = FVector::ZeroVector;
 	FVector AnchorVelocity = FVector::ZeroVector;
-	float LaneJumpCargoAssistRemainingTime = 0.0f;
-	bool bWasChangingLaneLastFrame = false;
+	float AirborneCargoAssistRemainingTime = 0.0f;
+	bool bWasAirborneLastFrame = false;
 	bool bHasPreviousAnchorLocation = false;
 	int32 NextCargoInstanceId = 1;
 	int32 DeliveredCargoCount = 0;

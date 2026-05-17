@@ -75,13 +75,13 @@ void UPGRuntimePreloadSubsystem::CollectPrimaryResourcePaths(TArray<FSoftObjectP
 	AddUniquePath(OutPaths, Settings->SFX.ShopPurchaseSuccessSound.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->SFX.ShopPurchaseFailSound.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->SFX.CargoDropSound.ToSoftObjectPath());
-	for (const TSoftObjectPtr<USoundBase>& LaneJumpSound : Settings->SFX.MaleLaneJumpSounds)
+	for (const TSoftObjectPtr<USoundBase>& JumpSound : Settings->SFX.MaleJumpSounds)
 	{
-		AddUniquePath(OutPaths, LaneJumpSound.ToSoftObjectPath());
+		AddUniquePath(OutPaths, JumpSound.ToSoftObjectPath());
 	}
-	for (const TSoftObjectPtr<USoundBase>& LaneJumpSound : Settings->SFX.FemaleLaneJumpSounds)
+	for (const TSoftObjectPtr<USoundBase>& JumpSound : Settings->SFX.FemaleJumpSounds)
 	{
-		AddUniquePath(OutPaths, LaneJumpSound.ToSoftObjectPath());
+		AddUniquePath(OutPaths, JumpSound.ToSoftObjectPath());
 	}
 
 	AddUniquePath(OutPaths, Settings->RunHUD.RunHUDWidgetClass.ToSoftObjectPath());
