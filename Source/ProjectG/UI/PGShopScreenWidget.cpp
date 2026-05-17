@@ -456,6 +456,14 @@ void UPGShopScreenWidget::RefreshSelectedCharacterState()
 		{
 			SelectedCharacterNameText->SetText(FText::GetEmpty());
 		}
+		if (SelectedPricePanel)
+		{
+			SelectedPricePanel->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		if (SelectedPriceText)
+		{
+			SelectedPriceText->SetText(FText::GetEmpty());
+		}
 		if (ActionButton)
 		{
 			ActionButton->SetIsEnabled(false);
@@ -470,11 +478,19 @@ void UPGShopScreenWidget::RefreshSelectedCharacterState()
 
 	const bool bOwned = Shop->IsCharacterOwned(SelectedSkin->SkinId);
 	const bool bEquipped = Shop->IsCharacterEquipped(SelectedSkin->SkinId);
+	if (SelectedPricePanel)
+	{
+		SelectedPricePanel->SetVisibility(!bOwned ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+	if (SelectedPriceText)
+	{
+		SelectedPriceText->SetText(!bOwned ? FText::AsNumber(FMath::Max(0, SelectedSkin->PriceReceipts)) : FText::GetEmpty());
+	}
 	if (ActionButtonText)
 	{
 		if (!bOwned)
 		{
-			ActionButtonText->SetText(FText::Format(NSLOCTEXT("ProjectGShop", "BuyCharacter", "BUY {0}"), FText::AsNumber(FMath::Max(0, SelectedSkin->PriceReceipts))));
+			ActionButtonText->SetText(NSLOCTEXT("ProjectGShop", "BuyCharacter", "BUY"));
 		}
 		else if (!bEquipped)
 		{
@@ -559,7 +575,8 @@ void UPGShopScreenWidget::ApplyEntryAnimation(float Alpha)
 	ApplyWidgetAnimationState(CharacterNavPanel, FVector2D::ZeroVector, Alpha, 0.16f, ShopElementAnimationDuration, 0.9f, 1.0f);
 	ApplyWidgetAnimationState(CharacterListPanel, FVector2D(0.0f, ShopListStartYOffset), Alpha, 0.18f, ShopElementAnimationDuration, 0.98f, 1.0f);
 	ApplyWidgetAnimationState(SelectedNamePanel, FVector2D(0.0f, 70.0f), Alpha, 0.23f, ShopElementAnimationDuration, 0.92f, 1.0f);
-	ApplyWidgetAnimationState(ActionButtonPanel, FVector2D(0.0f, ShopActionStartYOffset), Alpha, 0.27f, ShopElementAnimationDuration, 0.94f, 1.0f);
+	ApplyWidgetAnimationState(SelectedPricePanel, FVector2D(0.0f, 86.0f), Alpha, 0.25f, ShopElementAnimationDuration, 0.92f, 1.0f);
+	ApplyWidgetAnimationState(ActionButtonPanel, FVector2D(0.0f, ShopActionStartYOffset), Alpha, 0.29f, ShopElementAnimationDuration, 0.94f, 1.0f);
 }
 
 void UPGShopScreenWidget::ApplyWidgetAnimationState(UWidget* Widget, const FVector2D& StartOffset, float Alpha, float Delay, float Duration, float StartScale, float EndScale) const

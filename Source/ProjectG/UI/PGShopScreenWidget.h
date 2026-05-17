@@ -86,6 +86,12 @@ protected:
 	TObjectPtr<UTextBlock> SelectedCharacterNameText;
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Shop")
+	TObjectPtr<UWidget> SelectedPricePanel;
+
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Shop")
+	TObjectPtr<UTextBlock> SelectedPriceText;
+
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Shop")
 	TObjectPtr<UWidget> ActionButtonPanel;
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Shop")
