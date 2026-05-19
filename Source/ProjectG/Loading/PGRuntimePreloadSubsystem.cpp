@@ -100,7 +100,6 @@ void UPGRuntimePreloadSubsystem::CollectPrimaryResourcePaths(TArray<FSoftObjectP
 	AddUniquePath(OutPaths, Settings->RunEvent.DefaultRunEventSet.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->RunEvent.DefaultPresentationSet.ToSoftObjectPath());
 
-	AddUniquePath(OutPaths, Settings->Cargo.DefaultCargoType.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->CargoDelivery.DefaultCargoDropSet.ToSoftObjectPath());
 }
 

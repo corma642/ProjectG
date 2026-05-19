@@ -3,11 +3,9 @@
 #include "Track/PGRunDirector.h"
 
 #include "Character/PGRunnerCharacter.h"
-#include "DrawDebugHelpers.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameModes/PGGameModeBase.h"
-#include "Kismet/GameplayStatics.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGRunDirector, Log, All);
 
@@ -93,7 +91,6 @@ void APGRunDirector::Tick(float DeltaSeconds)
 	}
 	RemovePassedSegments();
 	SpawnSegmentsIfNeeded();
-	DrawRunDirectorDebug();
 }
 
 float APGRunDirector::GetDifficultyAlpha() const
@@ -123,7 +120,10 @@ void APGRunDirector::HandleRunFailed(FName FailureReason)
 
 void APGRunDirector::InitializeRunnerReference()
 {
-	RunnerCharacter = Cast<APGRunnerCharacter>(UGameplayStatics::GetPlayerPawn(this, 0));
+	if (APGGameModeBase* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APGGameModeBase>() : nullptr)
+	{
+		RunnerCharacter = GameMode->GetPlayableRunnerCharacter();
+	}
 }
 
 void APGRunDirector::InitializeInitialSegment()
@@ -497,26 +497,4 @@ float APGRunDirector::GetPlayerProgress() const
 float APGRunDirector::GetProgressAtLocation(const FVector& WorldLocation) const
 {
 	return FVector::DotProduct(WorldLocation - RunOrigin, RunForward);
-}
-
-void APGRunDirector::DrawRunDirectorDebug() const
-{
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	if (!bDrawRunDirectorDebug || !GetWorld())
-	{
-		return;
-	}
-
-	const FVector DebugLocation = RunnerCharacter ? RunnerCharacter->GetActorLocation() + FVector::UpVector * 260.0f : GetActorLocation();
-	const FString DebugText = FString::Printf(TEXT("RunDirector Segments:%d Difficulty:%.2f"), ActiveSegments.Num(), GetDifficultyAlpha());
-	DrawDebugString(GetWorld(), DebugLocation, DebugText, nullptr, FColor::Green, 0.0f, true);
-
-	for (const FPGActiveTrackSegment& ActiveSegment : ActiveSegments)
-	{
-		if (const APGTrackSegment* Segment = ActiveSegment.Segment)
-		{
-			DrawDebugLine(GetWorld(), Segment->GetSegmentStartWorldLocation(), Segment->GetSegmentEndWorldLocation(), FColor::Green, false, 0.0f, 0, 3.0f);
-		}
-	}
-#endif
 }

@@ -2,8 +2,6 @@
 
 #include "Environment/PGRunnerEnvironmentComponent.h"
 
-#include "DrawDebugHelpers.h"
-
 UPGRunnerEnvironmentComponent::UPGRunnerEnvironmentComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
@@ -71,7 +69,6 @@ float UPGRunnerEnvironmentComponent::UpdateEnvironment(float DeltaSeconds, float
 
 	ProcessedBalanceInput = FMath::Clamp(EnvironmentBalanceInput, -1.0f, 1.0f);
 	ProcessedCargoBalanceInput = CargoBalanceInput;
-	DrawEnvironmentDebug();
 	return ProcessedBalanceInput;
 }
 
@@ -127,23 +124,4 @@ void UPGRunnerEnvironmentComponent::ClearEnvironmentEffects()
 bool UPGRunnerEnvironmentComponent::HasActiveEnvironmentEffect() const
 {
 	return WindRemainingTime > 0.0f || SnowstormRemainingTime > 0.0f;
-}
-
-void UPGRunnerEnvironmentComponent::DrawEnvironmentDebug() const
-{
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	if (!CachedEnvironmentSettings.bDrawEnvironmentDebug || !HasActiveEnvironmentEffect())
-	{
-		return;
-	}
-
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return;
-	}
-
-	const FString DebugText = FString::Printf(TEXT("Wind %.2fs / Snowstorm %.2fs / Balance %.2f / Cargo %.2f"), WindRemainingTime, SnowstormRemainingTime, ProcessedBalanceInput, ProcessedCargoBalanceInput);
-	DrawDebugString(World, GetComponentLocation() + FVector::UpVector * 160.0f, DebugText, nullptr, FColor::Cyan, 0.0f, true);
-#endif
 }

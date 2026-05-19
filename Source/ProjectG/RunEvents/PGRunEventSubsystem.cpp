@@ -3,10 +3,8 @@
 #include "RunEvents/PGRunEventSubsystem.h"
 
 #include "Character/PGRunnerCharacter.h"
-#include "DrawDebugHelpers.h"
 #include "Environment/PGRunnerEnvironmentComponent.h"
 #include "GameModes/PGGameModeBase.h"
-#include "Kismet/GameplayStatics.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGRunEventSubsystem, Log, All);
 
@@ -15,7 +13,6 @@ void UPGRunEventSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 
 	LoadSettings();
-	InitializeDefaultRules();
 
 	const int32 Seed = CachedRunEventSettings.bUseRandomSeedEachRun ? FMath::Rand() : CachedRunEventSettings.RandomSeed;
 	RandomStream.Initialize(Seed);
@@ -143,37 +140,9 @@ void UPGRunEventSubsystem::LoadSettings()
 	}
 }
 
-void UPGRunEventSubsystem::InitializeDefaultRules()
-{
-	DefaultRules.Reset();
-
-	FPGRunEventRule WindRule;
-	WindRule.EventType = EPGRunEventType::Wind;
-	WindRule.MinRunTime = 10.0f;
-	WindRule.MinDifficultyAlpha = 0.1f;
-	WindRule.BaseWeight = 1.0f;
-	WindRule.DifficultyWeight = 1.0f;
-	WindRule.CooldownSeconds = 5.0f;
-	WindRule.Duration = 3.0f;
-	WindRule.Strength = 1.0f;
-	DefaultRules.Add(WindRule);
-
-	FPGRunEventRule SnowstormRule;
-	SnowstormRule.EventType = EPGRunEventType::Snowstorm;
-	SnowstormRule.MinRunTime = 20.0f;
-	SnowstormRule.MinDifficultyAlpha = 0.25f;
-	SnowstormRule.BaseWeight = 0.75f;
-	SnowstormRule.DifficultyWeight = 1.0f;
-	SnowstormRule.CooldownSeconds = 7.0f;
-	SnowstormRule.Duration = 3.0f;
-	SnowstormRule.Strength = 1.0f;
-	DefaultRules.Add(SnowstormRule);
-
-}
-
 void UPGRunEventSubsystem::InitializeRunnerReferences()
 {
-	RunnerCharacter = Cast<APGRunnerCharacter>(UGameplayStatics::GetPlayerPawn(this, 0));
+	RunnerCharacter = BoundGameMode ? BoundGameMode->GetPlayableRunnerCharacter() : nullptr;
 	RunnerEnvironmentComponent = RunnerCharacter ? RunnerCharacter->FindComponentByClass<UPGRunnerEnvironmentComponent>() : nullptr;
 }
 
@@ -225,7 +194,6 @@ void UPGRunEventSubsystem::ProcessRunEventTick(float DeltaSeconds)
 		{
 			ScheduleNextEvent();
 		}
-		DrawRunEventDebug();
 		return;
 	}
 
@@ -240,8 +208,6 @@ void UPGRunEventSubsystem::ProcessRunEventTick(float DeltaSeconds)
 		TriggerPendingEvent();
 		ScheduleNextEvent();
 	}
-
-	DrawRunEventDebug();
 }
 
 void UPGRunEventSubsystem::ScheduleNextEvent()
@@ -323,12 +289,24 @@ bool UPGRunEventSubsystem::SelectEventRule(FPGRunEventRule& OutRule)
 
 const TArray<FPGRunEventRule>& UPGRunEventSubsystem::GetEffectiveEventRules() const
 {
+	static const TArray<FPGRunEventRule> EmptyRules;
+
 	if (!LoadedEventSet)
 	{
 		LoadedEventSet = CachedRunEventSettings.DefaultRunEventSet.Get();
 	}
 
-	return LoadedEventSet && !LoadedEventSet->EventRules.IsEmpty() ? LoadedEventSet->EventRules : DefaultRules;
+	if (!LoadedEventSet || LoadedEventSet->EventRules.IsEmpty())
+	{
+		if (!bWarnedMissingEventRules)
+		{
+			UE_LOG(LogPGRunEventSubsystem, Warning, TEXT("RunEvent scheduling disabled: DefaultRunEventSet is not set or contains no EventRules."));
+			bWarnedMissingEventRules = true;
+		}
+		return EmptyRules;
+	}
+
+	return LoadedEventSet->EventRules;
 }
 
 bool UPGRunEventSubsystem::CanUseRule(const FPGRunEventRule& Rule) const
@@ -434,22 +412,3 @@ void UPGRunEventSubsystem::FinishActiveEvent()
 	OnRunEventFinished.Broadcast(FinishedEventType);
 }
 
-void UPGRunEventSubsystem::DrawRunEventDebug() const
-{
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	if (!CachedRunEventSettings.bDrawRunEventDebug || !GetWorld())
-	{
-		return;
-	}
-
-	const FVector DebugLocation = RunnerCharacter ? RunnerCharacter->GetActorLocation() + FVector::UpVector * 330.0f : FVector::UpVector * 330.0f;
-	const FString DebugText = FString::Printf(
-		TEXT("RunEvent Time:%.1f Difficulty:%.2f Pending:%d State:%d ETA:%.1f"),
-		RunElapsedTime,
-		GetDifficultyAlpha(),
-		static_cast<int32>(PendingEventType),
-		static_cast<int32>(PendingEventState),
-		GetTimeUntilPendingEvent());
-	DrawDebugString(GetWorld(), DebugLocation, DebugText, nullptr, FColor::Orange, 0.0f, true);
-#endif
-}

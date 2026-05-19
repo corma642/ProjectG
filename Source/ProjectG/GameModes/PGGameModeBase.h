@@ -56,6 +56,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Run")
 	void SettleCurrentRunRewards(FName Reason);
 
+	// 현재 플레이에 사용할 러너를 반환합니다. Possess 전에는 레벨에 배치된 단일 러너를 사용합니다.
+	UFUNCTION(BlueprintPure, Category = "ProjectG | Run")
+	APGRunnerCharacter* GetPlayableRunnerCharacter() const;
+
 	// 현재 러너 플레이 상태입니다.
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run")
 	EPGRunState GetRunState() const { return RunState; }

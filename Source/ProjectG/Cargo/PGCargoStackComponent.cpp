@@ -6,7 +6,6 @@
 #include "Cargo/PGCargoTypeDefinition.h"
 #include "Cargo/PGPhysicsCargoActor.h"
 #include "Components/StaticMeshComponent.h"
-#include "DrawDebugHelpers.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 
@@ -70,12 +69,6 @@ void UPGCargoStackComponent::UpdateCargoReaction(float DeltaSeconds, float Balan
 
 	CheckCargoLoss();
 	UpdateCargoDeliveries(DeltaSeconds);
-	DrawCargoDebug();
-}
-
-bool UPGCargoStackComponent::AddCargo()
-{
-	return StartCargoDropHold(ResolveDefaultCargoType());
 }
 
 bool UPGCargoStackComponent::AddCargoByType(UPGCargoTypeDefinition* CargoType)
@@ -127,15 +120,6 @@ bool UPGCargoStackComponent::StartCargoDropHold(UPGCargoTypeDefinition* CargoTyp
 	bHasPendingCargoDrop = true;
 	CargoDropHoldRemainingTime = FMath::Max(0.0f, CachedCargoSettings.CargoDropHoldDuration);
 
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	if (CargoDropHoldRemainingTime <= KINDA_SMALL_NUMBER)
-	{
-		UE_LOG(LogPGCargoStack, Warning, TEXT("CargoDrop Hold duration is %.3fs. Cargo will transition to physics immediately. Mesh=%s"),
-			CachedCargoSettings.CargoDropHoldDuration,
-			*GetNameSafe(CargoType->CargoMesh));
-	}
-#endif
-
 	if (ScriptedCargoMeshComponent)
 	{
 		// 물리 전환 전까지 같은 CargoStack 위치에서 대기 메시를 보여준다.
@@ -164,9 +148,6 @@ void UPGCargoStackComponent::FinishCargoDropHold()
 
 	if (CargoDropHoldRemainingTime > KINDA_SMALL_NUMBER)
 	{
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-		UE_LOG(LogPGCargoStack, Warning, TEXT("FinishCargoDropHold was ignored because hold is still active. Remaining=%.3fs"), CargoDropHoldRemainingTime);
-#endif
 		return;
 	}
 
@@ -232,16 +213,11 @@ APGPhysicsCargoActor* UPGCargoStackComponent::SpawnPhysicsCargo(UPGCargoTypeDefi
 	return CargoActor;
 }
 
-UPGCargoTypeDefinition* UPGCargoStackComponent::ResolveDefaultCargoType() const
-{
-	return CachedCargoSettings.DefaultCargoType.Get();
-}
-
 bool UPGCargoStackComponent::IsValidCargoTypeForSpawn(const UPGCargoTypeDefinition* CargoType, const TCHAR* Context) const
 {
 	if (!CargoType)
 	{
-		UE_LOG(LogPGCargoStack, Warning, TEXT("%s failed: DefaultCargoType is not set or could not be loaded."), Context);
+		UE_LOG(LogPGCargoStack, Warning, TEXT("%s failed: CargoType is not set."), Context);
 		return false;
 	}
 
@@ -470,37 +446,3 @@ void UPGCargoStackComponent::CleanupInvalidCargoActors()
 	}
 }
 
-void UPGCargoStackComponent::DrawCargoDebug() const
-{
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	if (!CachedCargoSettings.bDrawCargoDebug)
-	{
-		return;
-	}
-
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return;
-	}
-
-	const FVector CargoAnchorLocation = GetComponentLocation();
-	const FVector LossOriginLocation = GetLossOriginLocation();
-	DrawDebugSphere(World, CargoAnchorLocation, 12.0f, 12, FColor::Cyan, false, 0.0f, 0, 1.5f);
-	DrawDebugCircle(World, LossOriginLocation, CachedCargoSettings.CargoLossHorizontalDistance, 32, FColor::Red, false, 0.0f, 0, 1.0f, FVector::ForwardVector, FVector::RightVector, false);
-	DrawDebugLine(World, LossOriginLocation, LossOriginLocation - FVector::UpVector * CachedCargoSettings.CargoLossZOffset, FColor::Red, false, 0.0f, 0, 1.0f);
-
-	if (bHasPendingCargoDrop)
-	{
-		DrawDebugSphere(World, GetComponentLocation(), 18.0f, 16, FColor::Purple, false, 0.0f, 0, 2.0f);
-	}
-
-	for (const FPGRuntimeCargoInstance& CargoInstance : CargoInstances)
-	{
-		if (CargoInstance.CargoActor)
-		{
-			DrawDebugSphere(World, CargoInstance.CargoActor->GetActorLocation(), 8.0f, 8, FColor::Yellow, false, 0.0f, 0, 1.0f);
-		}
-	}
-#endif
-}

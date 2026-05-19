@@ -105,10 +105,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Run Director | Random")
 	bool bUseRandomSeedEachRun = true;
 
-	// 개발 빌드에서 세그먼트와 난이도 상태를 화면에 표시합니다.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Run Director | Debug")
-	bool bDrawRunDirectorDebug = false;
-
 private:
 	UFUNCTION()
 	void HandleRunCountdownStarted(float Duration);
@@ -131,7 +127,6 @@ private:
 	TSubclassOf<APGTrackSegment> ResolveFallbackSegmentClass() const;
 	float GetPlayerProgress() const;
 	float GetProgressAtLocation(const FVector& WorldLocation) const;
-	void DrawRunDirectorDebug() const;
 
 	UPROPERTY(Transient)
 	TObjectPtr<APGRunnerCharacter> RunnerCharacter;

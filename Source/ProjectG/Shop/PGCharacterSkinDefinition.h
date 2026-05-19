@@ -51,7 +51,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Skin | Mesh")
 	TSubclassOf<UAnimInstance> AnimClass;
 
-	// 이 캐릭터로 라인 이동 점프를 시작할 때 재생할 사운드입니다.
+	// 점프 사운드 선택에 사용할 캐릭터 성별입니다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Skin")
 	EPGCharacterGender Gender = EPGCharacterGender::Male;
 

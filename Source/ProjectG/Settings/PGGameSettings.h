@@ -6,7 +6,6 @@
 #include "Engine/DeveloperSettings.h"
 #include "PGGameSettings.generated.h"
 
-class UPGCargoTypeDefinition;
 class UPGCargoDropSet;
 class UPGCharacterShopCatalog;
 class UPGCharacterShopItemWidget;
@@ -76,9 +75,6 @@ struct FPGBalanceSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance | Movement", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "20.0"))
 	float BalanceCenteringDamping = 4.0f;
 
-	// 개발 빌드에서 기본 흔들림/플레이어 보정/최종 중심 입력을 화면에 표시할지 여부
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance | Debug")
-	bool bDrawBalanceDebug = false;
 };
 
 /**
@@ -527,10 +523,6 @@ struct FPGCargoSettings
 {
 	GENERATED_BODY()
 
-	// CargoDropSet이 비어 있거나 후보를 고르지 못했을 때 사용할 fallback 적재물 타입
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo")
-	TSoftObjectPtr<UPGCargoTypeDefinition> DefaultCargoType;
-
 	// 적재물이 CargoStackComponent 위치에서 대기한 뒤 실제 물리 적재물로 전환되기까지의 시간
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Spawn", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
 	float CargoDropHoldDuration = 3.0f;
@@ -571,9 +563,6 @@ struct FPGCargoSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Loss", meta = (ClampMin = "10.0", UIMin = "50.0", UIMax = "500.0"))
 	float CargoLossHorizontalDistance = 180.0f;
 
-	// 개발 빌드에서 CargoStack 생성 앵커, 플레이어 기준 손실 반경, 적재물 위치를 표시할지 여부
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Debug")
-	bool bDrawCargoDebug = false;
 };
 
 /**
@@ -612,13 +601,6 @@ struct FPGCargoDeliverySettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo Delivery | Random")
 	bool bUseRandomSeedEachRun = true;
 
-	// 개발 빌드에서 이 개수 이상 물리 적재물이 쌓이면 튜닝 경고를 출력한다. 제한은 걸지 않는다.
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo Delivery | Debug", meta = (ClampMin = "1", UIMin = "3", UIMax = "50"))
-	int32 ActiveCargoWarningCount = 12;
-
-	// 개발 빌드에서 드롭 스케줄과 활성 적재 수를 표시할지 여부
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo Delivery | Debug")
-	bool bDrawCargoDeliveryDebug = false;
 };
 
 /**
@@ -641,9 +623,6 @@ struct FPGEnvironmentSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Environment | Snowstorm", meta = (ClampMin = "1.0", UIMin = "1.0", UIMax = "8.0"))
 	float SnowstormCargoInputForceScale = 3.0f;
 
-	// 개발 빌드에서 현재 환경 효과 상태를 디버그 텍스트로 표시할지 여부
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Environment | Debug")
-	bool bDrawEnvironmentDebug = false;
 };
 
 /**
@@ -654,7 +633,7 @@ struct FPGRunEventSettings
 {
 	GENERATED_BODY()
 
-	// 러닝 중 사용할 전역 이벤트 규칙 DataAsset. 비어 있으면 C++ 기본 규칙을 사용한다.
+	// 러닝 중 사용할 전역 이벤트 규칙 DataAsset
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event")
 	TSoftObjectPtr<UPGRunEventSet> DefaultRunEventSet;
 
@@ -690,9 +669,6 @@ struct FPGRunEventSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event | Random")
 	bool bUseRandomSeedEachRun = true;
 
-	// 개발 빌드에서 이벤트 예약/발동 상태를 화면에 표시할지 여부
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event | Debug")
-	bool bDrawRunEventDebug = false;
 };
 
 /**

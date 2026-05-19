@@ -75,7 +75,6 @@ private:
 	void HandleRunFailed(FName FailureReason);
 
 	void LoadSettings();
-	void InitializeDefaultRules();
 	void InitializeRunnerReferences();
 	void BindGameMode();
 	void ProcessRunEventTick(float DeltaSeconds);
@@ -87,7 +86,6 @@ private:
 	void ClearPendingEvent(bool bBroadcastCancel);
 	void StartActiveEvent(EPGRunEventType EventType, float Duration);
 	void FinishActiveEvent();
-	void DrawRunEventDebug() const;
 
 	UPROPERTY(Transient)
 	TObjectPtr<APGRunnerCharacter> RunnerCharacter;
@@ -102,7 +100,6 @@ private:
 	TObjectPtr<APGGameModeBase> BoundGameMode;
 
 	FPGRunEventSettings CachedRunEventSettings;
-	TArray<FPGRunEventRule> DefaultRules;
 	FRandomStream RandomStream;
 	TMap<EPGRunEventType, float> LastTriggeredTimeByEvent;
 	FPGRunEventRule PendingEventRule;
@@ -117,4 +114,5 @@ private:
 	float TickAccumulator = 0.0f;
 	bool bIsRunActive = false;
 	bool bIsBoundToGameMode = false;
+	mutable bool bWarnedMissingEventRules = false;
 };

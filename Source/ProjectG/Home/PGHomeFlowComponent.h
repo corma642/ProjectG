@@ -59,7 +59,6 @@ private:
 	void SetHomeCameraViewTarget();
 	void SetShopCameraViewTarget();
 	ACameraActor* FindCameraByTag(FName CameraTag, TWeakObjectPtr<ACameraActor>& CameraCache) const;
-	APGRunnerCharacter* FindPreviewRunner() const;
 	void RestoreShopPreviewRunner(bool bRestoreHomeTransform = false);
 	void BlendToRunnerCamera();
 	void BlendToHomeCamera();

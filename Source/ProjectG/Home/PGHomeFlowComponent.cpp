@@ -305,36 +305,6 @@ ACameraActor* UPGHomeFlowComponent::FindCameraByTag(FName CameraTag, TWeakObject
 	return nullptr;
 }
 
-APGRunnerCharacter* UPGHomeFlowComponent::FindPreviewRunner() const
-{
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return nullptr;
-	}
-
-	APGRunnerCharacter* FoundRunner = nullptr;
-	int32 RunnerCount = 0;
-	for (TActorIterator<APGRunnerCharacter> RunnerIt(World); RunnerIt; ++RunnerIt)
-	{
-		APGRunnerCharacter* Runner = *RunnerIt;
-		if (!IsValid(Runner))
-		{
-			continue;
-		}
-
-		FoundRunner = Runner;
-		++RunnerCount;
-		if (RunnerCount > 1)
-		{
-			UE_LOG(LogPGHomeFlow, Warning, TEXT("Shop preview runner was not selected because multiple APGRunnerCharacter actors exist."));
-			return nullptr;
-		}
-	}
-
-	return FoundRunner;
-}
-
 void UPGHomeFlowComponent::RestoreShopPreviewRunner(bool bRestoreHomeTransform)
 {
 	if (!PlayerShopSubsystem)
@@ -342,7 +312,7 @@ void UPGHomeFlowComponent::RestoreShopPreviewRunner(bool bRestoreHomeTransform)
 		return;
 	}
 
-	APGRunnerCharacter* PreviewRunner = FindPreviewRunner();
+	APGRunnerCharacter* PreviewRunner = BoundGameMode ? BoundGameMode->GetPlayableRunnerCharacter() : nullptr;
 	if (bRestoreHomeTransform && PreviewRunner)
 	{
 		PreviewRunner->RestoreHomePreviewTransform();
@@ -360,9 +330,9 @@ void UPGHomeFlowComponent::BlendToRunnerCamera()
 		return;
 	}
 
-	if (APawn* Pawn = OwnerPlayerController->GetPawn())
+	if (APGRunnerCharacter* RunnerCharacter = BoundGameMode ? BoundGameMode->GetPlayableRunnerCharacter() : nullptr)
 	{
-		OwnerPlayerController->SetViewTargetWithBlend(Pawn, CachedHomeFlowSettings.HomeToRunnerCameraBlendTime);
+		OwnerPlayerController->SetViewTargetWithBlend(RunnerCharacter, CachedHomeFlowSettings.HomeToRunnerCameraBlendTime);
 	}
 }
 
@@ -479,7 +449,7 @@ void UPGHomeFlowComponent::HandleShopRequested()
 		return;
 	}
 	PlayerShopSubsystem->RefreshShopCatalog();
-	PlayerShopSubsystem->SetPreviewRunner(FindPreviewRunner());
+	PlayerShopSubsystem->SetPreviewRunner(BoundGameMode ? BoundGameMode->GetPlayableRunnerCharacter() : nullptr);
 
 	UClass* WidgetClass = CachedShopSettings.ShopScreenWidgetClass.Get();
 	UClass* ItemWidgetClass = CachedShopSettings.CharacterShopItemWidgetClass.Get();

@@ -49,7 +49,6 @@ private:
 	UPGCargoTypeDefinition* SelectCargoType();
 	void ScheduleNextDrop(float DelaySeconds);
 	float CalculateCurrentDropInterval() const;
-	void DrawCargoDeliveryDebug() const;
 
 	UPROPERTY(Transient)
 	TObjectPtr<APGGameModeBase> BoundGameMode;
@@ -64,14 +63,12 @@ private:
 	TObjectPtr<UPGCargoDropSet> LoadedDropSet;
 
 	FPGCargoDeliverySettings CachedDeliverySettings;
-	FPGCargoSettings CachedCargoSettings;
 	FRandomStream RandomStream;
 	float RunElapsedTime = 0.0f;
 	float NextDropTime = 0.0f;
 	float TickAccumulator = 0.0f;
 	bool bIsRunActive = false;
 	bool bIsBoundToGameMode = false;
-	bool bWarnedActiveCargoCount = false;
 	bool bWarnedMissingCargoStack = false;
 	bool bWarnedMissingCargoType = false;
 	bool bWarnedInvalidCargoMesh = false;

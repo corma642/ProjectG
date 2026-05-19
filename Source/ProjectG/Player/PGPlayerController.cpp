@@ -10,10 +10,7 @@
 #include "Engine/Engine.h"
 #include "GameModes/PGGameModeBase.h"
 #include "Home/PGHomeFlowComponent.h"
-#include "InputAction.h"
 #include "InputActionValue.h"
-#include "InputMappingContext.h"
-#include "InputCoreTypes.h"
 #include "RunEvents/PGRunEventFeedbackComponent.h"
 #include "RunHUD/PGRunHUDComponent.h"
 #include "Settings/PGGameSettings.h"
@@ -61,20 +58,21 @@ void APGPlayerController::BeginPlay()
 	}
 
 	ApplyGameSettings();
-	EnsureInputAssets();
 	CacheRunnerPawn(GetPawn());
 
-	if ((DefaultMappingContext || JumpAction || GyroCalibrationAction || BalanceLeftAction || BalanceRightAction) && !HasCompleteConfiguredInputAssets())
+	if (!HasRequiredInputAssets())
 	{
-		// 입력 에셋은 일부만 지정하면 액션/매핑 불일치가 생기므로 안전한 C++ 기본 매핑으로 되돌린다.
-		UE_LOG(LogTemp, Warning, TEXT("PGPlayerController input assets are incomplete. Falling back to native input mapping."));
+		UE_LOG(LogTemp, Error, TEXT("PGPlayerController requires DefaultMappingContext, JumpAction, BalanceLeftAction, and BalanceRightAction."));
 	}
 
 	if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
 	{
 		if (UEnhancedInputLocalPlayerSubsystem* InputSubsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
 		{
-			InputSubsystem->AddMappingContext(GetResolvedMappingContext(), DefaultMappingPriority);
+			if (DefaultMappingContext)
+			{
+				InputSubsystem->AddMappingContext(DefaultMappingContext.Get(), DefaultMappingPriority);
+			}
 		}
 	}
 
@@ -92,7 +90,10 @@ void APGPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		if (UEnhancedInputLocalPlayerSubsystem* InputSubsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
 		{
-			InputSubsystem->RemoveMappingContext(GetResolvedMappingContext());
+			if (DefaultMappingContext)
+			{
+				InputSubsystem->RemoveMappingContext(DefaultMappingContext.Get());
+			}
 		}
 	}
 
@@ -126,8 +127,6 @@ void APGPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 
-	EnsureInputAssets();
-
 	UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent);
 	if (!EnhancedInputComponent)
 	{
@@ -135,14 +134,29 @@ void APGPlayerController::SetupInputComponent()
 		return;
 	}
 
-	EnhancedInputComponent->BindAction(GetResolvedJumpAction(), ETriggerEvent::Started, this, &APGPlayerController::HandleJumpStarted);
-	EnhancedInputComponent->BindAction(GetResolvedGyroCalibrationAction(), ETriggerEvent::Started, this, &APGPlayerController::HandleGyroCalibrationStarted);
-	EnhancedInputComponent->BindAction(GetResolvedBalanceLeftAction(), ETriggerEvent::Started, this, &APGPlayerController::HandleBalanceLeftStarted);
-	EnhancedInputComponent->BindAction(GetResolvedBalanceLeftAction(), ETriggerEvent::Completed, this, &APGPlayerController::HandleBalanceLeftCompleted);
-	EnhancedInputComponent->BindAction(GetResolvedBalanceLeftAction(), ETriggerEvent::Canceled, this, &APGPlayerController::HandleBalanceLeftCompleted);
-	EnhancedInputComponent->BindAction(GetResolvedBalanceRightAction(), ETriggerEvent::Started, this, &APGPlayerController::HandleBalanceRightStarted);
-	EnhancedInputComponent->BindAction(GetResolvedBalanceRightAction(), ETriggerEvent::Completed, this, &APGPlayerController::HandleBalanceRightCompleted);
-	EnhancedInputComponent->BindAction(GetResolvedBalanceRightAction(), ETriggerEvent::Canceled, this, &APGPlayerController::HandleBalanceRightCompleted);
+	if (JumpAction)
+	{
+		EnhancedInputComponent->BindAction(JumpAction.Get(), ETriggerEvent::Started, this, &APGPlayerController::HandleJumpStarted);
+	}
+
+	if (GyroCalibrationAction)
+	{
+		EnhancedInputComponent->BindAction(GyroCalibrationAction.Get(), ETriggerEvent::Started, this, &APGPlayerController::HandleGyroCalibrationStarted);
+	}
+
+	if (BalanceLeftAction)
+	{
+		EnhancedInputComponent->BindAction(BalanceLeftAction.Get(), ETriggerEvent::Started, this, &APGPlayerController::HandleBalanceLeftStarted);
+		EnhancedInputComponent->BindAction(BalanceLeftAction.Get(), ETriggerEvent::Completed, this, &APGPlayerController::HandleBalanceLeftCompleted);
+		EnhancedInputComponent->BindAction(BalanceLeftAction.Get(), ETriggerEvent::Canceled, this, &APGPlayerController::HandleBalanceLeftCompleted);
+	}
+
+	if (BalanceRightAction)
+	{
+		EnhancedInputComponent->BindAction(BalanceRightAction.Get(), ETriggerEvent::Started, this, &APGPlayerController::HandleBalanceRightStarted);
+		EnhancedInputComponent->BindAction(BalanceRightAction.Get(), ETriggerEvent::Completed, this, &APGPlayerController::HandleBalanceRightCompleted);
+		EnhancedInputComponent->BindAction(BalanceRightAction.Get(), ETriggerEvent::Canceled, this, &APGPlayerController::HandleBalanceRightCompleted);
+	}
 }
 
 void APGPlayerController::ApplyGameSettings()
@@ -160,73 +174,9 @@ void APGPlayerController::CacheRunnerPawn(APawn* InPawn)
 	}
 }
 
-void APGPlayerController::EnsureInputAssets()
+bool APGPlayerController::HasRequiredInputAssets() const
 {
-	if (!NativeJumpAction)
-	{
-		NativeJumpAction = NewObject<UInputAction>(this, TEXT("IA_PG_NativeJump"));
-		NativeJumpAction->ValueType = EInputActionValueType::Boolean;
-	}
-
-	if (!NativeGyroCalibrationAction)
-	{
-		NativeGyroCalibrationAction = NewObject<UInputAction>(this, TEXT("IA_PG_NativeGyroCalibration"));
-		NativeGyroCalibrationAction->ValueType = EInputActionValueType::Boolean;
-	}
-
-	if (!NativeBalanceLeftAction)
-	{
-		NativeBalanceLeftAction = NewObject<UInputAction>(this, TEXT("IA_PG_NativeBalanceLeft"));
-		NativeBalanceLeftAction->ValueType = EInputActionValueType::Boolean;
-	}
-
-	if (!NativeBalanceRightAction)
-	{
-		NativeBalanceRightAction = NewObject<UInputAction>(this, TEXT("IA_PG_NativeBalanceRight"));
-		NativeBalanceRightAction->ValueType = EInputActionValueType::Boolean;
-	}
-
-	if (!NativeMappingContext)
-	{
-		NativeMappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_PG_NativeDefault"));
-
-		// 에셋이 없어도 기본 플레이 테스트가 가능하도록 C++ 기본 키 매핑을 제공한다.
-		NativeMappingContext->MapKey(NativeJumpAction.Get(), EKeys::TouchKeys[static_cast<int32>(ETouchIndex::Touch1)]);
-		NativeMappingContext->MapKey(NativeJumpAction.Get(), EKeys::SpaceBar);
-		NativeMappingContext->MapKey(NativeGyroCalibrationAction.Get(), EKeys::C);
-		NativeMappingContext->MapKey(NativeBalanceLeftAction.Get(), EKeys::Q);
-		NativeMappingContext->MapKey(NativeBalanceRightAction.Get(), EKeys::E);
-	}
-}
-
-UInputMappingContext* APGPlayerController::GetResolvedMappingContext() const
-{
-	return HasCompleteConfiguredInputAssets() ? DefaultMappingContext.Get() : NativeMappingContext.Get();
-}
-
-bool APGPlayerController::HasCompleteConfiguredInputAssets() const
-{
-	return DefaultMappingContext && JumpAction && GyroCalibrationAction && BalanceLeftAction && BalanceRightAction;
-}
-
-UInputAction* APGPlayerController::GetResolvedJumpAction() const
-{
-	return HasCompleteConfiguredInputAssets() ? JumpAction.Get() : NativeJumpAction.Get();
-}
-
-UInputAction* APGPlayerController::GetResolvedGyroCalibrationAction() const
-{
-	return HasCompleteConfiguredInputAssets() ? GyroCalibrationAction.Get() : NativeGyroCalibrationAction.Get();
-}
-
-UInputAction* APGPlayerController::GetResolvedBalanceLeftAction() const
-{
-	return HasCompleteConfiguredInputAssets() ? BalanceLeftAction.Get() : NativeBalanceLeftAction.Get();
-}
-
-UInputAction* APGPlayerController::GetResolvedBalanceRightAction() const
-{
-	return HasCompleteConfiguredInputAssets() ? BalanceRightAction.Get() : NativeBalanceRightAction.Get();
+	return DefaultMappingContext && JumpAction && BalanceLeftAction && BalanceRightAction;
 }
 
 void APGPlayerController::HandleJumpStarted(const FInputActionValue& ActionValue)

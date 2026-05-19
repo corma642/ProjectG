@@ -165,10 +165,6 @@ private:
 	// 중심 입력값을 캐릭터 메시의 좌우 기울기 연출로 변환한다.
 	void UpdateBodyLean(float DeltaSeconds);
 
-	// 디버그 옵션이 켜져 있을 때 현재 중심 입력 구성을 화면에 표시한다.
-	void DrawBalanceDebug() const;
-
-	// 디버그 옵션이 켜져 있을 때 러너 기준 3라인 위치를 월드에 표시한다.
 	// BeginPlay에서 캐시한 자동 전진/몸 기울기 설정
 	FPGRunnerSettings CachedRunnerSettings;
 
@@ -225,7 +221,7 @@ private:
 
 	bool bHasHomePreviewTransform = false;
 
-	// 현재 적용된 캐릭터 스킨 데이터. 캐릭터별 라인 점프 사운드 재생에 사용합니다.
+	// 현재 적용된 캐릭터 스킨 데이터. 캐릭터 성별 기반 점프 사운드 선택에 사용합니다.
 	UPROPERTY(Transient)
 	TObjectPtr<UPGCharacterSkinDefinition> CurrentCharacterSkinDefinition;
 

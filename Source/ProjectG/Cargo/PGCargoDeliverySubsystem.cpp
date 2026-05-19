@@ -6,9 +6,7 @@
 #include "Cargo/PGCargoStackComponent.h"
 #include "Cargo/PGCargoTypeDefinition.h"
 #include "Character/PGRunnerCharacter.h"
-#include "DrawDebugHelpers.h"
 #include "GameModes/PGGameModeBase.h"
-#include "Kismet/GameplayStatics.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGCargoDeliverySubsystem, Log, All);
 
@@ -98,7 +96,6 @@ void UPGCargoDeliverySubsystem::HandleRunStarted()
 	bIsRunActive = true;
 	RunElapsedTime = 0.0f;
 	TickAccumulator = 0.0f;
-	bWarnedActiveCargoCount = false;
 	bWarnedMissingCargoStack = false;
 	bWarnedMissingCargoType = false;
 	bWarnedInvalidCargoMesh = false;
@@ -131,7 +128,6 @@ void UPGCargoDeliverySubsystem::LoadSettings()
 	if (const UPGGameSettings* Settings = GetDefault<UPGGameSettings>())
 	{
 		CachedDeliverySettings = Settings->CargoDelivery;
-		CachedCargoSettings = Settings->Cargo;
 		LoadedDropSet = CachedDeliverySettings.DefaultCargoDropSet.Get();
 	}
 }
@@ -161,7 +157,7 @@ void UPGCargoDeliverySubsystem::BindGameMode()
 
 void UPGCargoDeliverySubsystem::InitializeRunnerReferences()
 {
-	RunnerCharacter = Cast<APGRunnerCharacter>(UGameplayStatics::GetPlayerPawn(this, 0));
+	RunnerCharacter = BoundGameMode ? BoundGameMode->GetPlayableRunnerCharacter() : nullptr;
 	CargoStackComponent = RunnerCharacter ? RunnerCharacter->FindComponentByClass<UPGCargoStackComponent>() : nullptr;
 }
 
@@ -179,18 +175,6 @@ void UPGCargoDeliverySubsystem::ProcessCargoDeliveryTick(float DeltaSeconds)
 		InitializeRunnerReferences();
 	}
 
-	if (CargoStackComponent && CachedDeliverySettings.ActiveCargoWarningCount > 0)
-	{
-		const int32 CurrentCargoCount = CargoStackComponent->GetCurrentCargoCount();
-		if (!bWarnedActiveCargoCount && CurrentCargoCount >= CachedDeliverySettings.ActiveCargoWarningCount)
-		{
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-			UE_LOG(LogPGCargoDeliverySubsystem, Warning, TEXT("Active cargo count reached %d. Check CargoDelivery interval and DeliveryDuration tuning."), CurrentCargoCount);
-#endif
-			bWarnedActiveCargoCount = true;
-		}
-	}
-
 	if (RunElapsedTime >= NextDropTime)
 	{
 		if (TryStartCargoDrop())
@@ -203,7 +187,6 @@ void UPGCargoDeliverySubsystem::ProcessCargoDeliveryTick(float DeltaSeconds)
 		}
 	}
 
-	DrawCargoDeliveryDebug();
 }
 
 bool UPGCargoDeliverySubsystem::TryStartCargoDrop()
@@ -228,7 +211,7 @@ bool UPGCargoDeliverySubsystem::TryStartCargoDrop()
 	{
 		if (!bWarnedMissingCargoType)
 		{
-			UE_LOG(LogPGCargoDeliverySubsystem, Warning, TEXT("Cargo drop failed: no eligible CargoType was selected and DefaultCargoType fallback could not be loaded."));
+			UE_LOG(LogPGCargoDeliverySubsystem, Warning, TEXT("Cargo drop failed: no eligible CargoType was selected from DefaultCargoDropSet."));
 			bWarnedMissingCargoType = true;
 		}
 		return false;
@@ -286,7 +269,7 @@ UPGCargoTypeDefinition* UPGCargoDeliverySubsystem::SelectCargoType()
 		}
 	}
 
-	return CachedCargoSettings.DefaultCargoType.Get();
+	return nullptr;
 }
 
 void UPGCargoDeliverySubsystem::ScheduleNextDrop(float DelaySeconds)
@@ -301,23 +284,3 @@ float UPGCargoDeliverySubsystem::CalculateCurrentDropInterval() const
 	return FMath::Lerp(BaseInterval, MinInterval, GetDifficultyAlpha());
 }
 
-void UPGCargoDeliverySubsystem::DrawCargoDeliveryDebug() const
-{
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	if (!CachedDeliverySettings.bDrawCargoDeliveryDebug || !GetWorld())
-	{
-		return;
-	}
-
-	const FVector DebugLocation = RunnerCharacter ? RunnerCharacter->GetActorLocation() + FVector::UpVector * 380.0f : FVector::UpVector * 380.0f;
-	const int32 ActiveCargoCount = CargoStackComponent ? CargoStackComponent->GetCurrentCargoCount() : 0;
-	const FString DebugText = FString::Printf(
-		TEXT("CargoDelivery Time:%.1f Difficulty:%.2f Next:%.1f Active:%d Pending:%d"),
-		RunElapsedTime,
-		GetDifficultyAlpha(),
-		FMath::Max(0.0f, NextDropTime - RunElapsedTime),
-		ActiveCargoCount,
-		CargoStackComponent && CargoStackComponent->HasPendingCargoDrop() ? 1 : 0);
-	DrawDebugString(GetWorld(), DebugLocation, DebugText, nullptr, FColor::Green, 0.0f, true);
-#endif
-}

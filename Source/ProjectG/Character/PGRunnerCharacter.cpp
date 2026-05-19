@@ -670,26 +670,5 @@ void APGRunnerCharacter::UpdateBodyLean(float DeltaSeconds)
 		const FQuat LeanQuat(FVector::ForwardVector, FMath::DegreesToRadians(CurrentBodyRoll));
 		MeshComponent->SetRelativeRotation((LeanQuat * InitialMeshQuat).Rotator());
 	}
-
-	DrawBalanceDebug();
-}
-
-void APGRunnerCharacter::DrawBalanceDebug() const
-{
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	if (!CachedBalanceSettings.bDrawBalanceDebug || !GEngine)
-	{
-		return;
-	}
-
-	const float EnvironmentBalanceInput = RunnerEnvironmentComponent ? RunnerEnvironmentComponent->GetProcessedBalanceInput() : BalanceInput;
-	const float BalanceOffset = RunnerMovementComponent ? RunnerMovementComponent->GetBalanceOffset() : 0.0f;
-	const float BalanceVelocity = RunnerMovementComponent ? RunnerMovementComponent->GetBalanceVelocity() : 0.0f;
-	GEngine->AddOnScreenDebugMessage(
-		reinterpret_cast<uint64>(this) + 1,
-		0.0f,
-		FColor::Yellow,
-		FString::Printf(TEXT("Balance Base: %.2f | Player: %.2f | Final: %.2f | Offset: %.1f | Speed: %.1f"), BaseInstabilityInput, EnvironmentBalanceInput, GetEffectiveBalanceInput(), BalanceOffset, BalanceVelocity));
-#endif
 }
 

@@ -113,19 +113,29 @@ APGRunnerCharacter* APGGameModeBase::EnsureRunnerPossessedForRun()
 		return nullptr;
 	}
 
-	if (APGRunnerCharacter* PossessedRunner = Cast<APGRunnerCharacter>(PlayerController->GetPawn()))
-	{
-		return PossessedRunner;
-	}
-
-	APGRunnerCharacter* SingleRunner = FindSingleRunnerInWorld();
-	if (!SingleRunner)
+	APGRunnerCharacter* PlayableRunner = GetPlayableRunnerCharacter();
+	if (!PlayableRunner)
 	{
 		return nullptr;
 	}
 
-	PlayerController->Possess(SingleRunner);
+	if (PlayerController->GetPawn() != PlayableRunner)
+	{
+		PlayerController->Possess(PlayableRunner);
+	}
 	return Cast<APGRunnerCharacter>(PlayerController->GetPawn());
+}
+
+APGRunnerCharacter* APGGameModeBase::GetPlayableRunnerCharacter() const
+{
+	UWorld* World = GetWorld();
+	const APlayerController* PlayerController = World ? World->GetFirstPlayerController() : nullptr;
+	if (APGRunnerCharacter* PossessedRunner = PlayerController ? Cast<APGRunnerCharacter>(PlayerController->GetPawn()) : nullptr)
+	{
+		return PossessedRunner;
+	}
+
+	return FindSingleRunnerInWorld();
 }
 
 APGRunnerCharacter* APGGameModeBase::FindSingleRunnerInWorld() const
@@ -172,8 +182,7 @@ void APGGameModeBase::SettleCurrentRunRewards(FName Reason)
 	bRunRewardsSettled = true;
 
 	UWorld* World = GetWorld();
-	const APlayerController* PlayerController = World ? World->GetFirstPlayerController() : nullptr;
-	const APGRunnerCharacter* RunnerCharacter = PlayerController ? Cast<APGRunnerCharacter>(PlayerController->GetPawn()) : nullptr;
+	const APGRunnerCharacter* RunnerCharacter = GetPlayableRunnerCharacter();
 	const int32 RunReceipts = RunnerCharacter ? RunnerCharacter->GetRunReceipts() : 0;
 	if (RunReceipts <= 0)
 	{

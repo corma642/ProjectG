@@ -57,8 +57,6 @@ public:
 	bool HasActiveEnvironmentEffect() const;
 
 private:
-	void DrawEnvironmentDebug() const;
-
 	FPGEnvironmentSettings CachedEnvironmentSettings;
 	bool bIsRunActive = true;
 	float WindRemainingTime = 0.0f;

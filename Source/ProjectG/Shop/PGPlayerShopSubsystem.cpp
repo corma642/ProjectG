@@ -3,6 +3,7 @@
 #include "Shop/PGPlayerShopSubsystem.h"
 
 #include "Character/PGRunnerCharacter.h"
+#include "GameModes/PGGameModeBase.h"
 #include "Kismet/GameplayStatics.h"
 #include "Settings/PGGameSettings.h"
 #include "Shop/PGCharacterShopCatalog.h"
@@ -354,5 +355,13 @@ APGRunnerCharacter* UPGPlayerShopSubsystem::GetRunnerCharacter() const
 		return PreviewRunnerCharacter.Get();
 	}
 
-	return Cast<APGRunnerCharacter>(UGameplayStatics::GetPlayerPawn(this, 0));
+	if (UWorld* World = GetWorld())
+	{
+		if (APGGameModeBase* GameMode = World->GetAuthGameMode<APGGameModeBase>())
+		{
+			return GameMode->GetPlayableRunnerCharacter();
+		}
+	}
+
+	return nullptr;
 }

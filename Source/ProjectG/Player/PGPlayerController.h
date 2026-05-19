@@ -48,32 +48,14 @@ public:
 	virtual void SetupInputComponent() override;
 
 private:
-	// 입력 에셋이 지정되지 않은 경우 C++ 기본 액션과 매핑 컨텍스트를 생성합니다.
-	void EnsureInputAssets();
-
 	// Project Settings의 입력/디버그 설정을 캐시합니다.
 	void ApplyGameSettings();
 
 	// 현재 Pawn이 러너 캐릭터라면 약한 참조로 캐시합니다.
 	void CacheRunnerPawn(APawn* InPawn);
 
-	// 실제 등록에 사용할 입력 매핑 컨텍스트를 반환합니다.
-	UInputMappingContext* GetResolvedMappingContext() const;
-
-	// 블루프린트에서 지정한 필수 입력 에셋이 모두 준비됐는지 확인합니다.
-	bool HasCompleteConfiguredInputAssets() const;
-
-	// 실제 바인딩에 사용할 점프 액션을 반환합니다.
-	UInputAction* GetResolvedJumpAction() const;
-
-	// 실제 바인딩에 사용할 자이로 캘리브레이션 액션을 반환합니다.
-	UInputAction* GetResolvedGyroCalibrationAction() const;
-
-	// 데스크탑 테스트용 왼쪽 중심 보정 액션을 반환합니다.
-	UInputAction* GetResolvedBalanceLeftAction() const;
-
-	// 데스크탑 테스트용 오른쪽 중심 보정 액션을 반환합니다.
-	UInputAction* GetResolvedBalanceRightAction() const;
+	// 릴리즈 입력에 필요한 에디터 지정 입력 에셋이 준비됐는지 확인합니다.
+	bool HasRequiredInputAssets() const;
 
 	// 화면 터치/Space 입력으로 점프를 요청합니다.
 	void HandleJumpStarted(const FInputActionValue& ActionValue);
@@ -96,7 +78,7 @@ private:
 	// 현재 Pawn이 러너 캐릭터라면 점프 요청을 전달합니다.
 	void SendJumpRequest();
 
-	// 자이로 또는 에디터 마우스 시뮬레이션 값을 중심 입력으로 변환해 전달합니다.
+	// 자이로 값을 중심 입력으로 변환해 전달합니다.
 	void UpdateGyroInput(float DeltaTime);
 
 	// Raw 기울임 값을 -1~1 범위의 중심 입력으로 변환합니다.
@@ -108,7 +90,7 @@ private:
 	// 데스크탑에서는 Q/E, 모바일에서는 자이로 값을 최종 중심 입력으로 사용합니다.
 	float ResolveFinalBalanceInput(float MotionBalanceInput) const;
 
-	// 기본으로 등록할 입력 매핑 컨텍스트. 비어 있으면 C++ 기본 매핑을 사용합니다.
+	// 기본으로 등록할 입력 매핑 컨텍스트. 에디터에서 반드시 지정합니다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputMappingContext> DefaultMappingContext;
 
@@ -156,26 +138,6 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Debug UI", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPGFPSDisplayComponent> FPSDisplayComponent;
 
-	// 에셋이 없을 때 사용하는 C++ 기본 입력 매핑 컨텍스트
-	UPROPERTY(Transient)
-	TObjectPtr<UInputMappingContext> NativeMappingContext;
-
-	// 에셋이 없을 때 사용하는 C++ 기본 점프 액션
-	UPROPERTY(Transient)
-	TObjectPtr<UInputAction> NativeJumpAction;
-
-	// 에셋이 없을 때 사용하는 C++ 기본 캘리브레이션 액션
-	UPROPERTY(Transient)
-	TObjectPtr<UInputAction> NativeGyroCalibrationAction;
-
-	// 에셋이 없을 때 사용하는 C++ 기본 왼쪽 중심 보정 액션
-	UPROPERTY(Transient)
-	TObjectPtr<UInputAction> NativeBalanceLeftAction;
-
-	// 에셋이 없을 때 사용하는 C++ 기본 오른쪽 중심 보정 액션
-	UPROPERTY(Transient)
-	TObjectPtr<UInputAction> NativeBalanceRightAction;
-
 	// 마지막으로 읽은 Raw 좌우 기울임 값
 	float LastRawTilt = 0.0f;
 
@@ -188,7 +150,6 @@ private:
 	// BeginPlay에서 캐시한 자이로 중심 제어 설정
 	FPGGyroSettings CachedGyroSettings;
 
-	// BeginPlay에서 캐시한 에디터/디버그 설정
 	// 매 프레임 Pawn Cast를 반복하지 않기 위한 러너 캐릭터 참조
 	TWeakObjectPtr<APGRunnerCharacter> CachedRunnerCharacter;
 

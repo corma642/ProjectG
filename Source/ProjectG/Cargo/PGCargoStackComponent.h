@@ -88,10 +88,6 @@ public:
 	// 중심 입력, 적재물 대기 타이머, 물리 보정, 배달 완료, 손실 판정을 갱신합니다.
 	void UpdateCargoReaction(float DeltaSeconds, float BalanceInput, bool bIsAirborne);
 
-	// 기본 적재물 타입으로 적재물 대기/드롭 흐름을 시작합니다.
-	UFUNCTION(BlueprintCallable, Category = "ProjectG | Cargo")
-	bool AddCargo();
-
 	// 지정한 적재물 타입으로 적재물 대기/드롭 흐름을 시작합니다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Cargo")
 	bool AddCargoByType(UPGCargoTypeDefinition* CargoType);
@@ -121,7 +117,6 @@ private:
 	bool StartCargoDropHold(UPGCargoTypeDefinition* CargoType);
 	void FinishCargoDropHold();
 	APGPhysicsCargoActor* SpawnPhysicsCargo(UPGCargoTypeDefinition* CargoType, const FTransform& SpawnTransform);
-	UPGCargoTypeDefinition* ResolveDefaultCargoType() const;
 	FTransform MakeCargoWorldTransform() const;
 	void ApplyScriptedCargoDisplayTransform(const UPGCargoTypeDefinition* CargoType);
 	void ApplyCargoPhysicsForces(float DeltaSeconds, float BalanceInput);
@@ -133,7 +128,6 @@ private:
 	void LoseCargoAt(int32 CargoIndex);
 	void CompleteCargoAt(int32 CargoIndex);
 	void CleanupInvalidCargoActors();
-	void DrawCargoDebug() const;
 
 	FPGCargoSettings CachedCargoSettings;
 
