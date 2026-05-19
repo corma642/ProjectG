@@ -17,8 +17,8 @@ class UWidget;
 DECLARE_MULTICAST_DELEGATE(FPGSettingsScreenClosedSignature);
 
 /**
- * 홈 화면 Settings Blueprint Widget의 로직 클래스입니다.
- * BP가 레이아웃/스타일을 구성하고, C++은 품질 프리셋 적용과 열림/닫힘 애니메이션만 처리합니다.
+ * Home과 Pause에서 공용으로 사용하는 Settings 화면 로직 위젯입니다.
+ * BP는 패널 배치와 스타일을 담당하고, C++은 품질/볼륨/FPS 설정 반영과 열림/닫힘 애니메이션만 처리합니다.
  */
 UCLASS()
 class PROJECTG_API UPGSettingsScreenWidget : public UUserWidget
@@ -28,7 +28,7 @@ class PROJECTG_API UPGSettingsScreenWidget : public UUserWidget
 public:
 	FPGSettingsScreenClosedSignature OnSettingsScreenClosed;
 
-	// Settings 화면을 표시할 때 사용할 짧은 진입 애니메이션을 시작합니다.
+	// 위젯을 화면에 추가한 직후 배경 블러/딤과 패널 진입 애니메이션을 시작합니다.
 	void PlayOpenAnimation();
 
 protected:
@@ -36,15 +36,19 @@ protected:
 	virtual void NativeDestruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
+	// Settings 화면 전체 루트입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
 	TObjectPtr<UWidget> RootPanel;
 
+	// 뒤 게임 화면을 약하게 흐리게 만드는 전체 화면 블러입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
 	TObjectPtr<UBackgroundBlur> BackgroundBlur;
 
+	// 블러 위에 얹는 반투명 딤 레이어입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
 	TObjectPtr<UWidget> BackdropDim;
 
+	// 실제 설정 항목들을 담는 중앙 패널입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
 	TObjectPtr<UWidget> SettingsPanel;
 
@@ -60,6 +64,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
 	TObjectPtr<UButton> HighPresetButton;
 
+	// 내부 렌더 해상도 비율을 조절하는 슬라이더입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
 	TObjectPtr<USlider> ResolutionScaleSlider;
 
@@ -72,6 +77,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
 	TObjectPtr<UButton> FrameRate60Button;
 
+	// Android 실기기 성능 확인용 FPS 오버레이 표시 토글입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
 	TObjectPtr<UCheckBox> ShowFPSCheckBox;
 

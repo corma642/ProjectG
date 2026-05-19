@@ -45,6 +45,7 @@ void UPGRunHUDComponent::BeginPlay()
 
 	if (BoundGameMode && (BoundGameMode->GetRunState() == EPGRunState::Countdown || BoundGameMode->GetRunState() == EPGRunState::Running))
 	{
+		// HUD는 카운트다운부터 보여준다. 점수/거리 증가는 GO 이후 RunProgress가 시작되면서 반영된다.
 		ShowHUD();
 	}
 }
@@ -73,6 +74,7 @@ void UPGRunHUDComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	const float RefreshInterval = FMath::Max(0.03f, CachedRunHUDSettings.CargoListRefreshInterval);
 	if (CargoRefreshElapsed >= RefreshInterval)
 	{
+		// 적재물 남은 시간/게이지는 계속 변하지만, 모바일 UI 비용을 줄이기 위해 설정 간격으로만 갱신한다.
 		CargoRefreshElapsed = 0.0f;
 		RefreshCargoList();
 	}
@@ -157,6 +159,7 @@ void UPGRunHUDComponent::HandleCargoDelivered(int32 CargoInstanceId, int32 Score
 		{
 			if (BoundCargoStackComponent)
 			{
+				// 완료 VFX는 CargoStack에 부착해 러너가 전진해도 적재물 위치 연출이 뒤에 남지 않게 한다.
 				const FVector RelativeDeliveryLocation = BoundCargoStackComponent->GetComponentTransform().InverseTransformPosition(DeliveryLocation);
 				UNiagaraFunctionLibrary::SpawnSystemAttached(
 					DeliveredVFX,
@@ -214,6 +217,7 @@ void UPGRunHUDComponent::HandlePauseHomeRequested()
 
 	if (BoundGameMode)
 	{
+		// Pause Home은 실패가 아니지만 현재 런을 종료하는 선택이므로 결과창 없이 영수증만 정산한다.
 		BoundGameMode->SettleCurrentRunRewards(TEXT("PauseHome"));
 	}
 
@@ -238,6 +242,7 @@ void UPGRunHUDComponent::HandlePauseHomeRequested()
 
 	UGameplayStatics::SetGamePaused(World, false);
 
+	// Home 복귀는 현재 레벨 리로드로 처리한다. 러너/트랙/적재물/이벤트 상태를 가장 확실하게 초기화하기 위함이다.
 	const FName CurrentLevelName = FName(*UGameplayStatics::GetCurrentLevelName(World, true));
 	UGameplayStatics::OpenLevel(World, CurrentLevelName);
 }
@@ -368,6 +373,7 @@ void UPGRunHUDComponent::ShowHUD()
 
 	if (HUDWidget)
 	{
+		// 결과창 뒤에도 HUD를 유지해야 하므로 실패 시에는 CleanupHUD가 아니라 상호작용만 잠근다.
 		RefreshHUDValues();
 		RefreshCargoList();
 		UpdateHUDInteractionState();
@@ -377,6 +383,7 @@ void UPGRunHUDComponent::ShowHUD()
 
 	if (!AreRuntimeResourcesReady())
 	{
+		// START 직후 예열이 아직 끝나지 않았다면 HUD를 늦게 만든다. 미로드 위젯을 동기 로드하지 않는다.
 		return;
 	}
 
@@ -467,6 +474,7 @@ void UPGRunHUDComponent::ShowPauseScreen()
 
 	if (BoundGameMode && BoundGameMode->GetRunState() != EPGRunState::Running)
 	{
+		// 카운트다운과 실패 상태에서는 HUD가 보여도 Pause 입력은 허용하지 않는다.
 		return;
 	}
 
@@ -512,6 +520,7 @@ void UPGRunHUDComponent::CleanupPauseScreen(bool bResumeGame)
 
 	if (bResumeGame)
 	{
+		// Resume은 Pause 위젯 정리 후에 게임을 풀어 입력 모드와 BGM duck 상태가 한 프레임 어긋나지 않게 한다.
 		if (OwnerPlayerController)
 		{
 			if (UPGMusicComponent* MusicComponent = OwnerPlayerController->FindComponentByClass<UPGMusicComponent>())

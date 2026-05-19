@@ -34,33 +34,43 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = "ProjectG | Run Result")
 	void OnRunResultConfigured(FName FailureReason, float RunTimeSeconds, float DistanceMeters, int32 Score, int32 Receipts, int32 OrdersDelivered);
 
+	// 결과 화면 전체 루트입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Run Result")
 	TObjectPtr<UWidget> RootPanel;
 
+	// 실패 직후 뒤 게임 화면을 흐리게 만드는 전체 화면 블러입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Run Result")
 	TObjectPtr<UBackgroundBlur> BackdropBlur;
 
+	// 결과창 집중도를 높이는 반투명 딤 레이어입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Run Result")
 	TObjectPtr<UWidget> BackdropDim;
 
+	// 배경 이미지, 제목, 결과 행, 버튼을 모두 담는 결과창 컨테이너입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Run Result")
 	TObjectPtr<UWidget> ResultRootPanel;
 
+	// 종이/패널 배경 이미지 위젯입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Run Result")
 	TObjectPtr<UWidget> ResultPanel;
 
+	// DELIVERY FAILED 제목 텍스트입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Run Result")
 	TObjectPtr<UWidget> TitleText;
 
+	// 점수 결과 행입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Run Result")
 	TObjectPtr<UWidget> ScoreRow;
 
+	// 진행 거리 결과 행입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Run Result")
 	TObjectPtr<UWidget> DistanceRow;
 
+	// 이번 런에서 획득한 영수증 결과 행입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Run Result")
 	TObjectPtr<UWidget> ReceiptsRow;
 
+	// 배달 완료한 적재물 개수 결과 행입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Run Result")
 	TObjectPtr<UWidget> OrdersRow;
 
@@ -82,9 +92,11 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Run Result")
 	TObjectPtr<UButton> HomeButton;
 
+	// Retry 버튼 전체 패널입니다. 버튼 진입 애니메이션은 Button이 아니라 이 패널에 적용합니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Run Result")
 	TObjectPtr<UWidget> RetryButtonPanel;
 
+	// Home 버튼 전체 패널입니다. 버튼 진입 애니메이션은 Button이 아니라 이 패널에 적용합니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Run Result")
 	TObjectPtr<UWidget> HomeButtonPanel;
 

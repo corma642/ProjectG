@@ -52,6 +52,7 @@ void UPGHomeFlowComponent::BeginPlay()
 	const FString StartFlowOption = GetWorld() ? GetWorld()->URL.GetOption(TEXT("StartFlow="), TEXT("")) : FString();
 	bRetryCountdownRequested = StartFlowOption.Equals(TEXT("RetryCountdown"), ESearchCase::IgnoreCase);
 
+	// 레벨 리로드 기반 Retry는 Home UI를 만들지 않고, 필수 리소스 예열이 끝난 뒤 바로 카운트다운으로 진입한다.
 	if (BoundGameMode && BoundGameMode->GetRunState() == EPGRunState::Home)
 	{
 		if (bRetryCountdownRequested)
@@ -60,6 +61,7 @@ void UPGHomeFlowComponent::BeginPlay()
 			return;
 		}
 
+		// 일반 앱 진입은 HomeCamera를 먼저 잡고, UI는 예열 완료 후 표시해 첫 진입 리소스 누락을 피한다.
 		SetHomeCameraViewTarget();
 		if (!RuntimePreloadSubsystem || RuntimePreloadSubsystem->IsReady())
 		{
@@ -195,6 +197,7 @@ void UPGHomeFlowComponent::RequestStartDeliveryAfterPreload()
 
 	if (!RuntimePreloadSubsystem || RuntimePreloadSubsystem->IsReady())
 	{
+		// START 직전에는 Shop 프리뷰 메시가 남지 않도록 실제 장착 스킨으로 돌린 뒤 GameMode에 시작을 위임한다.
 		bPendingStartDeliveryAfterPreload = false;
 		RestoreShopPreviewRunner();
 		BoundGameMode->RequestStartDelivery();
@@ -205,6 +208,7 @@ void UPGHomeFlowComponent::RequestStartDeliveryAfterPreload()
 		return;
 	}
 
+	// 예열 중 START를 누르면 입력만 잠그고, OnPreloadCompleted에서 동일 요청을 다시 처리한다.
 	bPendingStartDeliveryAfterPreload = true;
 	RuntimePreloadSubsystem->StartPreload();
 	if (HomeScreenWidget)
@@ -238,6 +242,7 @@ void UPGHomeFlowComponent::ShowHomeScreen()
 		return;
 	}
 
+	// Home은 레벨에 배치된 프리뷰 자세를 기준으로 보여준다. Shop에서 미리 본 스킨도 여기서 장착 스킨으로 복구된다.
 	RestoreShopPreviewRunner(true);
 
 	HomeScreenWidget->OnStartDeliveryRequested.AddUObject(this, &UPGHomeFlowComponent::HandleStartDeliveryRequested);
@@ -292,6 +297,7 @@ ACameraActor* UPGHomeFlowComponent::FindCameraByTag(FName CameraTag, TWeakObject
 		return nullptr;
 	}
 
+	// Home/Shop 카메라는 레벨 배치 Actor이므로 태그 검색은 최초 1회만 수행하고 이후 약한 참조를 재사용한다.
 	for (TActorIterator<ACameraActor> CameraIt(GetWorld()); CameraIt; ++CameraIt)
 	{
 		ACameraActor* CameraActor = *CameraIt;
@@ -315,6 +321,7 @@ void UPGHomeFlowComponent::RestoreShopPreviewRunner(bool bRestoreHomeTransform)
 	APGRunnerCharacter* PreviewRunner = BoundGameMode ? BoundGameMode->GetPlayableRunnerCharacter() : nullptr;
 	if (bRestoreHomeTransform && PreviewRunner)
 	{
+		// Home으로 돌아올 때만 배치 회전을 복구한다. Shop 닫기처럼 Home 상태의 연장인 경우 위치/회전은 건드리지 않는다.
 		PreviewRunner->RestoreHomePreviewTransform();
 	}
 
@@ -332,6 +339,7 @@ void UPGHomeFlowComponent::BlendToRunnerCamera()
 
 	if (APGRunnerCharacter* RunnerCharacter = BoundGameMode ? BoundGameMode->GetPlayableRunnerCharacter() : nullptr)
 	{
+		// GameMode가 START 시점에 Possess한 단일 러너를 ViewTarget으로 사용해 Home/Shop 프리뷰 Actor와 런 Actor가 갈라지지 않게 한다.
 		OwnerPlayerController->SetViewTargetWithBlend(RunnerCharacter, CachedHomeFlowSettings.HomeToRunnerCameraBlendTime);
 	}
 }
@@ -431,6 +439,7 @@ void UPGHomeFlowComponent::HandleStartDeliveryRequested()
 {
 	if (SettingsScreenWidget || TutorialScreenWidget || ShopScreenWidget)
 	{
+		// Home 위에 다른 전면 UI가 올라와 있으면 화면 소유권을 유지하기 위해 START 입력을 무시한다.
 		return;
 	}
 
@@ -441,6 +450,7 @@ void UPGHomeFlowComponent::HandleShopRequested()
 {
 	if (SettingsScreenWidget || TutorialScreenWidget || ShopScreenWidget || !BoundGameMode || BoundGameMode->GetRunState() != EPGRunState::Home)
 	{
+		// Shop은 Home 상태 전용 화면이다. 러닝 상태나 다른 모달 위에서는 열지 않는다.
 		return;
 	}
 
@@ -477,6 +487,7 @@ void UPGHomeFlowComponent::HandleShopRequested()
 
 	if (HomeScreenWidget)
 	{
+		// Shop UI가 전면을 소유하는 동안 Home 입력은 잠그고, 배경 UI는 완전히 숨긴다.
 		HomeScreenWidget->SetHomeButtonsEnabled(false);
 		HomeScreenWidget->SetRenderOpacity(0.0f);
 	}
@@ -626,6 +637,7 @@ void UPGHomeFlowComponent::ShowTutorialScreen()
 
 void UPGHomeFlowComponent::HandleRunCountdownStarted(float Duration)
 {
+	// 카운트다운이 시작되면 Home 계열 모달은 모두 닫고, 러너 카메라와 카운트다운 UI만 남긴다.
 	if (SettingsScreenWidget)
 	{
 		SettingsScreenWidget->OnSettingsScreenClosed.RemoveAll(this);

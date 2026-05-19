@@ -27,7 +27,7 @@ class PROJECTG_API APGRunnerCharacter : public ACharacter
 public:
 	APGRunnerCharacter(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	// 매 프레임 자동 전진, 중심 불안정성, 적재물 물리 반응, 디버그 표시를 갱신한다.
+	// 매 프레임 자동 전진, 중심 불안정성, 적재물 물리 반응, 추락 실패 판정을 갱신한다.
 	virtual void Tick(float DeltaSeconds) override;
 
 	// 시작 위치와 Project Settings 값을 캐시하고 런타임 컴포넌트를 초기화한다.
@@ -54,7 +54,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner")
 	float GetRunDistanceMeters() const;
 
-	// 현재 결과 화면에 표시할 임시 점수입니다. 현 단계에서는 진행 거리(m)를 정수화합니다.
+	// RunProgressComponent가 계산한 현재 런 점수입니다.
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner")
 	int32 GetRunScore() const;
 
@@ -118,7 +118,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cargo")
 	TObjectPtr<UPGCargoStackComponent> CargoStackComponent;
 
-	// 바람, 눈바람, 적재물 추가 요청 같은 환경 이벤트 상태를 관리하는 컴포넌트
+	// 바람/눈바람처럼 러너 조작감에 영향을 주는 환경 이벤트 상태를 관리하는 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Environment")
 	TObjectPtr<UPGRunnerEnvironmentComponent> RunnerEnvironmentComponent;
 
@@ -180,7 +180,6 @@ private:
 	// BeginPlay에서 캐시한 카메라 설정
 	FPGCameraSettings CachedCameraSettings;
 
-	// BeginPlay에서 캐시한 에디터 디버그 설정
 	// BeginPlay에서 캐시한 물리 적재물 설정
 	FPGCargoSettings CachedCargoSettings;
 
@@ -199,9 +198,10 @@ private:
 	// 현재 러너가 조작 가능한 런 진행 상태인지 여부
 	bool bIsRunActive = false;
 
-	// 시작 적재물 투입 전 플레이어 조작 입력을 막는 상태. 자동 전진은 유지한다.
+	// 카운트다운 동안 플레이어 입력은 막고 자동 전진만 유지하는 상태입니다.
 	bool bIsRunCountdownActive = false;
 
+	// Home, Countdown, Failed 상태에서 점프와 중심 보정 입력을 무시하기 위한 잠금입니다.
 	bool bIsGameplayInputLocked = true;
 
 	// 추락 실패 판정 기준이 되는 시작 월드 Z 위치

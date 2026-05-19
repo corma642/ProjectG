@@ -83,6 +83,7 @@ void UPGShopScreenWidget::NativeConstruct()
 	}
 	if (MapsTabButton)
 	{
+		// 맵 상점은 아직 구현 범위가 아니므로 탭은 보이되 상호작용은 막는다.
 		MapsTabButton->SetIsEnabled(false);
 	}
 	if (CharactersTabButton)
@@ -139,10 +140,14 @@ void UPGShopScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaT
 		AnimationElapsed += InDeltaTime;
 		const float RawAlpha = AnimationDuration > KINDA_SMALL_NUMBER ? FMath::Clamp(AnimationElapsed / AnimationDuration, 0.0f, 1.0f) : 1.0f;
 		const float Alpha = bIsClosing ? 1.0f - RawAlpha : RawAlpha;
+
+		// 열림과 닫힘은 같은 패널 타이밍을 반대로 재생한다. 이렇게 두면 BP 레이아웃을 바꿔도
+		// C++은 각 패널의 최종 위치를 기준으로 RenderTransform만 보간하면 된다.
 		ApplyEntryAnimation(Alpha);
 
 		if (RawAlpha >= 1.0f)
 		{
+			// 닫힘 완료 시점에만 상위 HomeFlow에 알린다. 중간에 제거하면 카메라 복구와 프리뷰 복구 순서가 흔들릴 수 있다.
 			const bool bWasClosing = bIsClosing;
 			bIsOpening = false;
 			bIsClosing = false;
@@ -223,6 +228,7 @@ void UPGShopScreenWidget::HandleActionClicked()
 	bool bWasPurchaseAction = false;
 	if (!Shop->IsCharacterOwned(SkinId))
 	{
+		// 구매 액션만 전용 성공/실패 사운드를 사용한다. 장착은 일반 UI 클릭음으로 유지한다.
 		bWasPurchaseAction = true;
 		bSuccess = Shop->PurchaseCharacter(SkinId);
 	}
@@ -240,6 +246,8 @@ void UPGShopScreenWidget::HandleActionClicked()
 	bActionFeedbackSuccess = bSuccess;
 	if (bWasPurchaseAction)
 	{
+		// 구매 결과음이 지정되어 있으면 공통 버튼음을 겹쳐 재생하지 않는다.
+		// 실패도 사용자가 바로 원인을 체감해야 하므로 동일한 경로에서 전용음을 우선한다.
 		if (const UPGGameSettings* Settings = GetDefault<UPGGameSettings>())
 		{
 			UPGAudioStatics::PlayUIButtonSound(this, bSuccess ? Settings->SFX.ShopPurchaseSuccessSound.Get() : Settings->SFX.ShopPurchaseFailSound.Get());
@@ -301,6 +309,8 @@ void UPGShopScreenWidget::SelectCharacterByIndex(int32 NewIndex)
 	const UPGCharacterSkinDefinition* SelectedSkin = Shop->GetCharacterSkins()[SelectedCharacterIndex];
 	if (SelectedSkin)
 	{
+		// 선택값은 위젯 인스턴스 수명보다 길게 유지한다. Shop을 닫았다 다시 열어도
+		// 마지막으로 보던 카드를 기준으로 Prev/Next가 이어지도록 Subsystem에 세션 상태를 맡긴다.
 		Shop->SetLastSelectedCharacterSkinId(SelectedSkin->SkinId);
 		Shop->PreviewCharacter(SelectedSkin->SkinId);
 	}
@@ -344,6 +354,7 @@ void UPGShopScreenWidget::RebuildCharacterList()
 	{
 		if (SelectedCharacterIndex == INDEX_NONE)
 		{
+			// Shop을 다시 열 때는 세션에서 마지막으로 보던 카드, 없으면 장착 캐릭터, 없으면 첫 카드 순서로 복구한다.
 			const auto FindSkinIndex = [&CharacterSkins](FName SkinId) -> int32
 			{
 				if (SkinId.IsNone())
@@ -399,6 +410,9 @@ void UPGShopScreenWidget::RebuildCharacterList()
 		const bool bOwned = Shop->IsCharacterOwned(SkinDefinition->SkinId);
 		const bool bEquipped = Shop->IsCharacterEquipped(SkinDefinition->SkinId);
 		const bool bSelected = Index == SelectedCharacterIndex;
+
+		// 리스트 위젯은 최초 구성 때만 만든다. 이후 선택/구매/장착 상태 변화는
+		// RefreshCharacterItems()에서 기존 카드의 상태만 갱신해 ScrollBox 관성 입력을 보존한다.
 		ItemWidget->SetCharacterSkin(SkinDefinition, bOwned, bEquipped, bSelected);
 		ItemWidget->OnCharacterSelected.AddUObject(this, &UPGShopScreenWidget::SelectCharacterById);
 		CharacterListBox->AddChild(ItemWidget);
@@ -408,6 +422,7 @@ void UPGShopScreenWidget::RebuildCharacterList()
 	RefreshCharacterItems();
 	if (const UPGCharacterSkinDefinition* SelectedSkin = CharacterSkins.IsValidIndex(SelectedCharacterIndex) ? CharacterSkins[SelectedCharacterIndex] : nullptr)
 	{
+		// 리스트 생성 직후에도 월드 러너 프리뷰와 UI 선택 상태가 같은 스킨을 가리키게 맞춘다.
 		Shop->SetLastSelectedCharacterSkinId(SelectedSkin->SkinId);
 		Shop->PreviewCharacter(SelectedSkin->SkinId);
 	}
@@ -480,6 +495,7 @@ void UPGShopScreenWidget::RefreshSelectedCharacterState()
 	const bool bEquipped = Shop->IsCharacterEquipped(SelectedSkin->SkinId);
 	if (SelectedPricePanel)
 	{
+		// 가격은 미보유 캐릭터의 상세 영역에서만 보여준다. 카드 내부 가격 텍스트는 모바일 가독성 때문에 제거했다.
 		SelectedPricePanel->SetVisibility(!bOwned ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 	if (SelectedPriceText)
@@ -567,6 +583,8 @@ void UPGShopScreenWidget::SetShopButtonsEnabled(bool bEnabled) const
 
 void UPGShopScreenWidget::ApplyEntryAnimation(float Alpha)
 {
+	// BP 계층은 상점 배경, 상단 재화, 탭, 리스트, 액션 버튼을 별도 패널로 나눈다.
+	// 각 패널에 작은 딜레이를 주면 전체 화면이 한 장으로 뜨지 않고 상품 진열대처럼 단계적으로 열린다.
 	ApplyWidgetAnimationState(ShopPanel, FVector2D(0.0f, ShopPanelStartYOffset), Alpha, 0.0f, ShopPanelAnimationDuration, 0.97f, 1.0f);
 	ApplyWidgetAnimationState(ShopContentPanel, FVector2D(0.0f, ShopContentStartYOffset), Alpha, 0.06f, ShopElementAnimationDuration, 0.96f, 1.0f);
 	ApplyWidgetAnimationState(ReceiptPanel, FVector2D(ShopReceiptStartXOffset, ShopTopBarStartYOffset), Alpha, 0.09f, ShopElementAnimationDuration, 1.0f, 1.0f);
@@ -592,6 +610,7 @@ void UPGShopScreenWidget::ApplyWidgetAnimationState(UWidget* Widget, const FVect
 	const float ScaleAlpha = ShopEaseOutBack(LocalAlpha);
 	const float Scale = FMath::Lerp(StartScale, EndScale, ScaleAlpha);
 
+	// BP가 배치한 패널은 유지하고 RenderTransform만 조작해 디자인 자산을 C++에서 덮어쓰지 않는다.
 	Widget->SetRenderOpacity(EasedAlpha);
 	Widget->SetRenderTranslation(StartOffset * (1.0f - EasedAlpha));
 	Widget->SetRenderScale(FVector2D(Scale, Scale));
@@ -609,6 +628,7 @@ void UPGShopScreenWidget::ApplyActionFeedback(float DeltaSeconds)
 	const float Pulse = FMath::Sin(Alpha * UE_PI);
 	if (bActionFeedbackSuccess)
 	{
+		// 성공은 짧은 펄스로 확정감을 주고, 실패는 흔들림으로 재화 부족/저장 실패를 구분한다.
 		const float Scale = 1.0f + Pulse * 0.08f;
 		ActionButton->SetRenderScale(FVector2D(Scale, Scale));
 	}

@@ -143,6 +143,7 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 
 	if (bIsRunCountdownActive)
 	{
+		// 카운트다운은 화면 연출 중에도 러너가 앞으로 나아가게 하되, 중심 입력과 적재물 흔들림은 시작 전까지 잠근다.
 		BaseInstabilityInput = 0.0f;
 		BalanceInput = 0.0f;
 		if (RunnerMovementComponent)
@@ -173,6 +174,7 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 	}
 	if (RunnerMovementComponent)
 	{
+		// 환경 효과는 플레이어 보정 입력만 가공한다. 기본 불안정성은 별도 축으로 유지해 눈바람이 자동 실패를 만들지 않게 한다.
 		const float PlayerCorrectionInput = RunnerEnvironmentComponent ? RunnerEnvironmentComponent->GetProcessedBalanceInput() : BalanceInput;
 		RunnerMovementComponent->SetBalanceMovementInput(BaseInstabilityInput, PlayerCorrectionInput);
 	}
@@ -195,6 +197,7 @@ void APGRunnerCharacter::RequestJump()
 
 	if (RunnerMovementComponent && RunnerMovementComponent->RequestJump())
 	{
+		// 사운드는 입력 요청이 아니라 실제 점프가 실행된 경우에만 재생한다.
 		PlayJumpSound();
 	}
 }
@@ -287,6 +290,7 @@ void APGRunnerCharacter::ApplyEquippedCharacterSkin()
 
 void APGRunnerCharacter::PrepareTransformForRunStart()
 {
+	// Home/Shop에서는 자유로운 프리뷰 회전을 쓰지만, 실제 러닝은 현재 위치에서 월드 0 회전 기준으로 시작한다.
 	const FVector CurrentLocation = GetActorLocation();
 	const FRotator RunStartRotation = FRotator::ZeroRotator;
 
@@ -312,6 +316,7 @@ void APGRunnerCharacter::PrepareTransformForRunStart()
 
 	if (RunnerMovementComponent)
 	{
+		// 회전이 바뀐 직후 이동 컴포넌트의 전방/우측 기준도 다시 잡아야 자동 전진과 Balance 이동이 같은 축을 쓴다.
 		RunnerMovementComponent->InitializeRunnerMovement(CachedJumpSettings, CachedGyroSettings, CachedBalanceSettings, CurrentLocation, GetActorForwardVector(), GetActorRightVector());
 		RunnerMovementComponent->SetBalanceMovementInput(0.0f, 0.0f);
 		RunnerMovementComponent->StopMovementImmediately();
@@ -325,6 +330,7 @@ void APGRunnerCharacter::RestoreHomePreviewTransform()
 		return;
 	}
 
+	// 현재는 Home 복귀가 레벨 리로드 기반이지만, 향후 무로딩 복귀로 바뀌어도 Home 프리뷰 자세가 유지되도록 명시 복구한다.
 	SetActorTransform(HomePreviewTransform, false, nullptr, ETeleportType::TeleportPhysics);
 	if (Controller)
 	{
@@ -393,6 +399,7 @@ void APGRunnerCharacter::PlayJumpSound()
 	LoadedSounds.Reserve(JumpSounds->Num());
 	for (const TSoftObjectPtr<USoundBase>& JumpSound : *JumpSounds)
 	{
+		// 런타임 예열된 사운드만 사용한다. 여기서 동기 로드하지 않아 Android 첫 점프 hitch를 만들지 않는다.
 		if (USoundBase* LoadedSound = JumpSound.Get())
 		{
 			LoadedSounds.Add(LoadedSound);
@@ -434,6 +441,7 @@ void APGRunnerCharacter::HandleRunCountdownStarted(float Duration)
 
 	if (RunProgressComponent)
 	{
+		// 카운트다운 중 이동 거리는 점수/거리 계산에 포함하지 않는다.
 		RunProgressComponent->StopRunProgress(GetActorLocation());
 	}
 
@@ -460,6 +468,7 @@ void APGRunnerCharacter::HandleRunStarted()
 
 	if (RunProgressComponent)
 	{
+		// 실제 점수/거리 기준점은 GO 이후 현재 위치와 전방 벡터로 다시 잡는다.
 		const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
 		RunProgressComponent->InitializeRunProgress(Settings ? Settings->RunProgress : FPGRunProgressSettings(), RunStartLocation, RunStartForwardVector, RunStartTimeSeconds);
 	}

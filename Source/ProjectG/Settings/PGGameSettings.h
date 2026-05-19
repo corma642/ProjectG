@@ -63,7 +63,7 @@ struct FPGBalanceSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance | Movement", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2000.0"))
 	float BalanceDriftAcceleration = 420.0f;
 
-	// 플레이어 입력이 라인 중심으로 되돌리기 위해 적용하는 보정 가속도
+	// 플레이어의 기울임/QE 입력이 좌우 이동을 보정하기 위해 적용하는 가속도
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Balance | Movement", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3000.0"))
 	float PlayerCorrectionAcceleration = 720.0f;
 
@@ -604,7 +604,7 @@ struct FPGCargoDeliverySettings
 };
 
 /**
- * 바람, 눈바람, 적재 증가 같은 환경 이벤트의 기본 반응 설정
+ * 바람, 눈바람 같은 돌발 환경 이벤트의 기본 반응 설정
  */
 USTRUCT(BlueprintType)
 struct FPGEnvironmentSettings
@@ -714,7 +714,7 @@ public:
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Music")
 	FPGMusicSettings Music;
 
-	// 공통 UI 클릭음, 카운트다운, 상점 결과음 설정
+	// 공통 UI 클릭음, 카운트다운, 상점 결과음, 점프/적재물 사운드 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "SFX")
 	FPGSFXSettings SFX;
 

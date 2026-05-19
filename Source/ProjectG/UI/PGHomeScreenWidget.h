@@ -17,8 +17,8 @@ DECLARE_MULTICAST_DELEGATE(FPGHomeHelpRequestedSignature);
 DECLARE_MULTICAST_DELEGATE(FPGHomeShopRequestedSignature);
 
 /**
- * 홈 화면 Blueprint Widget의 로직 클래스입니다.
- * 레이아웃과 스타일은 BP가 담당하고, C++은 버튼 이벤트와 퇴장 애니메이션만 처리합니다.
+ * 앱 시작 직후 표시되는 Home 화면의 로직 위젯입니다.
+ * BP가 로고/버튼/영수증 표시 레이아웃을 담당하고, C++은 버튼 이벤트와 진입/퇴장 애니메이션만 처리합니다.
  */
 UCLASS()
 class PROJECTG_API UPGHomeScreenWidget : public UUserWidget
@@ -31,13 +31,13 @@ public:
 	FPGHomeHelpRequestedSignature OnHelpRequested;
 	FPGHomeShopRequestedSignature OnShopRequested;
 
-	// START DELIVERY 이후 홈 화면 요소들이 각 방향으로 빠지며 사라지는 애니메이션을 시작합니다.
+	// START DELIVERY 이후 Home 요소들이 화면 밖으로 빠지는 퇴장 애니메이션을 시작합니다.
 	void PlayExitAnimation(float Duration);
 
-	// 리소스 예열 대기나 설정 화면 표시 중 홈 버튼 입력을 잠그거나 다시 엽니다.
+	// Settings/Help/Shop 화면이 열려 있거나 리소스 예열 대기 중일 때 Home 버튼 입력을 잠급니다.
 	void SetHomeButtonsEnabled(bool bEnabled) const;
 
-	// Home 화면에 표시할 누적 영수증 보유량을 갱신합니다.
+	// Home 화면에 표시할 누적 보유 영수증 값을 갱신합니다.
 	void SetReceiptBalance(int32 Balance) const;
 
 protected:
@@ -45,12 +45,15 @@ protected:
 	virtual void NativeDestruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
+	// Home 위젯 전체 루트입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Home")
 	TObjectPtr<UWidget> RootPanel;
 
+	// 상단 게임 로고 이미지입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Home")
 	TObjectPtr<UImage> LogoImage;
 
+	// START/SHOP/SETTINGS/HELP 버튼을 묶는 메뉴 패널입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Home")
 	TObjectPtr<UWidget> MenuPanel;
 
@@ -66,6 +69,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Home")
 	TObjectPtr<UButton> HelpButton;
 
+	// 누적 영수증 아이콘/배경/텍스트를 포함하는 표시 패널입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Home")
 	TObjectPtr<UWidget> ReceiptPanel;
 

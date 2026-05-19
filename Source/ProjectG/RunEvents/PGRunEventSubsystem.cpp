@@ -75,6 +75,8 @@ void UPGRunEventSubsystem::Tick(float DeltaTime)
 		return;
 	}
 
+	// 환경 이벤트는 초 단위 예약/전조가 핵심이라 매 프레임 처리할 필요가 없다.
+	// 0.2초 단위로 묶어 모바일 Tick 비용을 줄이고, 누적 시간을 넘겨 예약 타이밍은 유지한다.
 	const float ProcessDeltaSeconds = TickAccumulator;
 	TickAccumulator = 0.0f;
 	ProcessRunEventTick(ProcessDeltaSeconds);
@@ -99,6 +101,8 @@ float UPGRunEventSubsystem::GetDifficultyAlpha() const
 
 void UPGRunEventSubsystem::HandleRunStarted()
 {
+	// Retry/새 런 모두 이전 런의 예약/활성 이벤트를 완전히 비운 뒤 다시 스케줄한다.
+	// 적재물 드롭은 별도 CargoDeliverySubsystem이 관리하므로 여기서는 Wind/Snowstorm만 다룬다.
 	bIsRunActive = true;
 	RunElapsedTime = 0.0f;
 	TickAccumulator = 0.0f;
@@ -156,6 +160,8 @@ void UPGRunEventSubsystem::BindGameMode()
 	BoundGameMode = GetWorld()->GetAuthGameMode<APGGameModeBase>();
 	if (BoundGameMode)
 	{
+		// WorldSubsystem 초기화가 GameMode BeginPlay보다 먼저 올 수 있으므로,
+		// 바인딩은 Initialize/OnWorldBeginPlay/Tick에서 모두 재시도 가능한 형태로 둔다.
 		BoundGameMode->OnRunStarted.AddDynamic(this, &UPGRunEventSubsystem::HandleRunStarted);
 		BoundGameMode->OnRunFailed.AddDynamic(this, &UPGRunEventSubsystem::HandleRunFailed);
 		bIsBoundToGameMode = true;
@@ -199,6 +205,7 @@ void UPGRunEventSubsystem::ProcessRunEventTick(float DeltaSeconds)
 
 	if (PendingEventState == EPGRunEventState::Scheduled && RunElapsedTime >= PendingEventFireTime - FMath::Max(0.0f, CachedRunEventSettings.PreviewLeadTime))
 	{
+		// 전조 UI/SFX는 실제 이벤트보다 먼저 알린다. 플레이어가 적재물과 중심을 준비할 시간을 주기 위한 단계다.
 		PendingEventState = EPGRunEventState::Preview;
 		OnRunEventPreviewStarted.Broadcast(PendingEventType, GetTimeUntilPendingEvent(), PendingEventDirection);
 	}
@@ -216,12 +223,14 @@ void UPGRunEventSubsystem::ScheduleNextEvent()
 
 	if (ActiveEventType != EPGRunEventType::None)
 	{
+		// 활성 이벤트가 겹치면 실패 원인이 불분명해진다. 현재 이벤트가 끝난 뒤 다시 예약한다.
 		NextScheduleRetryTime = ActiveEventEndTime > 0.0f ? ActiveEventEndTime : RunElapsedTime + 1.0f;
 		return;
 	}
 
 	if (RunElapsedTime < CachedRunEventSettings.SafeInitialRunTime)
 	{
+		// GO 직후에는 첫 적재물/조작 안정화가 우선이므로 환경 이벤트를 잠시 늦춘다.
 		NextScheduleRetryTime = CachedRunEventSettings.SafeInitialRunTime;
 		return;
 	}
@@ -236,6 +245,9 @@ void UPGRunEventSubsystem::ScheduleNextEvent()
 	const float DifficultyAlpha = GetDifficultyAlpha();
 	const float StartInterval = FMath::Max(CachedRunEventSettings.MinEventInterval, CachedRunEventSettings.BaseEventInterval);
 	const float EndInterval = FMath::Max(0.5f, CachedRunEventSettings.MinEventInterval);
+
+	// 난이도가 오를수록 예약 간격을 줄인다. 이벤트 강도/종류는 룰 데이터가 담당하고,
+	// Subsystem은 언제 어떤 룰을 발동할지만 결정한다.
 	PendingEventRule = SelectedRule;
 	PendingEventType = SelectedRule.EventType;
 	PendingEventState = EPGRunEventState::Scheduled;
@@ -279,6 +291,7 @@ bool UPGRunEventSubsystem::SelectEventRule(FPGRunEventRule& OutRule)
 		AccumulatedWeight += Weight;
 		if (Roll <= AccumulatedWeight)
 		{
+			// 가중치는 난이도 알파를 반영한다. 같은 룰이라도 런 후반에는 DifficultyWeight가 선택 확률을 밀어 올린다.
 			OutRule = Rule;
 			return true;
 		}
@@ -336,6 +349,7 @@ void UPGRunEventSubsystem::TriggerPendingEvent()
 {
 	if (PendingEventType == EPGRunEventType::None || !RunnerEnvironmentComponent)
 	{
+		// 러너 환경 컴포넌트를 못 찾은 경우에는 예정된 이벤트를 취소해 UI 전조가 남지 않게 한다.
 		ClearPendingEvent(true);
 		return;
 	}
@@ -360,6 +374,8 @@ void UPGRunEventSubsystem::TriggerPendingEvent()
 
 	if (bTriggered)
 	{
+		// 트리거가 성공한 이벤트만 쿨다운과 Active 상태에 기록한다.
+		// 실패한 예약까지 쿨다운에 넣으면 일정 시간 이벤트가 비는 문제가 생긴다.
 		LastTriggeredTimeByEvent.FindOrAdd(PendingEventType) = RunElapsedTime;
 		OnRunEventTriggered.Broadcast(PendingEventType, PendingEventRule.Duration, PendingEventDirection);
 		StartActiveEvent(PendingEventType, PendingEventRule.Duration);

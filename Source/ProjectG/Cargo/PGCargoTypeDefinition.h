@@ -19,7 +19,7 @@ class PROJECTG_API UPGCargoTypeDefinition : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	// 에디터와 디버그 표시에서 읽기 쉬운 적재물 이름
+	// 에디터와 UI에서 읽기 쉬운 적재물 이름
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Cargo")
 	FText DisplayName;
 

@@ -122,7 +122,7 @@ bool UPGCargoStackComponent::StartCargoDropHold(UPGCargoTypeDefinition* CargoTyp
 
 	if (ScriptedCargoMeshComponent)
 	{
-		// 물리 전환 전까지 같은 CargoStack 위치에서 대기 메시를 보여준다.
+		// 물리 전환 전까지 실제 스폰 위치와 같은 Transform으로 Hold 메시를 보여줘 즉시 생성처럼 보이지 않게 한다.
 		ScriptedCargoMeshComponent->SetStaticMesh(CargoType->CargoMesh);
 		ApplyScriptedCargoDisplayTransform(CargoType);
 		ScriptedCargoMeshComponent->SetVisibility(true, true);
@@ -133,6 +133,7 @@ bool UPGCargoStackComponent::StartCargoDropHold(UPGCargoTypeDefinition* CargoTyp
 
 	if (CargoDropHoldRemainingTime <= 0.0f)
 	{
+		// Hold 시간이 0이면 같은 프레임에 바로 물리 적재물로 전환한다.
 		FinishCargoDropHold();
 	}
 
@@ -158,6 +159,7 @@ void UPGCargoStackComponent::FinishCargoDropHold()
 
 	if (ScriptedCargoMeshComponent)
 	{
+		// 프리뷰 메시를 먼저 숨기고 물리 Actor를 생성해, 같은 위치에서 자연스럽게 전환되는 느낌을 만든다.
 		ScriptedCargoMeshComponent->SetVisibility(false, true);
 		ScriptedCargoMeshComponent->SetHiddenInGame(true, true);
 	}
@@ -199,7 +201,7 @@ APGPhysicsCargoActor* UPGCargoStackComponent::SpawnPhysicsCargo(UPGCargoTypeDefi
 	CargoActor->InitializeCargo(CargoType, CachedCargoSettings.CargoCollisionProfileName);
 	if (UStaticMeshComponent* CargoMeshComponent = CargoActor->GetCargoMeshComponent())
 	{
-		// 생성 순간에는 받침 속도를 상속해 자동 전진 중 뒤처지지 않게 한다.
+		// 생성 순간 CargoStack 앵커 속도를 상속해 자동 전진 중에도 적재물이 뒤로 처지지 않게 한다.
 		CargoMeshComponent->SetPhysicsLinearVelocity(AnchorVelocity);
 	}
 
@@ -274,7 +276,7 @@ void UPGCargoStackComponent::ApplyCargoPhysicsForces(float DeltaSeconds, float B
 			continue;
 		}
 
-		// BP 받침 충돌만으로 부족한 흔들림 체감을 보강하기 위해 중심 입력 기반 보조 힘을 더한다.
+		// 받침 충돌만으로는 흔들림 체감이 약하므로, 기본 흔들림과 플레이어 중심 입력을 보조 힘으로 더한다.
 		const float IdleShake = FMath::Sin(ShakePhase + CargoIndex * 1.73f) * CachedCargoSettings.CargoIdleShakeForce;
 		const float BalanceForce = BalanceInput * CachedCargoSettings.CargoBalanceForce;
 		CargoActor->GetCargoMeshComponent()->AddForce(RightVector * (IdleShake + BalanceForce), NAME_None, true);
@@ -317,6 +319,7 @@ void UPGCargoStackComponent::UpdateAnchorMotion(float DeltaSeconds, bool bIsAirb
 
 	if (bIsAirborne || (bWasAirborneLastFrame && !bIsAirborne))
 	{
+		// 점프뿐 아니라 트랙 높이 차이로 잠깐 Falling이 된 경우도 적재물이 관성으로 튀지 않도록 짧게 보정한다.
 		AirborneCargoAssistRemainingTime = FMath::Max(0.0f, CachedCargoSettings.AirborneCargoAssistDuration);
 	}
 	else if (AirborneCargoAssistRemainingTime > 0.0f)
@@ -352,6 +355,7 @@ void UPGCargoStackComponent::ApplyAirborneCargoAssist()
 		UStaticMeshComponent* CargoMeshComponent = CargoActor->GetCargoMeshComponent();
 		FVector RelativeVelocity = CargoMeshComponent->GetPhysicsLinearVelocity() - AnchorVelocity;
 
+		// 공중 보정은 앵커 기준 상대속도만 제한한다. 월드 속도를 직접 0으로 만들면 자동 전진과 충돌한다.
 		if (MaxRelativeSpeed > KINDA_SMALL_NUMBER && RelativeVelocity.SizeSquared() > FMath::Square(MaxRelativeSpeed))
 		{
 			RelativeVelocity = RelativeVelocity.GetClampedToMaxSize(MaxRelativeSpeed);
@@ -372,6 +376,7 @@ void UPGCargoStackComponent::CheckCargoLoss()
 	const float LossZ = LossOriginLocation.Z - CachedCargoSettings.CargoLossZOffset;
 	const float LossDistanceSquared = FMath::Square(CachedCargoSettings.CargoLossHorizontalDistance);
 
+	// 손실 기준은 CargoStack 위치가 아니라 플레이어 Actor 위치다. CargoStack을 높게 배치해도 즉시 실패하지 않게 하기 위함이다.
 	for (int32 CargoIndex = CargoInstances.Num() - 1; CargoIndex >= 0; --CargoIndex)
 	{
 		APGPhysicsCargoActor* CargoActor = CargoInstances[CargoIndex].CargoActor;
@@ -422,6 +427,7 @@ void UPGCargoStackComponent::CompleteCargoAt(int32 CargoIndex)
 	const int32 InstanceId = CargoInstance.InstanceId;
 	const FVector DeliveryLocation = CargoInstance.CargoActor ? CargoInstance.CargoActor->GetActorLocation() : GetComponentLocation();
 
+	// HUD가 완료 카드 위치를 찾을 수 있도록 Actor 제거와 리스트 변경 브로드캐스트보다 먼저 완료 이벤트를 보낸다.
 	++DeliveredCargoCount;
 	OnCargoDelivered.Broadcast(InstanceId, DeliveryScore, DeliveryReceipts, DeliveryLocation);
 
@@ -445,4 +451,3 @@ void UPGCargoStackComponent::CleanupInvalidCargoActors()
 		}
 	}
 }
-

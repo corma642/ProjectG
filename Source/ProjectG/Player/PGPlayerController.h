@@ -48,7 +48,7 @@ public:
 	virtual void SetupInputComponent() override;
 
 private:
-	// Project Settings의 입력/디버그 설정을 캐시합니다.
+	// Project Settings의 자이로 입력 설정을 캐시합니다.
 	void ApplyGameSettings();
 
 	// 현재 Pawn이 러너 캐릭터라면 약한 참조로 캐시합니다.

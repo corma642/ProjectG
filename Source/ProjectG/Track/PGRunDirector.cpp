@@ -25,6 +25,8 @@ void APGRunDirector::BeginPlay()
 		{
 			if (*DirectorIt != this)
 			{
+				// Director가 둘 이상이면 각자 세그먼트를 생성해 트랙이 겹친다.
+				// 자동 복구하지 않고 경고만 남겨 레벨 배치 문제를 바로 드러낸다.
 				UE_LOG(LogPGRunDirector, Warning, TEXT("Multiple RunDirector actors exist in this world. Keep only one APGRunDirector to avoid duplicate track spawning. Current='%s', Other='%s'."), *GetNameSafe(this), *GetNameSafe(*DirectorIt));
 				break;
 			}
@@ -87,6 +89,7 @@ void APGRunDirector::Tick(float DeltaSeconds)
 
 	if (bIsDifficultyActive)
 	{
+		// 카운트다운 동안에는 트랙을 미리 깔 수 있지만 난이도 시간은 Running부터 증가시킨다.
 		RunElapsedTime += DeltaSeconds;
 	}
 	RemovePassedSegments();
@@ -130,6 +133,8 @@ void APGRunDirector::InitializeInitialSegment()
 {
 	if (!InitialSegment)
 	{
+		// 에디터에서 시작 세그먼트를 지정하지 않아도, 레벨에 배치된 첫 TrackSegment를 기준으로 런 축을 잡는다.
+		// 시작 축이 정해져야 이후 세그먼트를 끝점에 이어 붙일 수 있다.
 		for (TActorIterator<APGTrackSegment> SegmentIt(GetWorld()); SegmentIt; ++SegmentIt)
 		{
 			InitialSegment = *SegmentIt;
@@ -231,6 +236,7 @@ void APGRunDirector::SpawnSegmentsIfNeeded()
 			break;
 		}
 
+		// 잘못된 세그먼트 길이/설정으로 무한 루프가 생기는 것을 막는다.
 		++GuardCount;
 	}
 }
@@ -247,6 +253,8 @@ bool APGRunDirector::SpawnNextSegment()
 	TSubclassOf<APGTrackSegment> SegmentClass = SegmentEntry ? SegmentEntry->SegmentClass : nullptr;
 	if (!SegmentClass)
 	{
+		// 가중치 필터가 모두 탈락해도 런이 끊기는 것은 더 치명적이다.
+		// 명시 fallback 또는 최근 정상 세그먼트로 최소한의 진행로를 이어 붙인다.
 		SegmentClass = ResolveFallbackSegmentClass();
 		SegmentEntry = nullptr;
 	}
@@ -289,6 +297,8 @@ bool APGRunDirector::SpawnNextSegment()
 
 	if (SegmentEntry)
 	{
+		// 연속 등장 제한과 쿨다운은 선택된 데이터 에셋 엔트리 기준으로만 기록한다.
+		// fallback은 안전장치라 난이도 통계에 섞지 않는다.
 		LastSpawnedSegmentByEntry.FindOrAdd(EntryIndex) = SegmentIndex;
 		LastValidSegmentClass = SegmentClass;
 	}
@@ -320,6 +330,8 @@ void APGRunDirector::RemovePassedSegments()
 			}
 			else
 			{
+				// 런 중 생성된 세그먼트는 Destroy 대신 풀로 돌려 다시 활성화한다.
+				// 세그먼트 안에 배치된 영수증 픽업도 Activate/Deactivate 알림으로 재사용된다.
 				ReturnSegmentToPool(Segment);
 			}
 		}
@@ -341,6 +353,7 @@ APGTrackSegment* APGRunDirector::AcquireSegment(TSubclassOf<APGTrackSegment> Seg
 		APGTrackSegment* Segment = SegmentPool.Segments.Pop(EAllowShrinking::No);
 		if (Segment && !Segment->IsActorBeingDestroyed())
 		{
+			// 풀에서 꺼낸 세그먼트는 새 Transform을 적용하고, 내부 풀링 액터들이 리셋될 수 있게 알림을 보낸다.
 			Segment->ActivateFromPool(SpawnTransform);
 			return Segment;
 		}
@@ -369,10 +382,12 @@ void APGRunDirector::ReturnSegmentToPool(APGTrackSegment* Segment)
 	FPGPooledTrackSegments& SegmentPool = SegmentPoolByClass.FindOrAdd(SegmentClass);
 	if (SegmentPool.Segments.Num() >= MaxPooledSegmentsPerClass)
 	{
+		// 풀 상한을 넘기면 모바일 메모리 증가를 막기 위해 실제 Destroy한다.
 		Segment->Destroy();
 		return;
 	}
 
+	// 비활성화는 세그먼트와 하위 수집 액터를 숨기고 충돌을 끄는 재사용 준비 단계다.
 	Segment->DeactivateForPool();
 	SegmentPool.Segments.Add(Segment);
 }
@@ -382,6 +397,7 @@ int32 APGRunDirector::SelectSegmentEntryIndex()
 	const float DifficultyAlpha = GetDifficultyAlpha();
 	float TotalWeight = 0.0f;
 
+	// 첫 패스는 현재 난이도, 쿨다운, 연속 제한을 통과한 후보의 총 가중치를 계산한다.
 	for (int32 EntryIndex = 0; EntryIndex < SegmentSet->SegmentEntries.Num(); ++EntryIndex)
 	{
 		const FPGTrackSegmentEntry& Entry = SegmentSet->SegmentEntries[EntryIndex];
@@ -418,6 +434,8 @@ int32 APGRunDirector::SelectSegmentEntryIndex()
 	const float Roll = RandomStream.FRandRange(0.0f, TotalWeight);
 	float AccumulatedWeight = 0.0f;
 
+	// 두 번째 패스에서 같은 필터를 다시 적용해 누적 가중치에 도달한 엔트리를 선택한다.
+	// 후보 배열을 따로 만들지 않아 Tick 중 임시 할당을 피한다.
 	for (int32 EntryIndex = 0; EntryIndex < SegmentSet->SegmentEntries.Num(); ++EntryIndex)
 	{
 		const FPGTrackSegmentEntry& Entry = SegmentSet->SegmentEntries[EntryIndex];
@@ -457,11 +475,13 @@ TSubclassOf<APGTrackSegment> APGRunDirector::ResolveFallbackSegmentClass() const
 {
 	if (SegmentSet && SegmentSet->FallbackSegmentClass)
 	{
+		// 가장 우선하는 fallback은 에디터에서 명시한 안정 세그먼트다.
 		return SegmentSet->FallbackSegmentClass;
 	}
 
 	if (LastValidSegmentClass)
 	{
+		// 최근에 실제로 생성에 성공한 클래스는 모바일 패키징에서도 로드/스폰 가능성이 확인된 후보다.
 		return LastValidSegmentClass;
 	}
 

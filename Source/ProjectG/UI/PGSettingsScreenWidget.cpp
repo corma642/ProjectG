@@ -158,6 +158,9 @@ void UPGSettingsScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDe
 		? FMath::Clamp(AnimationElapsed / AnimationDuration, 0.0f, 1.0f)
 		: 1.0f;
 	const float AnimationAlpha = bIsClosing ? 1.0f - RawAlpha : RawAlpha;
+
+	// RootPanel은 전체 화면 레이어로 고정하고, 실제 움직임은 블러/딤/SettingsPanel만 처리한다.
+	// Pause와 Home 양쪽에서 재사용되므로 닫힘 완료 후에만 상위 흐름에 소유권을 돌려준다.
 	ApplyAnimationState(AnimationAlpha);
 
 	if (RawAlpha >= 1.0f)
@@ -192,6 +195,7 @@ void UPGSettingsScreenWidget::HandleCloseClicked()
 	UPGAudioStatics::PlayCommonButtonClick(this);
 	if (UPGGameUserSettings* UserSettings = Cast<UPGGameUserSettings>(UGameUserSettings::GetGameUserSettings()))
 	{
+		// 슬라이더는 드래그 중 즉시 적용하지만, 닫을 때 한 번 더 저장해 터치 캡처 종료 누락에 대비한다.
 		UserSettings->SaveSettings();
 	}
 
@@ -226,6 +230,8 @@ void UPGSettingsScreenWidget::HandleResolutionScaleChanged(float Value)
 		return;
 	}
 
+	// 해상도 스케일은 드래그 중 즉시 반영해 사용자가 선명도/성능 변화를 바로 비교할 수 있게 한다.
+	// 실제 저장은 Commit 또는 Close에서 처리한다.
 	UpdateResolutionScaleText(Value);
 	if (UPGGameUserSettings* UserSettings = Cast<UPGGameUserSettings>(UGameUserSettings::GetGameUserSettings()))
 	{
@@ -277,6 +283,7 @@ void UPGSettingsScreenWidget::HandleMusicVolumeChanged(float Value)
 		return;
 	}
 
+	// 볼륨은 설정 화면 안에서 바로 청감 피드백이 필요하므로 저장 전에도 현재 재생 중인 사운드에 적용한다.
 	UpdateMusicVolumeText(Value);
 	if (UPGGameUserSettings* UserSettings = Cast<UPGGameUserSettings>(UGameUserSettings::GetGameUserSettings()))
 	{
@@ -328,6 +335,7 @@ void UPGSettingsScreenWidget::RefreshControlsFromSettings()
 		return;
 	}
 
+	// SetValue/SetChecked가 다시 OnValueChanged를 호출할 수 있으므로, UI 동기화 중에는 저장/사운드 경로를 막는다.
 	bIsUpdatingControls = true;
 	if (ResolutionScaleSlider)
 	{
@@ -355,6 +363,7 @@ void UPGSettingsScreenWidget::ApplyPreset(EPGMobileQualityPreset Preset)
 {
 	if (UPGGameUserSettings* UserSettings = Cast<UPGGameUserSettings>(UGameUserSettings::GetGameUserSettings()))
 	{
+		// 프리셋은 해상도/FPS/스케일러블리티 값을 한 번에 바꾸므로, 적용 후 전체 컨트롤을 다시 읽어 UI 불일치를 막는다.
 		UserSettings->ApplyMobileQualityPreset(Preset, true);
 		RefreshControlsFromSettings();
 	}
@@ -373,6 +382,8 @@ void UPGSettingsScreenWidget::ApplyAnimationState(float Alpha)
 {
 	if (RootPanel)
 	{
+		// 루트는 화면 전체 입력 레이어이므로 이동시키지 않는다.
+		// 패널만 움직여야 BackgroundBlur와 딤이 뷰포트 전체를 계속 덮는다.
 		RootPanel->SetRenderOpacity(1.0f);
 		RootPanel->SetRenderScale(FVector2D(1.0f, 1.0f));
 		RootPanel->SetRenderTranslation(FVector2D::ZeroVector);

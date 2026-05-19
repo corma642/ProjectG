@@ -18,8 +18,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPGRunEventFinishedSignature, EPGRun
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPGRunEventCanceledSignature, EPGRunEventType, EventType);
 
 /**
- * 러닝 시간 기반으로 전역 환경/적재 이벤트를 예약하고 발동하는 월드 서브시스템입니다.
- * 레벨 배치가 필요 없는 이벤트 총괄자이며, 트랙 세그먼트 생성 책임과 분리됩니다.
+ * 러닝 시간 기반으로 바람/눈바람 같은 전역 위협 이벤트를 예약하고 발동하는 월드 서브시스템입니다.
+ * 트랙 생성이나 배달 적재물 드롭과 분리해, 환경 이벤트의 예고/발동/종료 상태만 관리합니다.
  */
 UCLASS(BlueprintType)
 class PROJECTG_API UPGRunEventSubsystem : public UTickableWorldSubsystem
@@ -35,11 +35,11 @@ public:
 	virtual TStatId GetStatId() const override;
 	virtual bool IsTickable() const override;
 
-	// 현재 시간 기반 이벤트 난이도입니다.
+	// 현재 러닝 시간 기준 이벤트 난이도 알파입니다.
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run Event")
 	float GetDifficultyAlpha() const;
 
-	// 현재 예약 또는 예고 중인 이벤트 종류입니다.
+	// 현재 예약, 예고, 발동 중인 이벤트 종류입니다.
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run Event")
 	EPGRunEventType GetPendingEventType() const { return PendingEventType; }
 
@@ -47,23 +47,23 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run Event")
 	EPGRunEventState GetPendingEventState() const { return PendingEventState; }
 
-	// 예약된 이벤트가 발동되기까지 남은 시간입니다.
+	// 예약된 이벤트가 발동하기까지 남은 시간입니다.
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run Event")
 	float GetTimeUntilPendingEvent() const { return PendingEventType == EPGRunEventType::None ? 0.0f : FMath::Max(0.0f, PendingEventFireTime - RunElapsedTime); }
 
-	// 이벤트 전조가 시작될 때 로컬 연출 계층에 전달됩니다.
+	// 이벤트 예고가 시작되면 로컬 연출 계층에 전달합니다.
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run Event")
 	FPGRunEventPreviewStartedSignature OnRunEventPreviewStarted;
 
-	// 이벤트 실제 효과가 적용될 때 로컬 연출 계층에 전달됩니다.
+	// 이벤트 효과가 실제 적용되는 순간 로컬 연출 계층과 환경 컴포넌트에 전달합니다.
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run Event")
 	FPGRunEventTriggeredSignature OnRunEventTriggered;
 
-	// 지속형 이벤트가 자연 종료될 때 로컬 연출 계층에 전달됩니다.
+	// 지속형 이벤트가 자연 종료되면 로컬 연출 계층에 전달합니다.
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run Event")
 	FPGRunEventFinishedSignature OnRunEventFinished;
 
-	// 런 실패나 월드 종료처럼 이벤트가 강제로 정리될 때 로컬 연출 계층에 전달됩니다.
+	// 런 실패나 상태 정리로 이벤트가 강제 종료될 때 전달합니다.
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run Event")
 	FPGRunEventCanceledSignature OnRunEventCanceled;
 
