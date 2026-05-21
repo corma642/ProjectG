@@ -9,6 +9,7 @@
 #include "PGRunEventSubsystem.generated.h"
 
 class APGGameModeBase;
+class APGMovingRunEventHazardActor;
 class APGRunnerCharacter;
 class UPGRunnerEnvironmentComponent;
 
@@ -86,6 +87,9 @@ private:
 	void ClearPendingEvent(bool bBroadcastCancel);
 	void StartActiveEvent(EPGRunEventType EventType, float Duration);
 	void FinishActiveEvent();
+	float ResolveMovingHazardLaneSign(const FPGRunEventRule& Rule);
+	bool SpawnMovingHazard();
+	void DestroyActiveMovingHazards();
 
 	UPROPERTY(Transient)
 	TObjectPtr<APGRunnerCharacter> RunnerCharacter;
@@ -100,6 +104,7 @@ private:
 	TObjectPtr<APGGameModeBase> BoundGameMode;
 
 	FPGRunEventSettings CachedRunEventSettings;
+	FPGMovingHazardSettings CachedMovingHazardSettings;
 	FRandomStream RandomStream;
 	TMap<EPGRunEventType, float> LastTriggeredTimeByEvent;
 	FPGRunEventRule PendingEventRule;
@@ -115,4 +120,8 @@ private:
 	bool bIsRunActive = false;
 	bool bIsBoundToGameMode = false;
 	mutable bool bWarnedMissingEventRules = false;
+	bool bWarnedMissingMovingHazardClass = false;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<APGMovingRunEventHazardActor>> ActiveMovingHazards;
 };

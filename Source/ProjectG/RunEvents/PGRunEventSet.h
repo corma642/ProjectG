@@ -15,7 +15,30 @@ enum class EPGRunEventType : uint8
 {
 	None UMETA(DisplayName = "None"),
 	Wind UMETA(DisplayName = "Wind"),
-	Snowstorm UMETA(DisplayName = "Snowstorm")
+	Snowstorm UMETA(DisplayName = "Snowstorm"),
+	MovingHazard UMETA(DisplayName = "Moving Hazard")
+};
+
+/**
+ * 이동형 위험 RunEvent가 위험 구역을 고르는 방식입니다.
+ * 실제 이동 라인을 복구하지 않고, 트랙 폭을 좌/중/우 가상 구역으로만 나눕니다.
+ */
+UENUM(BlueprintType)
+enum class EPGMovingHazardLaneMode : uint8
+{
+	Random UMETA(DisplayName = "Random"),
+	Fixed UMETA(DisplayName = "Fixed")
+};
+
+/**
+ * 이동형 위험 RunEvent가 사용할 가상 위험 구역입니다.
+ */
+UENUM(BlueprintType)
+enum class EPGMovingHazardLane : uint8
+{
+	Left UMETA(DisplayName = "Left"),
+	Center UMETA(DisplayName = "Center"),
+	Right UMETA(DisplayName = "Right")
 };
 
 /**
@@ -64,17 +87,25 @@ struct FPGRunEventRule
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Run Event", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "60.0"))
 	float CooldownSeconds = 6.0f;
 
-	// 바람/눈바람 효과 지속 시간입니다.
+	// 효과 지속 시간입니다. MovingHazard에서는 전조/액티브 연출 유지 시간으로도 사용합니다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Run Event | Effect", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "10.0"))
 	float Duration = 3.0f;
 
-	// 바람/눈바람 이벤트 강도입니다.
+	// 이벤트 강도입니다. MovingHazard에서는 밀림 impulse 배율로 사용합니다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Run Event | Effect", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3.0"))
 	float Strength = 1.0f;
 
 	// 바람 방향을 발동마다 좌/우 랜덤으로 정할지 여부입니다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Run Event | Effect")
 	bool bRandomizeDirection = true;
+
+	// 이동형 위험 구역을 랜덤으로 고를지, 고정 구역을 사용할지 정합니다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Run Event | Moving Hazard")
+	EPGMovingHazardLaneMode HazardLaneMode = EPGMovingHazardLaneMode::Random;
+
+	// HazardLaneMode가 Fixed일 때 사용할 가상 위험 구역입니다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Run Event | Moving Hazard")
+	EPGMovingHazardLane FixedHazardLane = EPGMovingHazardLane::Center;
 };
 
 /**

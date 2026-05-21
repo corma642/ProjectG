@@ -15,7 +15,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPGCharacterShopItemSelectedSignature, FName
 
 /**
  * 상점 캐릭터 목록에 들어가는 개별 카드 로직 위젯입니다.
- * 카드 내부는 썸네일, 잠금 표시, CURRENT 표시만 담당하고 가격/구매 상태는 상점 상세 영역에서 표시합니다.
+ * 카드 안에는 썸네일, 잠금 표시, CURRENT 표시만 두고 가격/구매 상태는 상점 상세 영역에서 표시합니다.
  */
 UCLASS()
 class PROJECTG_API UPGCharacterShopItemWidget : public UUserWidget
@@ -33,24 +33,24 @@ protected:
 	virtual void NativeDestruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
-	// 카드 전체 루트입니다. 선택 상태일 때 스케일/투명도 애니메이션을 적용합니다.
-	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Shop Item")
+	// 카드 전체 루트입니다. 선택 상태에 따라 스케일과 투명도 애니메이션을 적용합니다.
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UWidget> RootPanel;
 
 	// 카드 전체를 덮는 투명 선택 버튼입니다.
-	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Shop Item")
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UButton> SelectButton;
 
 	// 캐릭터 스킨 썸네일 이미지입니다.
-	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Shop Item")
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UImage> ThumbnailImage;
 
-	// 미보유 캐릭터에 표시하는 잠금 오버레이입니다.
-	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Shop Item")
+	// 미보유 캐릭터에 표시되는 잠금 오버레이입니다.
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UWidget> LockImage;
 
-	// 현재 장착 중인 캐릭터에 표시하는 CURRENT 마커입니다.
-	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Shop Item")
+	// 현재 장착 중인 캐릭터에 표시되는 CURRENT 마커입니다.
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UWidget> CurrentMarker;
 
 private:

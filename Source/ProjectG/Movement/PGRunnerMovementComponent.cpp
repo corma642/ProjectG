@@ -18,7 +18,7 @@ void UPGRunnerMovementComponent::InitializeRunnerMovement(const FPGJumpSettings&
 	RunnerForwardVector.Z = 0.0f;
 	RunnerForwardVector = RunnerForwardVector.GetSafeNormal(SMALL_NUMBER, FVector::ForwardVector);
 
-	// 러너가 회전된 상태로 배치되어도 Balance 이동은 런 시작 시점의 수평 전방/우측 축을 기준으로 누적한다.
+	// Home 배치 회전과 관계없이, 런 시작 시점에 정리된 수평 전방/우측 축을 Balance 기준으로 고정합니다.
 	RunnerRightVector = InRunnerRightVector;
 	RunnerRightVector.Z = 0.0f;
 	RunnerRightVector = RunnerRightVector.GetSafeNormal(SMALL_NUMBER, FVector::RightVector);
@@ -34,7 +34,8 @@ void UPGRunnerMovementComponent::InitializeRunnerMovement(const FPGJumpSettings&
 
 bool UPGRunnerMovementComponent::RequestJump()
 {
-	// 점프는 지면 상태와 쿨타임을 모두 만족할 때만 실행한다. 입력 버퍼를 두지 않아 터치 조작이 예측 가능하게 유지된다.
+	// 점프는 지면 상태와 쿨타임을 모두 만족할 때만 실행합니다.
+	// 입력 버퍼를 두지 않아 터치 조작의 예측 불가능한 연속 점프를 막습니다.
 	if (!UpdatedComponent || MovementMode == MOVE_None || JumpCooldownRemainingTime > 0.0f || !IsMovingOnGround())
 	{
 		return false;
@@ -51,6 +52,23 @@ bool UPGRunnerMovementComponent::RequestJump()
 	JumpCooldownRemainingTime = FMath::Max(0.0f, CachedJumpSettings.JumpCooldownDuration);
 	bWasAirborneLastFrame = true;
 	return true;
+}
+
+void UPGRunnerMovementComponent::ApplyExternalBalanceImpulse(float ImpulseVelocity, float MaxAbsVelocity)
+{
+	if (MovementMode == MOVE_None)
+	{
+		return;
+	}
+
+	BalanceVelocity += ImpulseVelocity;
+
+	const float VelocityLimit = FMath::Max(0.0f, MaxAbsVelocity);
+	if (VelocityLimit > 0.0f)
+	{
+		// 위험 Actor가 여러 번 맞더라도 Balance 속도가 비정상적으로 누적되지 않도록 상한을 둡니다.
+		BalanceVelocity = FMath::Clamp(BalanceVelocity, -VelocityLimit, VelocityLimit);
+	}
 }
 
 void UPGRunnerMovementComponent::SetBalanceMovementInput(float InBaseInstabilityInput, float InPlayerCorrectionInput)
@@ -107,7 +125,7 @@ void UPGRunnerMovementComponent::UpdateLateralMovement()
 	const FVector OriginToActor = CurrentLocation - OriginLocation;
 	const float ForwardDistance = FVector::DotProduct(OriginToActor, RunnerForwardVector);
 
-	// 전방 진행 거리는 자동 전진이 담당하고, 이 컴포넌트는 기준선에서 우측으로 얼마나 벗어났는지만 적용한다.
+	// CharacterMovement의 전진 이동은 유지하고, 이 컴포넌트는 시작 기준선에서의 좌우 이탈만 보정합니다.
 	FVector TargetLocation = OriginLocation + RunnerForwardVector * ForwardDistance + RunnerRightVector * BalanceOffset;
 	TargetLocation.Z = CurrentLocation.Z;
 
@@ -131,7 +149,7 @@ void UPGRunnerMovementComponent::UpdateBalanceMovement(float DeltaSeconds)
 	constexpr float AirborneDampingScale = 0.2f;
 	const float DampingScale = bIsAirborne ? AirborneDampingScale : 1.0f;
 
-	// 공중에서는 좌우 보정을 더 강하게 먹이고 감쇠를 줄여, 점프 후 기울여 착지 지점을 고르는 조작감을 만든다.
+	// 공중에서는 짧은 체공 시간 안에 회피가 가능해야 하므로 플레이어 보정과 최대 좌우 속도를 함께 강화합니다.
 	const float DriftAcceleration = BaseInstabilityInput * FMath::Max(0.0f, CachedBalanceSettings.BalanceDriftAcceleration);
 	const float CorrectionAcceleration = PlayerCorrectionInput * FMath::Max(0.0f, CachedBalanceSettings.PlayerCorrectionAcceleration) * AirborneControlScale;
 	const float NetAcceleration = DriftAcceleration + CorrectionAcceleration;
@@ -155,7 +173,7 @@ void UPGRunnerMovementComponent::UpdateAirborneState()
 	const bool bIsAirborne = IsFalling();
 	if (bWasAirborneLastFrame && !bIsAirborne)
 	{
-		// 착지 직후에는 센서/키 입력이 튀기 쉬우므로 짧게 안정화 시간을 둔다.
+		// 착지 직후에는 센서/키 입력이 튀기 쉬우므로 짧게 안정화 시간을 둡니다.
 		LandingStabilizeRemainingTime = CachedGyroSettings.LandingStabilizeTime;
 	}
 
@@ -176,6 +194,6 @@ float UPGRunnerMovementComponent::CalculateJumpVelocity() const
 		return 0.0f;
 	}
 
-	// 목표 점프 높이를 만족하는 초기 속도를 중력값에서 역산한다.
+	// 목표 점프 높이에 도달하는 초기 속도를 중력값으로부터 계산합니다.
 	return FMath::Sqrt(2.0f * Gravity * JumpHeight);
 }

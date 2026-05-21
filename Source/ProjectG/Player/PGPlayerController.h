@@ -119,23 +119,23 @@ private:
 	TObjectPtr<UPGRunEventFeedbackComponent> RunEventFeedbackComponent;
 
 	// 런 실패 결과 화면 UI/SFX/CameraShake를 자동 재생하는 컴포넌트
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Run Result", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPGRunResultFeedbackComponent> RunResultFeedbackComponent;
 
 	// 홈/러닝 배경음을 로컬 플레이어 기준으로 자동 재생하는 컴포넌트
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Music", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Audio", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPGMusicComponent> MusicComponent;
 
 	// 홈 화면 표시, 시작 버튼 처리, 카운트다운 UI/카메라 전환을 자동 관리하는 컴포넌트
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Home Flow", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPGHomeFlowComponent> HomeFlowComponent;
 
 	// 러닝 중 HUD, Pause, 인게임 Settings 흐름을 자동 관리하는 컴포넌트
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Run HUD", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPGRunHUDComponent> RunHUDComponent;
 
 	// Android 프레임 테스트용 FPS 오버레이를 Settings 저장값에 맞춰 표시/숨김 처리하는 컴포넌트
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Debug UI", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPGFPSDisplayComponent> FPSDisplayComponent;
 
 	// 마지막으로 읽은 Raw 좌우 기울임 값

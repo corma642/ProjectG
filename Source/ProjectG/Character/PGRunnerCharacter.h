@@ -103,7 +103,7 @@ public:
 
 protected:
 	// 점프와 캡슐 좌우 밸런스 이동을 담당하는 러너 전용 이동 컴포넌트
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player")
 	TObjectPtr<UPGRunnerMovementComponent> RunnerMovementComponent;
 
 	// 런 시작 시 머리 소켓에 스폰/부착할 바구니 Actor 클래스
@@ -119,19 +119,19 @@ protected:
 	TObjectPtr<UPGCargoStackComponent> CargoStackComponent;
 
 	// 바람/눈바람처럼 러너 조작감에 영향을 주는 환경 이벤트 상태를 관리하는 컴포넌트
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Environment")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Run Event")
 	TObjectPtr<UPGRunnerEnvironmentComponent> RunnerEnvironmentComponent;
 
 	// 런 중 진행 거리와 점수를 추적하는 컴포넌트
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Run Progress")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Run")
 	TObjectPtr<UPGRunProgressComponent> RunProgressComponent;
 
 	// 캐릭터를 뒤쪽 위에서 따라가는 추적 카메라 암
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player")
 	TObjectPtr<USpringArmComponent> CameraBoom;
 
 	// 플레이어가 실제로 바라보는 추적 카메라
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player")
 	TObjectPtr<UCameraComponent> FollowCamera;
 
 private:

@@ -14,8 +14,8 @@ class UPGCargoStackComponent;
 class UPGCargoTypeDefinition;
 
 /**
- * 러닝 시간에 따라 배달 적재물 드롭을 예약하는 월드 서브시스템입니다.
- * 바람/눈바람 같은 돌발 RunEvent와 분리해 배달물 누적과 완료 보상 흐름만 담당합니다.
+ * 런 시간에 따라 배달 적재물 드롭을 예약하는 월드 서브시스템입니다.
+ * 바람/눈바람 같은 돌발 RunEvent와 분리해, 배달 적재물 누적과 완료 보상 흐름만 담당합니다.
  */
 UCLASS()
 class PROJECTG_API UPGCargoDeliverySubsystem : public UTickableWorldSubsystem
@@ -31,7 +31,7 @@ public:
 	virtual TStatId GetStatId() const override;
 	virtual bool IsTickable() const override;
 
-	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo Delivery")
+	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
 	float GetDifficultyAlpha() const;
 
 private:

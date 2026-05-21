@@ -19,7 +19,7 @@ DECLARE_MULTICAST_DELEGATE(FPGRunHUDPauseRequestedSignature);
 
 /**
  * 러닝 중 점수, 거리, 영수증, 배달 적재물 리스트를 표시하는 HUD 로직 위젯입니다.
- * BP는 모바일 화면 배치와 카드 스타일을 담당하고, C++은 값 갱신과 Pause 요청, 카드 풀링만 처리합니다.
+ * BP는 모바일 화면 배치와 카드 스타일을 담당하고, C++은 값 갱신, Pause 요청, 카드 풀링만 처리합니다.
  */
 UCLASS()
 class PROJECTG_API UPGRunHUDWidget : public UUserWidget
@@ -45,31 +45,31 @@ protected:
 	virtual void NativeDestruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
-	// HUD 전체 루트입니다.
-	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Run HUD")
+	// HUD 전체 루트 패널입니다.
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UWidget> RootPanel;
 
 	// 현재 런 점수 표시 텍스트입니다.
-	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Run HUD")
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UTextBlock> ScoreText;
 
 	// 5m 단위로 갱신되는 진행 거리 표시 텍스트입니다.
-	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Run HUD")
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UTextBlock> DistanceText;
 
 	// 현재 런에서 획득한 영수증 표시 텍스트입니다.
-	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Run HUD")
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UTextBlock> ReceiptsText;
 
-	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Run HUD")
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UButton> PauseButton;
 
 	// 하단 컨베이어 형태의 활성 배달 적재물 카드 목록입니다.
-	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Run HUD")
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UPanelWidget> CargoListBox;
 
 	// 배달 완료 점수 인디케이터를 카드 위치 위에 띄우기 위한 Canvas 레이어입니다.
-	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Run HUD")
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UCanvasPanel> CargoScoreIndicatorLayer;
 
 private:

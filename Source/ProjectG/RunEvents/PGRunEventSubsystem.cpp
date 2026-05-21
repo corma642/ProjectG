@@ -5,8 +5,27 @@
 #include "Character/PGRunnerCharacter.h"
 #include "Environment/PGRunnerEnvironmentComponent.h"
 #include "GameModes/PGGameModeBase.h"
+#include "Movement/PGRunnerMovementComponent.h"
+#include "RunEvents/PGMovingRunEventHazardActor.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGRunEventSubsystem, Log, All);
+
+namespace
+{
+float GetMovingHazardLaneSign(EPGMovingHazardLane Lane)
+{
+	switch (Lane)
+	{
+	case EPGMovingHazardLane::Left:
+		return -1.0f;
+	case EPGMovingHazardLane::Right:
+		return 1.0f;
+	case EPGMovingHazardLane::Center:
+	default:
+		return 0.0f;
+	}
+}
+}
 
 void UPGRunEventSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -38,6 +57,7 @@ void UPGRunEventSubsystem::Deinitialize()
 		ActiveEventType = EPGRunEventType::None;
 		ActiveEventEndTime = 0.0f;
 	}
+	DestroyActiveMovingHazards();
 
 	Super::Deinitialize();
 }
@@ -115,6 +135,7 @@ void UPGRunEventSubsystem::HandleRunStarted()
 		ActiveEventType = EPGRunEventType::None;
 		ActiveEventEndTime = 0.0f;
 	}
+	DestroyActiveMovingHazards();
 	InitializeRunnerReferences();
 	ScheduleNextEvent();
 }
@@ -133,6 +154,7 @@ void UPGRunEventSubsystem::HandleRunFailed(FName FailureReason)
 	{
 		RunnerEnvironmentComponent->ClearEnvironmentEffects();
 	}
+	DestroyActiveMovingHazards();
 }
 
 void UPGRunEventSubsystem::LoadSettings()
@@ -140,6 +162,7 @@ void UPGRunEventSubsystem::LoadSettings()
 	if (const UPGGameSettings* Settings = GetDefault<UPGGameSettings>())
 	{
 		CachedRunEventSettings = Settings->RunEvent;
+		CachedMovingHazardSettings = Settings->MovingHazard;
 		LoadedEventSet = CachedRunEventSettings.DefaultRunEventSet.Get();
 	}
 }
@@ -251,9 +274,18 @@ void UPGRunEventSubsystem::ScheduleNextEvent()
 	PendingEventRule = SelectedRule;
 	PendingEventType = SelectedRule.EventType;
 	PendingEventState = EPGRunEventState::Scheduled;
-	PendingEventDirection = SelectedRule.EventType == EPGRunEventType::Wind
-		? (SelectedRule.bRandomizeDirection && RandomStream.RandRange(0, 1) == 0 ? -1.0f : 1.0f)
-		: 0.0f;
+	if (SelectedRule.EventType == EPGRunEventType::Wind)
+	{
+		PendingEventDirection = SelectedRule.bRandomizeDirection && RandomStream.RandRange(0, 1) == 0 ? -1.0f : 1.0f;
+	}
+	else if (SelectedRule.EventType == EPGRunEventType::MovingHazard)
+	{
+		PendingEventDirection = ResolveMovingHazardLaneSign(SelectedRule);
+	}
+	else
+	{
+		PendingEventDirection = 0.0f;
+	}
 	PendingEventFireTime = RunElapsedTime + FMath::Lerp(StartInterval, EndInterval, DifficultyAlpha);
 }
 
@@ -347,7 +379,12 @@ bool UPGRunEventSubsystem::CanUseRule(const FPGRunEventRule& Rule) const
 
 void UPGRunEventSubsystem::TriggerPendingEvent()
 {
-	if (PendingEventType == EPGRunEventType::None || !RunnerEnvironmentComponent)
+	if (PendingEventType == EPGRunEventType::None)
+	{
+		return;
+	}
+
+	if (PendingEventType != EPGRunEventType::MovingHazard && !RunnerEnvironmentComponent)
 	{
 		// 러너 환경 컴포넌트를 못 찾은 경우에는 예정된 이벤트를 취소해 UI 전조가 남지 않게 한다.
 		ClearPendingEvent(true);
@@ -366,6 +403,9 @@ void UPGRunEventSubsystem::TriggerPendingEvent()
 	}
 	case EPGRunEventType::Snowstorm:
 		RunnerEnvironmentComponent->ApplySnowstorm(PendingEventRule.Duration, PendingEventRule.Strength);
+		break;
+	case EPGRunEventType::MovingHazard:
+		bTriggered = SpawnMovingHazard();
 		break;
 	case EPGRunEventType::None:
 	default:
@@ -426,5 +466,104 @@ void UPGRunEventSubsystem::FinishActiveEvent()
 	ActiveEventType = EPGRunEventType::None;
 	ActiveEventEndTime = 0.0f;
 	OnRunEventFinished.Broadcast(FinishedEventType);
+}
+
+float UPGRunEventSubsystem::ResolveMovingHazardLaneSign(const FPGRunEventRule& Rule)
+{
+	if (Rule.HazardLaneMode == EPGMovingHazardLaneMode::Fixed)
+	{
+		return GetMovingHazardLaneSign(Rule.FixedHazardLane);
+	}
+
+	return GetMovingHazardLaneSign(static_cast<EPGMovingHazardLane>(RandomStream.RandRange(0, 2)));
+}
+
+bool UPGRunEventSubsystem::SpawnMovingHazard()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	if (!RunnerCharacter)
+	{
+		InitializeRunnerReferences();
+	}
+
+	if (!RunnerCharacter)
+	{
+		return false;
+	}
+
+	TSubclassOf<APGMovingRunEventHazardActor> HazardClass = CachedMovingHazardSettings.HazardActorClass.Get();
+	if (!HazardClass)
+	{
+		if (!bWarnedMissingMovingHazardClass)
+		{
+			UE_LOG(LogPGRunEventSubsystem, Warning, TEXT("MovingHazard RunEvent skipped: HazardActorClass is not assigned or not preloaded."));
+			bWarnedMissingMovingHazardClass = true;
+		}
+		return false;
+	}
+
+	UPGRunnerMovementComponent* RunnerMovement = Cast<UPGRunnerMovementComponent>(RunnerCharacter->GetCharacterMovement());
+	const FVector RunnerForward = RunnerMovement ? RunnerMovement->GetRunnerForwardVector() : RunnerCharacter->GetActorForwardVector();
+	const FVector RunnerRight = RunnerMovement ? RunnerMovement->GetRunnerRightVector() : RunnerCharacter->GetActorRightVector();
+	const float LaneSign = PendingEventDirection;
+
+	const FVector SpawnLocation =
+		RunnerCharacter->GetActorLocation()
+		+ RunnerForward * FMath::Max(0.0f, CachedMovingHazardSettings.SpawnAheadDistance)
+		+ RunnerRight * (LaneSign * FMath::Max(0.0f, CachedMovingHazardSettings.VirtualLaneSpacing));
+
+	const FVector MovementVelocity = CachedMovingHazardSettings.MovementVelocity;
+	const FRotator SpawnRotation = MovementVelocity.IsNearlyZero() ? FRotator::ZeroRotator : MovementVelocity.Rotation();
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = RunnerCharacter;
+	SpawnParams.Instigator = RunnerCharacter;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	APGMovingRunEventHazardActor* HazardActor = World->SpawnActor<APGMovingRunEventHazardActor>(HazardClass, SpawnLocation, SpawnRotation, SpawnParams);
+	if (!HazardActor)
+	{
+		return false;
+	}
+
+	// 좌/우 구역은 트랙 중앙 방향으로 밀어내고, 중앙 구역은 Actor가 오버랩 위치 기준으로 밀 방향을 결정합니다.
+	const float PushDirectionSign = LaneSign < 0.0f ? 1.0f : (LaneSign > 0.0f ? -1.0f : 0.0f);
+	const float Lifetime = CachedMovingHazardSettings.HazardLifetime > 0.0f
+		? CachedMovingHazardSettings.HazardLifetime
+		: FMath::Max(0.1f, PendingEventRule.Duration);
+	const float Strength = FMath::Max(0.0f, PendingEventRule.Strength);
+
+	HazardActor->InitializeMovingHazard(
+		MovementVelocity,
+		Lifetime,
+		CachedMovingHazardSettings.PushImpulseVelocity * Strength,
+		CachedMovingHazardSettings.MaxPushBalanceVelocity,
+		CachedMovingHazardSettings.RehitCooldown,
+		PushDirectionSign);
+
+	ActiveMovingHazards.RemoveAll([](const TObjectPtr<APGMovingRunEventHazardActor>& ExistingHazard)
+	{
+		return !IsValid(ExistingHazard);
+	});
+	ActiveMovingHazards.Add(HazardActor);
+	return true;
+}
+
+void UPGRunEventSubsystem::DestroyActiveMovingHazards()
+{
+	for (APGMovingRunEventHazardActor* HazardActor : ActiveMovingHazards)
+	{
+		if (IsValid(HazardActor))
+		{
+			HazardActor->Destroy();
+		}
+	}
+
+	ActiveMovingHazards.Reset();
 }
 

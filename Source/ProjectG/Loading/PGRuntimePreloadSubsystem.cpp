@@ -99,6 +99,7 @@ void UPGRuntimePreloadSubsystem::CollectPrimaryResourcePaths(TArray<FSoftObjectP
 
 	AddUniquePath(OutPaths, Settings->RunEvent.DefaultRunEventSet.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->RunEvent.DefaultPresentationSet.ToSoftObjectPath());
+	AddUniquePath(OutPaths, Settings->MovingHazard.HazardActorClass.ToSoftObjectPath());
 
 	AddUniquePath(OutPaths, Settings->CargoDelivery.DefaultCargoDropSet.ToSoftObjectPath());
 }

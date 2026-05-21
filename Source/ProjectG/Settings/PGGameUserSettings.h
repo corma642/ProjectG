@@ -12,8 +12,8 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPGMusicVolumeChangedSignature, float);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPGSFXVolumeChangedSignature, float);
 
 /**
- * 모바일 품질 프리셋과 런타임 그래픽 설정을 저장/적용하는 프로젝트 GameUserSettings입니다.
- * 기기 기본값은 DeviceProfile이 담당하고, 사용자가 Home Settings에서 고른 값은 이 클래스가 유지합니다.
+ * 모바일 품질 프리셋, FPS 표시, 오디오 볼륨처럼 사용자별로 저장되는 런타임 설정입니다.
+ * 프로젝트 기본값은 UPGGameSettings/DeviceProfile이 담당하고, 사용자가 Settings UI에서 고른 값만 저장합니다.
  */
 UCLASS(Config = GameUserSettings)
 class PROJECTG_API UPGGameUserSettings : public UGameUserSettings
@@ -29,24 +29,24 @@ public:
 
 	virtual void SetToDefaults() override;
 
-	// 저장된 모바일 품질 값을 현재 런타임에 적용합니다.
-	UFUNCTION(BlueprintCallable, Category = "Mobile Quality")
+	// 저장된 모바일 품질 값을 현재 렌더링 환경에 적용합니다.
+	UFUNCTION(BlueprintCallable, Category = "Quality")
 	void ApplySavedMobileQualitySettings(bool bSaveAfterApply);
 
-	// 지정한 프리셋 값을 저장값으로 복사한 뒤 런타임에 적용합니다.
-	UFUNCTION(BlueprintCallable, Category = "Mobile Quality")
+	// 지정한 품질 프리셋 값을 저장값으로 복사한 뒤 렌더링 환경에 적용합니다.
+	UFUNCTION(BlueprintCallable, Category = "Quality")
 	void ApplyMobileQualityPreset(EPGMobileQualityPreset Preset, bool bSaveAfterApply = true);
 
-	// 현재 선택된 프리셋은 유지하고 내부 렌더 해상도만 조정합니다.
-	UFUNCTION(BlueprintCallable, Category = "Mobile Quality")
+	// 현재 선택된 품질 프리셋은 유지하고 내부 렌더 해상도만 조정합니다.
+	UFUNCTION(BlueprintCallable, Category = "Quality")
 	void SetMobileResolutionScalePercent(float NewResolutionScalePercent, bool bSaveAfterApply = true);
 
-	// 현재 선택된 프리셋은 유지하고 프레임 제한만 조정합니다.
-	UFUNCTION(BlueprintCallable, Category = "Mobile Quality")
+	// 현재 선택된 품질 프리셋은 유지하고 프레임 제한만 조정합니다.
+	UFUNCTION(BlueprintCallable, Category = "Quality")
 	void SetMobileFrameRateLimit(int32 NewFrameRateLimit, bool bSaveAfterApply = true);
 
 	// Android 실기기 프레임 확인용 FPS 표시 여부를 저장하고 즉시 반영합니다.
-	UFUNCTION(BlueprintCallable, Category = "Debug UI")
+	UFUNCTION(BlueprintCallable, Category = "UI")
 	void SetShowFPSDisplay(bool bShow, bool bSaveAfterApply = true);
 
 	// 배경음 볼륨을 0~150% 범위로 저장하고 즉시 반영합니다.
@@ -57,16 +57,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio")
 	void SetSFXVolumePercent(float NewSFXVolumePercent, bool bSaveAfterApply = true);
 
-	UFUNCTION(BlueprintPure, Category = "Mobile Quality")
+	UFUNCTION(BlueprintPure, Category = "Quality")
 	EPGMobileQualityPreset GetSelectedMobileQualityPreset() const { return SelectedMobileQualityPreset; }
 
-	UFUNCTION(BlueprintPure, Category = "Mobile Quality")
+	UFUNCTION(BlueprintPure, Category = "Quality")
 	float GetMobileResolutionScalePercent() const { return ResolutionScalePercent; }
 
-	UFUNCTION(BlueprintPure, Category = "Mobile Quality")
+	UFUNCTION(BlueprintPure, Category = "Quality")
 	int32 GetMobileFrameRateLimit() const { return SavedMobileFrameRateLimit; }
 
-	UFUNCTION(BlueprintPure, Category = "Debug UI")
+	UFUNCTION(BlueprintPure, Category = "UI")
 	bool GetShowFPSDisplay() const { return bShowFPSDisplay; }
 
 	UFUNCTION(BlueprintPure, Category = "Audio")
@@ -92,19 +92,19 @@ private:
 	static void SetConsoleVariableInt(const TCHAR* Name, int32 Value);
 	static int32 ClampScalabilityQuality(int32 Value);
 
-	// 사용자가 마지막으로 선택한 모바일 품질 프리셋
+	// 사용자가 마지막으로 선택한 모바일 품질 프리셋입니다.
 	UPROPERTY(Config)
 	EPGMobileQualityPreset SelectedMobileQualityPreset = EPGMobileQualityPreset::High;
 
-	// 내부 렌더 해상도 비율
+	// 내부 렌더 해상도 비율입니다.
 	UPROPERTY(Config)
 	float ResolutionScalePercent = 100.0f;
 
-	// 모바일 프레임 제한
+	// 모바일 프레임 제한입니다.
 	UPROPERTY(Config)
 	int32 SavedMobileFrameRateLimit = 60;
 
-	// 모바일 안티앨리어싱 방식 CVar 값
+	// 모바일 안티앨리어싱 방식 CVar 값입니다.
 	UPROPERTY(Config)
 	int32 MobileAntiAliasingMode = 2;
 
@@ -129,15 +129,15 @@ private:
 	UPROPERTY(Config)
 	int32 MaxAnisotropy = 8;
 
-	// Android 프레임 테스트용 FPS 위젯 표시 여부
+	// Android 프레임 테스트용 FPS 오버레이 표시 여부입니다.
 	UPROPERTY(Config)
 	bool bShowFPSDisplay = false;
 
-	// 사용자 배경음 볼륨. 100은 원본 볼륨이며 Settings UI에서 0~150까지 조절한다.
+	// 사용자 배경음 볼륨입니다. 100은 기본 볼륨이며 Settings UI에서 0~150까지 조절합니다.
 	UPROPERTY(Config)
 	float MusicVolumePercent = 100.0f;
 
-	// 사용자 효과음 볼륨. 100은 원본 볼륨이며 Settings UI에서 0~150까지 조절한다.
+	// 사용자 효과음 볼륨입니다. 100은 기본 볼륨이며 Settings UI에서 0~150까지 조절합니다.
 	UPROPERTY(Config)
 	float SFXVolumePercent = 100.0f;
 };
