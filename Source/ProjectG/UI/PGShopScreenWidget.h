@@ -8,8 +8,7 @@
 
 class UButton;
 class UPGCharacterShopItemWidget;
-class UPGPlayerShopSubsystem;
-class UPGPlayerWalletSubsystem;
+class UPGUserDataSubsystem;
 class UScrollBox;
 class UTextBlock;
 class UWidget;
@@ -28,7 +27,7 @@ class PROJECTG_API UPGShopScreenWidget : public UUserWidget
 public:
 	FPGShopScreenClosedSignature OnShopScreenClosed;
 
-	void InitializeShop(UPGPlayerShopSubsystem* InShopSubsystem, UPGPlayerWalletSubsystem* InWalletSubsystem, TSubclassOf<UPGCharacterShopItemWidget> InItemWidgetClass);
+	void InitializeShop(UPGUserDataSubsystem* InUserDataSubsystem, TSubclassOf<UPGCharacterShopItemWidget> InItemWidgetClass);
 	void PlayOpenAnimation();
 	void PlayCloseAnimation();
 
@@ -148,8 +147,7 @@ private:
 	void ApplyWidgetAnimationState(UWidget* Widget, const FVector2D& StartOffset, float Alpha, float Delay, float Duration, float StartScale = 1.0f, float EndScale = 1.0f) const;
 	void ApplyActionFeedback(float DeltaSeconds);
 
-	TWeakObjectPtr<UPGPlayerShopSubsystem> ShopSubsystem;
-	TWeakObjectPtr<UPGPlayerWalletSubsystem> WalletSubsystem;
+	TWeakObjectPtr<UPGUserDataSubsystem> UserDataSubsystem;
 	TSubclassOf<UPGCharacterShopItemWidget> CharacterItemWidgetClass;
 
 	TArray<TObjectPtr<UPGCharacterShopItemWidget>> CharacterItemWidgets;

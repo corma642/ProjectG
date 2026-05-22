@@ -13,16 +13,15 @@ class APGRunnerCharacter;
 class ACameraActor;
 class UPGRuntimePreloadSubsystem;
 class UPGHomeScreenWidget;
-class UPGPlayerShopSubsystem;
 class UPGRunCountdownWidget;
-class UPGShopScreenWidget;
 class UPGSettingsScreenWidget;
+class UPGShopScreenWidget;
 class UPGTutorialScreenWidget;
-class UPGPlayerWalletSubsystem;
+class UPGUserDataSubsystem;
 
 /**
  * 로컬 PlayerController가 소유하는 Home 흐름 관리자입니다.
- * Home UI, Home/Shop 카메라, Settings/Help/Shop 화면, START 이후 카운트다운 진입을 한곳에서 연결합니다.
+ * Home/Shop 카메라, Home/Settings/Help/Shop UI, START 이후 카운트다운 진입을 한 흐름에서 연결합니다.
  */
 UCLASS(ClassGroup = (ProjectG), meta = (BlueprintSpawnableComponent))
 class PROJECTG_API UPGHomeFlowComponent : public UActorComponent
@@ -51,10 +50,8 @@ private:
 	void BindGameMode();
 	void UnbindGameMode();
 	void BindRuntimePreloadSubsystem();
-	void BindPlayerWalletSubsystem();
-	void BindPlayerShopSubsystem();
-	void UnbindPlayerWalletSubsystem();
-	void UnbindPlayerShopSubsystem();
+	void BindUserDataSubsystem();
+	void UnbindUserDataSubsystem();
 	void RequestStartDeliveryAfterPreload();
 	void ShowHomeScreen();
 	void SetHomeCameraViewTarget();
@@ -77,7 +74,7 @@ private:
 	void ApplyHomeInputMode();
 	void ApplyGameInputMode();
 
-	// 이 컴포넌트를 소유하는 로컬 플레이어 컨트롤러입니다. UI 생성과 카메라 전환의 기준이 됩니다.
+	// 이 컴포넌트를 소유하는 로컬 플레이어 컨트롤러입니다. UI 생성과 카메라 전환의 기준입니다.
 	UPROPERTY(Transient)
 	TObjectPtr<APGPlayerController> OwnerPlayerController;
 
@@ -89,13 +86,9 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UPGRuntimePreloadSubsystem> RuntimePreloadSubsystem;
 
-	// Home 화면의 누적 영수증 표시를 갱신하는 지갑 서브시스템입니다.
+	// 누적 영수증, 캐릭터 보유/장착, Shop 프리뷰를 통합 관리하는 유저 데이터 서브시스템입니다.
 	UPROPERTY(Transient)
-	TObjectPtr<UPGPlayerWalletSubsystem> PlayerWalletSubsystem;
-
-	// Shop 프리뷰와 장착 캐릭터 복구를 담당하는 상점 서브시스템입니다.
-	UPROPERTY(Transient)
-	TObjectPtr<UPGPlayerShopSubsystem> PlayerShopSubsystem;
+	TObjectPtr<UPGUserDataSubsystem> UserDataSubsystem;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPGHomeScreenWidget> HomeScreenWidget;
@@ -120,9 +113,9 @@ private:
 	FPGShopSettings CachedShopSettings;
 	bool bIsBoundToGameMode = false;
 
-	// START를 눌렀지만 런타임 예열이 끝나지 않은 경우, 완료 시 자동 시작하기 위한 대기 플래그입니다.
+	// START를 눌렀지만 필수 리소스 예열이 끝나지 않은 경우 완료 후 자동 시작하기 위한 대기 플래그입니다.
 	bool bPendingStartDeliveryAfterPreload = false;
 
-	// Retry URL 옵션으로 들어온 경우 Home UI를 건너뛰고 카운트다운을 요청했는지 추적합니다.
+	// Retry URL 옵션으로 들어온 경우 Home UI를 건너뛰고 카운트다운을 요청하는지 추적합니다.
 	bool bRetryCountdownRequested = false;
 };

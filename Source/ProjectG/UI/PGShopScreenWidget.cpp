@@ -9,9 +9,8 @@
 #include "Components/Widget.h"
 #include "Settings/PGGameSettings.h"
 #include "Shop/PGCharacterSkinDefinition.h"
-#include "Shop/PGPlayerShopSubsystem.h"
 #include "UI/PGCharacterShopItemWidget.h"
-#include "Wallet/PGPlayerWalletSubsystem.h"
+#include "User/PGUserDataSubsystem.h"
 
 namespace
 {
@@ -41,20 +40,16 @@ float ShopEaseOutBack(float Alpha)
 }
 }
 
-void UPGShopScreenWidget::InitializeShop(UPGPlayerShopSubsystem* InShopSubsystem, UPGPlayerWalletSubsystem* InWalletSubsystem, TSubclassOf<UPGCharacterShopItemWidget> InItemWidgetClass)
+void UPGShopScreenWidget::InitializeShop(UPGUserDataSubsystem* InUserDataSubsystem, TSubclassOf<UPGCharacterShopItemWidget> InItemWidgetClass)
 {
-	ShopSubsystem = InShopSubsystem;
-	WalletSubsystem = InWalletSubsystem;
+	UserDataSubsystem = InUserDataSubsystem;
 	CharacterItemWidgetClass = InItemWidgetClass;
 
-	if (UPGPlayerWalletSubsystem* Wallet = WalletSubsystem.Get())
+	if (UPGUserDataSubsystem* UserData = UserDataSubsystem.Get())
 	{
-		Wallet->OnReceiptBalanceChanged.AddDynamic(this, &UPGShopScreenWidget::HandleReceiptBalanceChanged);
-	}
-	if (UPGPlayerShopSubsystem* Shop = ShopSubsystem.Get())
-	{
-		Shop->OnCharacterOwnershipChanged.AddDynamic(this, &UPGShopScreenWidget::HandleShopOwnershipChanged);
-		Shop->OnEquippedCharacterChanged.AddDynamic(this, &UPGShopScreenWidget::HandleShopEquippedChanged);
+		UserData->OnReceiptBalanceChanged.AddDynamic(this, &UPGShopScreenWidget::HandleReceiptBalanceChanged);
+		UserData->OnCharacterOwnershipChanged.AddDynamic(this, &UPGShopScreenWidget::HandleShopOwnershipChanged);
+		UserData->OnEquippedCharacterChanged.AddDynamic(this, &UPGShopScreenWidget::HandleShopEquippedChanged);
 	}
 
 	RebuildCharacterList();
@@ -118,14 +113,11 @@ void UPGShopScreenWidget::NativeDestruct()
 		MapsTabButton->OnClicked.RemoveDynamic(this, &UPGShopScreenWidget::HandleMapsTabClicked);
 	}
 
-	if (UPGPlayerWalletSubsystem* Wallet = WalletSubsystem.Get())
+	if (UPGUserDataSubsystem* UserData = UserDataSubsystem.Get())
 	{
-		Wallet->OnReceiptBalanceChanged.RemoveDynamic(this, &UPGShopScreenWidget::HandleReceiptBalanceChanged);
-	}
-	if (UPGPlayerShopSubsystem* Shop = ShopSubsystem.Get())
-	{
-		Shop->OnCharacterOwnershipChanged.RemoveDynamic(this, &UPGShopScreenWidget::HandleShopOwnershipChanged);
-		Shop->OnEquippedCharacterChanged.RemoveDynamic(this, &UPGShopScreenWidget::HandleShopEquippedChanged);
+		UserData->OnReceiptBalanceChanged.RemoveDynamic(this, &UPGShopScreenWidget::HandleReceiptBalanceChanged);
+		UserData->OnCharacterOwnershipChanged.RemoveDynamic(this, &UPGShopScreenWidget::HandleShopOwnershipChanged);
+		UserData->OnEquippedCharacterChanged.RemoveDynamic(this, &UPGShopScreenWidget::HandleShopEquippedChanged);
 	}
 
 	Super::NativeDestruct();
@@ -209,14 +201,14 @@ void UPGShopScreenWidget::HandleNextCharacterClicked()
 
 void UPGShopScreenWidget::HandleActionClicked()
 {
-	UPGPlayerShopSubsystem* Shop = ShopSubsystem.Get();
-	if (!Shop)
+	UPGUserDataSubsystem* UserData = UserDataSubsystem.Get();
+	if (!UserData)
 	{
 		UPGAudioStatics::PlayCommonButtonClick(this);
 		return;
 	}
 
-	const auto& CharacterSkins = Shop->GetCharacterSkins();
+	const auto& CharacterSkins = UserData->GetCharacterSkins();
 	if (!CharacterSkins.IsValidIndex(SelectedCharacterIndex) || !CharacterSkins[SelectedCharacterIndex])
 	{
 		UPGAudioStatics::PlayCommonButtonClick(this);
@@ -226,15 +218,15 @@ void UPGShopScreenWidget::HandleActionClicked()
 	const FName SkinId = CharacterSkins[SelectedCharacterIndex]->SkinId;
 	bool bSuccess = false;
 	bool bWasPurchaseAction = false;
-	if (!Shop->IsCharacterOwned(SkinId))
+	if (!UserData->IsCharacterOwned(SkinId))
 	{
 		// 구매 액션만 전용 성공/실패 사운드를 사용한다. 장착은 일반 UI 클릭음으로 유지한다.
 		bWasPurchaseAction = true;
-		bSuccess = Shop->PurchaseCharacter(SkinId);
+		bSuccess = UserData->PurchaseCharacter(SkinId);
 	}
-	else if (!Shop->IsCharacterEquipped(SkinId))
+	else if (!UserData->IsCharacterEquipped(SkinId))
 	{
-		bSuccess = Shop->EquipCharacter(SkinId);
+		bSuccess = UserData->EquipCharacter(SkinId);
 	}
 	else
 	{
@@ -293,26 +285,26 @@ void UPGShopScreenWidget::HandleShopEquippedChanged(FName SkinId)
 
 void UPGShopScreenWidget::SelectCharacterByIndex(int32 NewIndex)
 {
-	UPGPlayerShopSubsystem* Shop = ShopSubsystem.Get();
-	if (!Shop)
+	UPGUserDataSubsystem* UserData = UserDataSubsystem.Get();
+	if (!UserData)
 	{
 		return;
 	}
 
-	const int32 CharacterCount = Shop->GetCharacterSkins().Num();
+	const int32 CharacterCount = UserData->GetCharacterSkins().Num();
 	if (CharacterCount <= 0)
 	{
 		return;
 	}
 
 	SelectedCharacterIndex = FMath::Clamp(NewIndex, 0, CharacterCount - 1);
-	const UPGCharacterSkinDefinition* SelectedSkin = Shop->GetCharacterSkins()[SelectedCharacterIndex];
+	const UPGCharacterSkinDefinition* SelectedSkin = UserData->GetCharacterSkins()[SelectedCharacterIndex];
 	if (SelectedSkin)
 	{
 		// 선택값은 위젯 인스턴스 수명보다 길게 유지한다. Shop을 닫았다 다시 열어도
 		// 마지막으로 보던 카드를 기준으로 Prev/Next가 이어지도록 Subsystem에 세션 상태를 맡긴다.
-		Shop->SetLastSelectedCharacterSkinId(SelectedSkin->SkinId);
-		Shop->PreviewCharacter(SelectedSkin->SkinId);
+		UserData->SetLastSelectedCharacterSkinId(SelectedSkin->SkinId);
+		UserData->PreviewCharacter(SelectedSkin->SkinId);
 	}
 	RefreshSelectedCharacterState();
 	RefreshCharacterItems();
@@ -321,13 +313,13 @@ void UPGShopScreenWidget::SelectCharacterByIndex(int32 NewIndex)
 
 void UPGShopScreenWidget::SelectCharacterById(FName SkinId)
 {
-	UPGPlayerShopSubsystem* Shop = ShopSubsystem.Get();
-	if (!Shop)
+	UPGUserDataSubsystem* UserData = UserDataSubsystem.Get();
+	if (!UserData)
 	{
 		return;
 	}
 
-	const auto& CharacterSkins = Shop->GetCharacterSkins();
+	const auto& CharacterSkins = UserData->GetCharacterSkins();
 	for (int32 Index = 0; Index < CharacterSkins.Num(); ++Index)
 	{
 		if (CharacterSkins[Index] && CharacterSkins[Index]->SkinId == SkinId)
@@ -340,8 +332,8 @@ void UPGShopScreenWidget::SelectCharacterById(FName SkinId)
 
 void UPGShopScreenWidget::RebuildCharacterList()
 {
-	UPGPlayerShopSubsystem* Shop = ShopSubsystem.Get();
-	if (!Shop || !CharacterListBox || !CharacterItemWidgetClass)
+	UPGUserDataSubsystem* UserData = UserDataSubsystem.Get();
+	if (!UserData || !CharacterListBox || !CharacterItemWidgetClass)
 	{
 		return;
 	}
@@ -349,7 +341,7 @@ void UPGShopScreenWidget::RebuildCharacterList()
 	CharacterListBox->ClearChildren();
 	CharacterItemWidgets.Reset();
 
-	const auto& CharacterSkins = Shop->GetCharacterSkins();
+	const auto& CharacterSkins = UserData->GetCharacterSkins();
 	if (CharacterSkins.Num() > 0)
 	{
 		if (SelectedCharacterIndex == INDEX_NONE)
@@ -372,10 +364,10 @@ void UPGShopScreenWidget::RebuildCharacterList()
 				return INDEX_NONE;
 			};
 
-			SelectedCharacterIndex = FindSkinIndex(Shop->GetLastSelectedCharacterSkinId());
+			SelectedCharacterIndex = FindSkinIndex(UserData->GetLastSelectedCharacterSkinId());
 			if (SelectedCharacterIndex == INDEX_NONE)
 			{
-				const UPGCharacterSkinDefinition* EquippedSkin = Shop->GetEquippedCharacterSkin();
+				const UPGCharacterSkinDefinition* EquippedSkin = UserData->GetEquippedCharacterSkin();
 				SelectedCharacterIndex = EquippedSkin ? FindSkinIndex(EquippedSkin->SkinId) : INDEX_NONE;
 			}
 			if (SelectedCharacterIndex == INDEX_NONE)
@@ -407,8 +399,8 @@ void UPGShopScreenWidget::RebuildCharacterList()
 			continue;
 		}
 
-		const bool bOwned = Shop->IsCharacterOwned(SkinDefinition->SkinId);
-		const bool bEquipped = Shop->IsCharacterEquipped(SkinDefinition->SkinId);
+		const bool bOwned = UserData->IsCharacterOwned(SkinDefinition->SkinId);
+		const bool bEquipped = UserData->IsCharacterEquipped(SkinDefinition->SkinId);
 		const bool bSelected = Index == SelectedCharacterIndex;
 
 		// 리스트 위젯은 최초 구성 때만 만든다. 이후 선택/구매/장착 상태 변화는
@@ -423,8 +415,8 @@ void UPGShopScreenWidget::RebuildCharacterList()
 	if (const UPGCharacterSkinDefinition* SelectedSkin = CharacterSkins.IsValidIndex(SelectedCharacterIndex) ? CharacterSkins[SelectedCharacterIndex] : nullptr)
 	{
 		// 리스트 생성 직후에도 월드 러너 프리뷰와 UI 선택 상태가 같은 스킨을 가리키게 맞춘다.
-		Shop->SetLastSelectedCharacterSkinId(SelectedSkin->SkinId);
-		Shop->PreviewCharacter(SelectedSkin->SkinId);
+		UserData->SetLastSelectedCharacterSkinId(SelectedSkin->SkinId);
+		UserData->PreviewCharacter(SelectedSkin->SkinId);
 	}
 	RefreshSelectedCharacterState();
 	ScrollSelectedCharacterIntoView();
@@ -432,13 +424,13 @@ void UPGShopScreenWidget::RebuildCharacterList()
 
 void UPGShopScreenWidget::RefreshCharacterItems()
 {
-	UPGPlayerShopSubsystem* Shop = ShopSubsystem.Get();
-	if (!Shop)
+	UPGUserDataSubsystem* UserData = UserDataSubsystem.Get();
+	if (!UserData)
 	{
 		return;
 	}
 
-	const auto& CharacterSkins = Shop->GetCharacterSkins();
+	const auto& CharacterSkins = UserData->GetCharacterSkins();
 	for (int32 Index = 0; Index < CharacterItemWidgets.Num(); ++Index)
 	{
 		UPGCharacterShopItemWidget* ItemWidget = CharacterItemWidgets[Index];
@@ -448,8 +440,8 @@ void UPGShopScreenWidget::RefreshCharacterItems()
 			continue;
 		}
 
-		const bool bOwned = Shop->IsCharacterOwned(SkinDefinition->SkinId);
-		const bool bEquipped = Shop->IsCharacterEquipped(SkinDefinition->SkinId);
+		const bool bOwned = UserData->IsCharacterOwned(SkinDefinition->SkinId);
+		const bool bEquipped = UserData->IsCharacterEquipped(SkinDefinition->SkinId);
 		const bool bSelected = Index == SelectedCharacterIndex;
 		ItemWidget->SetCharacterSkin(SkinDefinition, bOwned, bEquipped, bSelected);
 	}
@@ -457,13 +449,13 @@ void UPGShopScreenWidget::RefreshCharacterItems()
 
 void UPGShopScreenWidget::RefreshSelectedCharacterState()
 {
-	UPGPlayerShopSubsystem* Shop = ShopSubsystem.Get();
-	if (!Shop)
+	UPGUserDataSubsystem* UserData = UserDataSubsystem.Get();
+	if (!UserData)
 	{
 		return;
 	}
 
-	const auto& CharacterSkins = Shop->GetCharacterSkins();
+	const auto& CharacterSkins = UserData->GetCharacterSkins();
 	const UPGCharacterSkinDefinition* SelectedSkin = CharacterSkins.IsValidIndex(SelectedCharacterIndex) ? CharacterSkins[SelectedCharacterIndex] : nullptr;
 	if (!SelectedSkin)
 	{
@@ -491,8 +483,8 @@ void UPGShopScreenWidget::RefreshSelectedCharacterState()
 		SelectedCharacterNameText->SetText(SelectedSkin->DisplayName);
 	}
 
-	const bool bOwned = Shop->IsCharacterOwned(SelectedSkin->SkinId);
-	const bool bEquipped = Shop->IsCharacterEquipped(SelectedSkin->SkinId);
+	const bool bOwned = UserData->IsCharacterOwned(SelectedSkin->SkinId);
+	const bool bEquipped = UserData->IsCharacterEquipped(SelectedSkin->SkinId);
 	if (SelectedPricePanel)
 	{
 		// 가격은 미보유 캐릭터의 상세 영역에서만 보여준다. 카드 내부 가격 텍스트는 모바일 가독성 때문에 제거했다.
@@ -535,7 +527,7 @@ void UPGShopScreenWidget::RefreshReceiptBalance()
 {
 	if (ReceiptBalanceText)
 	{
-		const int32 Balance = WalletSubsystem.IsValid() ? WalletSubsystem->GetReceiptBalance() : 0;
+		const int32 Balance = UserDataSubsystem.IsValid() ? UserDataSubsystem->GetReceiptBalance() : 0;
 		ReceiptBalanceText->SetText(FText::AsNumber(FMath::Max(0, Balance)));
 	}
 }

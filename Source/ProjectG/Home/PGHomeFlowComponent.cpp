@@ -17,8 +17,7 @@
 #include "UI/PGSettingsScreenWidget.h"
 #include "UI/PGTutorialScreenWidget.h"
 #include "Tutorial/PGTutorialPageSet.h"
-#include "Shop/PGPlayerShopSubsystem.h"
-#include "Wallet/PGPlayerWalletSubsystem.h"
+#include "User/PGUserDataSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGHomeFlow, Log, All);
 
@@ -46,8 +45,7 @@ void UPGHomeFlowComponent::BeginPlay()
 
 	BindGameMode();
 	BindRuntimePreloadSubsystem();
-	BindPlayerWalletSubsystem();
-	BindPlayerShopSubsystem();
+	BindUserDataSubsystem();
 
 	const FString StartFlowOption = GetWorld() ? GetWorld()->URL.GetOption(TEXT("StartFlow="), TEXT("")) : FString();
 	bRetryCountdownRequested = StartFlowOption.Equals(TEXT("RetryCountdown"), ESearchCase::IgnoreCase);
@@ -87,8 +85,7 @@ void UPGHomeFlowComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		RuntimePreloadSubsystem = nullptr;
 	}
 	UnbindGameMode();
-	UnbindPlayerWalletSubsystem();
-	UnbindPlayerShopSubsystem();
+	UnbindUserDataSubsystem();
 	CleanupWidgets();
 	Super::EndPlay(EndPlayReason);
 }
@@ -144,47 +141,28 @@ void UPGHomeFlowComponent::BindRuntimePreloadSubsystem()
 	RuntimePreloadSubsystem->StartPreload();
 }
 
-void UPGHomeFlowComponent::BindPlayerWalletSubsystem()
+void UPGHomeFlowComponent::BindUserDataSubsystem()
 {
 	UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-	if (PlayerWalletSubsystem || !GameInstance)
+	if (UserDataSubsystem || !GameInstance)
 	{
 		return;
 	}
 
-	PlayerWalletSubsystem = GameInstance->GetSubsystem<UPGPlayerWalletSubsystem>();
-	if (PlayerWalletSubsystem)
+	UserDataSubsystem = GameInstance->GetSubsystem<UPGUserDataSubsystem>();
+	if (UserDataSubsystem)
 	{
-		PlayerWalletSubsystem->OnReceiptBalanceChanged.AddDynamic(this, &UPGHomeFlowComponent::HandleReceiptBalanceChanged);
+		UserDataSubsystem->OnReceiptBalanceChanged.AddDynamic(this, &UPGHomeFlowComponent::HandleReceiptBalanceChanged);
 	}
 }
 
-void UPGHomeFlowComponent::BindPlayerShopSubsystem()
+void UPGHomeFlowComponent::UnbindUserDataSubsystem()
 {
-	UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-	if (PlayerShopSubsystem || !GameInstance)
+	if (UserDataSubsystem)
 	{
-		return;
-	}
-
-	PlayerShopSubsystem = GameInstance->GetSubsystem<UPGPlayerShopSubsystem>();
-}
-
-void UPGHomeFlowComponent::UnbindPlayerWalletSubsystem()
-{
-	if (PlayerWalletSubsystem)
-	{
-		PlayerWalletSubsystem->OnReceiptBalanceChanged.RemoveDynamic(this, &UPGHomeFlowComponent::HandleReceiptBalanceChanged);
-		PlayerWalletSubsystem = nullptr;
-	}
-}
-
-void UPGHomeFlowComponent::UnbindPlayerShopSubsystem()
-{
-	if (PlayerShopSubsystem)
-	{
-		PlayerShopSubsystem->RestoreEquippedCharacter();
-		PlayerShopSubsystem = nullptr;
+		UserDataSubsystem->OnReceiptBalanceChanged.RemoveDynamic(this, &UPGHomeFlowComponent::HandleReceiptBalanceChanged);
+		UserDataSubsystem->RestoreEquippedCharacter();
+		UserDataSubsystem = nullptr;
 	}
 }
 
@@ -249,7 +227,7 @@ void UPGHomeFlowComponent::ShowHomeScreen()
 	HomeScreenWidget->OnShopRequested.AddUObject(this, &UPGHomeFlowComponent::HandleShopRequested);
 	HomeScreenWidget->OnSettingsRequested.AddUObject(this, &UPGHomeFlowComponent::HandleSettingsRequested);
 	HomeScreenWidget->OnHelpRequested.AddUObject(this, &UPGHomeFlowComponent::HandleHelpRequested);
-	HomeScreenWidget->SetReceiptBalance(PlayerWalletSubsystem ? PlayerWalletSubsystem->GetReceiptBalance() : 0);
+	HomeScreenWidget->SetReceiptBalance(UserDataSubsystem ? UserDataSubsystem->GetReceiptBalance() : 0);
 	HomeScreenWidget->AddToViewport(10);
 }
 
@@ -313,7 +291,7 @@ ACameraActor* UPGHomeFlowComponent::FindCameraByTag(FName CameraTag, TWeakObject
 
 void UPGHomeFlowComponent::RestoreShopPreviewRunner(bool bRestoreHomeTransform)
 {
-	if (!PlayerShopSubsystem)
+	if (!UserDataSubsystem)
 	{
 		return;
 	}
@@ -325,9 +303,9 @@ void UPGHomeFlowComponent::RestoreShopPreviewRunner(bool bRestoreHomeTransform)
 		PreviewRunner->RestoreHomePreviewTransform();
 	}
 
-	PlayerShopSubsystem->RefreshShopCatalog();
-	PlayerShopSubsystem->SetPreviewRunner(PreviewRunner);
-	PlayerShopSubsystem->RestoreEquippedCharacter();
+	UserDataSubsystem->RefreshShopCatalog();
+	UserDataSubsystem->SetPreviewRunner(PreviewRunner);
+	UserDataSubsystem->RestoreEquippedCharacter();
 }
 
 void UPGHomeFlowComponent::BlendToRunnerCamera()
@@ -454,12 +432,12 @@ void UPGHomeFlowComponent::HandleShopRequested()
 		return;
 	}
 
-	if (!OwnerPlayerController || !PlayerShopSubsystem || !PlayerWalletSubsystem)
+	if (!OwnerPlayerController || !UserDataSubsystem)
 	{
 		return;
 	}
-	PlayerShopSubsystem->RefreshShopCatalog();
-	PlayerShopSubsystem->SetPreviewRunner(BoundGameMode ? BoundGameMode->GetPlayableRunnerCharacter() : nullptr);
+	UserDataSubsystem->RefreshShopCatalog();
+	UserDataSubsystem->SetPreviewRunner(BoundGameMode ? BoundGameMode->GetPlayableRunnerCharacter() : nullptr);
 
 	UClass* WidgetClass = CachedShopSettings.ShopScreenWidgetClass.Get();
 	UClass* ItemWidgetClass = CachedShopSettings.CharacterShopItemWidgetClass.Get();
@@ -495,7 +473,7 @@ void UPGHomeFlowComponent::HandleShopRequested()
 	SetShopCameraViewTarget();
 	ShopScreenWidget->OnShopScreenClosed.AddUObject(this, &UPGHomeFlowComponent::HandleShopScreenClosed);
 	ShopScreenWidget->AddToViewport(30);
-	ShopScreenWidget->InitializeShop(PlayerShopSubsystem, PlayerWalletSubsystem, TSubclassOf<UPGCharacterShopItemWidget>(ItemWidgetClass));
+	ShopScreenWidget->InitializeShop(UserDataSubsystem, TSubclassOf<UPGCharacterShopItemWidget>(ItemWidgetClass));
 	ShopScreenWidget->PlayOpenAnimation();
 }
 
@@ -507,7 +485,7 @@ void UPGHomeFlowComponent::HandleShopScreenClosed()
 		ShopScreenWidget = nullptr;
 	}
 
-	if (PlayerShopSubsystem)
+	if (UserDataSubsystem)
 	{
 		RestoreShopPreviewRunner();
 	}

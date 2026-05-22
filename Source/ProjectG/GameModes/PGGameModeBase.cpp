@@ -9,7 +9,7 @@
 #include "Player/PGPlayerController.h"
 #include "Settings/PGGameSettings.h"
 #include "TimerManager.h"
-#include "Wallet/PGPlayerWalletSubsystem.h"
+#include "User/PGUserDataSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGGameModeBase, Log, All);
 
@@ -190,10 +190,10 @@ void APGGameModeBase::SettleCurrentRunRewards(FName Reason)
 	}
 
 	UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
-	UPGPlayerWalletSubsystem* WalletSubsystem = GameInstance ? GameInstance->GetSubsystem<UPGPlayerWalletSubsystem>() : nullptr;
-	if (WalletSubsystem)
+	UPGUserDataSubsystem* UserDataSubsystem = GameInstance ? GameInstance->GetSubsystem<UPGUserDataSubsystem>() : nullptr;
+	if (UserDataSubsystem)
 	{
-		WalletSubsystem->AddReceipts(RunReceipts, Reason);
+		UserDataSubsystem->AddReceipts(RunReceipts, Reason);
 	}
 }
 

@@ -1,0 +1,31 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/SaveGame.h"
+#include "PGUserSaveGame.generated.h"
+
+/**
+ * 유저 진행 데이터를 한곳에 저장하는 통합 SaveGame입니다.
+ * 그래픽, 사운드, FPS 같은 환경설정은 UPGGameUserSettings가 담당하고,
+ * 영수증 재화, 해금, 장착 상태만 여기에 저장합니다.
+ */
+UCLASS()
+class PROJECTG_API UPGUserSaveGame : public USaveGame
+{
+	GENERATED_BODY()
+
+public:
+	// 상점 재화로 사용하는 누적 영수증 보유량입니다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectG | User")
+	int32 ReceiptBalance = 0;
+
+	// 구매했거나 기본 해금된 캐릭터 스킨 ID 목록입니다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectG | User")
+	TArray<FName> OwnedCharacterSkinIds;
+
+	// 현재 러너에 적용할 장착 캐릭터 스킨 ID입니다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectG | User")
+	FName EquippedCharacterSkinId;
+};

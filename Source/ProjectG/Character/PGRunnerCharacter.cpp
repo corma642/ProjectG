@@ -14,8 +14,8 @@
 #include "RunProgress/PGRunProgressComponent.h"
 #include "Settings/PGGameSettings.h"
 #include "Shop/PGCharacterSkinDefinition.h"
-#include "Shop/PGPlayerShopSubsystem.h"
 #include "Sound/SoundBase.h"
+#include "User/PGUserDataSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGRunnerCharacter, Log, All);
 
@@ -281,10 +281,10 @@ bool APGRunnerCharacter::ApplyCharacterSkin(const UPGCharacterSkinDefinition* Sk
 void APGRunnerCharacter::ApplyEquippedCharacterSkin()
 {
 	UGameInstance* GameInstance = GetGameInstance();
-	UPGPlayerShopSubsystem* ShopSubsystem = GameInstance ? GameInstance->GetSubsystem<UPGPlayerShopSubsystem>() : nullptr;
-	if (ShopSubsystem)
+	UPGUserDataSubsystem* UserDataSubsystem = GameInstance ? GameInstance->GetSubsystem<UPGUserDataSubsystem>() : nullptr;
+	if (UserDataSubsystem)
 	{
-		ShopSubsystem->RestoreEquippedCharacter();
+		UserDataSubsystem->RestoreEquippedCharacter();
 	}
 }
 
