@@ -511,9 +511,13 @@ bool UPGRunEventSubsystem::SpawnMovingHazard()
 	const FVector RunnerForward = RunnerMovement ? RunnerMovement->GetRunnerForwardVector() : RunnerCharacter->GetActorForwardVector();
 	const FVector RunnerRight = RunnerMovement ? RunnerMovement->GetRunnerRightVector() : RunnerCharacter->GetActorRightVector();
 	const float LaneSign = PendingEventDirection;
+	const float CurrentBalanceOffset = RunnerMovement ? RunnerMovement->GetBalanceOffset() : 0.0f;
+	const FVector TrackCenterLocation = RunnerCharacter->GetActorLocation() - RunnerRight * CurrentBalanceOffset;
 
+	// MovingHazard의 좌/중/우는 러너의 현재 위치가 아니라 트랙 중심선 기준 가상 위험 구역입니다.
+	// 러너가 이미 한쪽으로 치우친 상태에서 다시 LaneOffset을 더하면 위험 Actor가 트랙 밖에 스폰될 수 있습니다.
 	const FVector SpawnLocation =
-		RunnerCharacter->GetActorLocation()
+		TrackCenterLocation
 		+ RunnerForward * FMath::Max(0.0f, CachedMovingHazardSettings.SpawnAheadDistance)
 		+ RunnerRight * (LaneSign * FMath::Max(0.0f, CachedMovingHazardSettings.VirtualLaneSpacing));
 
