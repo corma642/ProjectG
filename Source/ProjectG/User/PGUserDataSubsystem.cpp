@@ -96,6 +96,37 @@ bool UPGUserDataSubsystem::TrySpendReceipts(int32 Amount, FName Reason)
 	return true;
 }
 
+int32 UPGUserDataSubsystem::GetBestRunScore() const
+{
+	return UserSaveGame ? FMath::Max(0, UserSaveGame->BestRunScore) : 0;
+}
+
+bool UPGUserDataSubsystem::TryUpdateBestRunScore(int32 Score, FName Reason)
+{
+	const int32 SanitizedScore = FMath::Max(0, Score);
+	if (SanitizedScore <= GetBestRunScore())
+	{
+		return false;
+	}
+
+	UPGUserSaveGame* UserData = EnsureUserData();
+	if (!UserData)
+	{
+		return false;
+	}
+
+	const int32 PreviousBestScore = UserData->BestRunScore;
+	UserData->BestRunScore = SanitizedScore;
+	if (!SaveUserData())
+	{
+		UserData->BestRunScore = PreviousBestScore;
+		return false;
+	}
+
+	OnBestRunScoreChanged.Broadcast(UserData->BestRunScore, Reason);
+	return true;
+}
+
 const UPGCharacterShopCatalog* UPGUserDataSubsystem::GetCharacterCatalog() const
 {
 	return CachedCatalog;
@@ -306,6 +337,7 @@ void UPGUserDataSubsystem::LoadUserData()
 	if (UserSaveGame)
 	{
 		UserSaveGame->ReceiptBalance = FMath::Max(0, UserSaveGame->ReceiptBalance);
+		UserSaveGame->BestRunScore = FMath::Max(0, UserSaveGame->BestRunScore);
 	}
 }
 

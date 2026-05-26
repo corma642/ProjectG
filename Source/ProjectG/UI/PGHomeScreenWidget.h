@@ -42,6 +42,9 @@ public:
 	// Home 화면에 표시할 누적 보유 영수증 값을 갱신합니다.
 	void SetReceiptBalance(int32 Balance) const;
 
+	// Home 화면에 표시하는 지금까지의 최고 런 점수를 갱신합니다.
+	void SetBestRunScore(int32 Score) const;
+
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
@@ -77,6 +80,9 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Home")
 	TObjectPtr<UTextBlock> ReceiptBalanceText;
+
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Home")
+	TObjectPtr<UTextBlock> BestScoreText;
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Home")
 	TObjectPtr<UButton> ReceiptAddButton;

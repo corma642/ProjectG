@@ -58,6 +58,9 @@ private:
 	UFUNCTION()
 	void HandleReceiptBalanceChanged(int32 NewBalance, FName Reason);
 
+	UFUNCTION()
+	void HandleBestRunScoreChanged(int32 NewBestScore, FName Reason);
+
 	void BindGameMode();
 	void UnbindGameMode();
 	void BindRuntimePreloadSubsystem();

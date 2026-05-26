@@ -175,6 +175,14 @@ void UPGHomeScreenWidget::SetReceiptBalance(int32 Balance) const
 	}
 }
 
+void UPGHomeScreenWidget::SetBestRunScore(int32 Score) const
+{
+	if (BestScoreText)
+	{
+		BestScoreText->SetText(FText::AsNumber(FMath::Max(0, Score)));
+	}
+}
+
 void UPGHomeScreenWidget::HandleStartDeliveryClicked()
 {
 	UPGAudioStatics::PlayCommonButtonClick(this);

@@ -184,7 +184,8 @@ void APGGameModeBase::SettleCurrentRunRewards(FName Reason)
 	UWorld* World = GetWorld();
 	const APGRunnerCharacter* RunnerCharacter = GetPlayableRunnerCharacter();
 	const int32 RunReceipts = RunnerCharacter ? RunnerCharacter->GetRunReceipts() : 0;
-	if (RunReceipts <= 0)
+	const int32 RunScore = RunnerCharacter ? RunnerCharacter->GetRunScore() : 0;
+	if (RunReceipts <= 0 && RunScore <= 0)
 	{
 		return;
 	}
@@ -193,7 +194,11 @@ void APGGameModeBase::SettleCurrentRunRewards(FName Reason)
 	UPGUserDataSubsystem* UserDataSubsystem = GameInstance ? GameInstance->GetSubsystem<UPGUserDataSubsystem>() : nullptr;
 	if (UserDataSubsystem)
 	{
-		UserDataSubsystem->AddReceipts(RunReceipts, Reason);
+		if (RunReceipts > 0)
+		{
+			UserDataSubsystem->AddReceipts(RunReceipts, Reason);
+		}
+		UserDataSubsystem->TryUpdateBestRunScore(RunScore, Reason);
 	}
 }
 

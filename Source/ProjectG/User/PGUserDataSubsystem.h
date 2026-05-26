@@ -12,6 +12,7 @@ class UPGCharacterSkinDefinition;
 class UPGUserSaveGame;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPGUserReceiptBalanceChangedSignature, int32, NewBalance, FName, Reason);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPGUserBestRunScoreChangedSignature, int32, NewBestScore, FName, Reason);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPGUserCharacterSkinChangedSignature, FName, SkinId);
 
 /**
@@ -32,6 +33,8 @@ public:
 	bool TryAddReceipts(int32 Amount, FName Reason);
 	bool CanSpendReceipts(int32 Amount) const;
 	bool TrySpendReceipts(int32 Amount, FName Reason);
+	int32 GetBestRunScore() const;
+	bool TryUpdateBestRunScore(int32 Score, FName Reason);
 
 	const UPGCharacterShopCatalog* GetCharacterCatalog() const;
 	const TArray<TObjectPtr<UPGCharacterSkinDefinition>>& GetCharacterSkins() const;
@@ -64,6 +67,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | User")
 	FPGUserReceiptBalanceChangedSignature OnReceiptBalanceChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "ProjectG | User")
+	FPGUserBestRunScoreChangedSignature OnBestRunScoreChanged;
 
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | User")
 	FPGUserCharacterSkinChangedSignature OnCharacterOwnershipChanged;

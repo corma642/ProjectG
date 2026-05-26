@@ -156,6 +156,7 @@ void UPGHomeFlowComponent::BindUserDataSubsystem()
 	if (UserDataSubsystem)
 	{
 		UserDataSubsystem->OnReceiptBalanceChanged.AddDynamic(this, &UPGHomeFlowComponent::HandleReceiptBalanceChanged);
+		UserDataSubsystem->OnBestRunScoreChanged.AddDynamic(this, &UPGHomeFlowComponent::HandleBestRunScoreChanged);
 	}
 }
 
@@ -164,6 +165,7 @@ void UPGHomeFlowComponent::UnbindUserDataSubsystem()
 	if (UserDataSubsystem)
 	{
 		UserDataSubsystem->OnReceiptBalanceChanged.RemoveDynamic(this, &UPGHomeFlowComponent::HandleReceiptBalanceChanged);
+		UserDataSubsystem->OnBestRunScoreChanged.RemoveDynamic(this, &UPGHomeFlowComponent::HandleBestRunScoreChanged);
 		UserDataSubsystem->RestoreEquippedCharacter();
 		UserDataSubsystem = nullptr;
 	}
@@ -242,6 +244,7 @@ void UPGHomeFlowComponent::ShowHomeScreen()
 	HomeScreenWidget->OnHelpRequested.AddUObject(this, &UPGHomeFlowComponent::HandleHelpRequested);
 	HomeScreenWidget->OnReceiptShopRequested.AddUObject(this, &UPGHomeFlowComponent::HandleReceiptShopRequested);
 	HomeScreenWidget->SetReceiptBalance(UserDataSubsystem ? UserDataSubsystem->GetReceiptBalance() : 0);
+	HomeScreenWidget->SetBestRunScore(UserDataSubsystem ? UserDataSubsystem->GetBestRunScore() : 0);
 	HomeScreenWidget->AddToViewport(10);
 }
 
@@ -941,6 +944,14 @@ void UPGHomeFlowComponent::HandleReceiptBalanceChanged(int32 NewBalance, FName R
 	if (HomeScreenWidget)
 	{
 		HomeScreenWidget->SetReceiptBalance(NewBalance);
+	}
+}
+
+void UPGHomeFlowComponent::HandleBestRunScoreChanged(int32 NewBestScore, FName Reason)
+{
+	if (HomeScreenWidget)
+	{
+		HomeScreenWidget->SetBestRunScore(NewBestScore);
 	}
 }
 

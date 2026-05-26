@@ -21,6 +21,10 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectG | User")
 	int32 ReceiptBalance = 0;
 
+	// Home 화면에 표시하는 지금까지의 최고 런 점수입니다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectG | User")
+	int32 BestRunScore = 0;
+
 	// 구매했거나 기본 해금된 캐릭터 스킨 ID 목록입니다.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectG | User")
 	TArray<FName> OwnedCharacterSkinIds;
