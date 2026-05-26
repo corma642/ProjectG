@@ -38,22 +38,32 @@ int32 UPGUserDataSubsystem::GetReceiptBalance() const
 
 void UPGUserDataSubsystem::AddReceipts(int32 Amount, FName Reason)
 {
+	TryAddReceipts(Amount, Reason);
+}
+
+bool UPGUserDataSubsystem::TryAddReceipts(int32 Amount, FName Reason)
+{
 	if (Amount <= 0)
 	{
-		return;
+		return false;
 	}
 
 	UPGUserSaveGame* UserData = EnsureUserData();
 	if (!UserData)
 	{
-		return;
+		return false;
 	}
 
+	const int32 PreviousBalance = UserData->ReceiptBalance;
 	UserData->ReceiptBalance = FMath::Max(0, UserData->ReceiptBalance) + Amount;
 	if (SaveUserData())
 	{
 		OnReceiptBalanceChanged.Broadcast(UserData->ReceiptBalance, Reason);
+		return true;
 	}
+
+	UserData->ReceiptBalance = PreviousBalance;
+	return false;
 }
 
 bool UPGUserDataSubsystem::CanSpendReceipts(int32 Amount) const

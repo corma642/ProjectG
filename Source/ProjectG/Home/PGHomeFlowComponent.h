@@ -13,6 +13,8 @@ class APGRunnerCharacter;
 class ACameraActor;
 class UPGRuntimePreloadSubsystem;
 class UPGHomeScreenWidget;
+class UPGReceiptShopPackItemWidget;
+class UPGReceiptShopWidget;
 class UPGRunCountdownWidget;
 class UPGSettingsScreenWidget;
 class UPGShopScreenWidget;
@@ -65,12 +67,15 @@ private:
 	void HandleStartDeliveryRequested();
 	void HandleShopRequested();
 	void HandleShopScreenClosed();
+	void HandleReceiptShopRequested();
+	void HandleReceiptShopClosed();
 	void HandleSettingsRequested();
 	void HandleSettingsScreenClosed();
 	void HandleHelpRequested();
 	void HandleTutorialClosed();
 	void ShowSettingsScreen();
 	void ShowTutorialScreen();
+	void ShowReceiptShopScreen();
 	void ApplyHomeInputMode();
 	void ApplyGameInputMode();
 
@@ -98,6 +103,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPGShopScreenWidget> ShopScreenWidget;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UPGReceiptShopWidget> ReceiptShopWidget;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPGSettingsScreenWidget> SettingsScreenWidget;

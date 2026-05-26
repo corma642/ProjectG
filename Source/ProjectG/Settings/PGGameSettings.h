@@ -17,6 +17,7 @@ class UPGTutorialPageSet;
 class UCameraShakeBase;
 class UNiagaraSystem;
 class USoundBase;
+class UTexture2D;
 class UUserWidget;
 
 /**
@@ -301,6 +302,28 @@ struct FPGHomeFlowSettings
  * Home 상점 화면과 캐릭터 스킨 카탈로그 설정
  */
 USTRUCT(BlueprintType)
+struct FPGReceiptShopPack
+{
+	GENERATED_BODY()
+
+	// 상품 행에 표시할 패키지 이름입니다. 예: SMALL PACK
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Receipt Shop")
+	FString PackName = TEXT("SMALL PACK");
+
+	// 구매 버튼을 누르면 즉시 추가할 영수증 수량입니다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Receipt Shop", meta = (ClampMin = "1", UIMin = "1", UIMax = "5000"))
+	int32 ReceiptAmount = 50;
+
+	// 실제 결제 연동 전까지 UI에 표시할 가격 문자열입니다. 예: $0.99
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Receipt Shop")
+	FString PriceText = TEXT("$0.99");
+
+	// 상품별 썸네일이 필요할 때 사용하는 선택 이미지입니다. 비워두면 BP 기본 이미지를 유지합니다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Receipt Shop")
+	TSoftObjectPtr<UTexture2D> Thumbnail;
+};
+
+USTRUCT(BlueprintType)
 struct FPGShopSettings
 {
 	GENERATED_BODY()
@@ -316,6 +339,18 @@ struct FPGShopSettings
 	// 판매할 캐릭터 스킨 목록과 기본 캐릭터를 담은 카탈로그
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Shop")
 	TSoftObjectPtr<UPGCharacterShopCatalog> CharacterShopCatalog;
+
+	// Home 영수증 + 버튼으로 표시할 영수증 상점 위젯 클래스
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Receipt Shop")
+	TSoftClassPtr<UUserWidget> ReceiptShopWidgetClass;
+
+	// 영수증 상점 상품 목록에 사용할 상품 행 위젯 클래스
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Receipt Shop")
+	TSoftClassPtr<UUserWidget> ReceiptShopPackItemWidgetClass;
+
+	// 테스트 구매용 영수증 상품 목록입니다. 실제 IAP 연동 전까지 클릭 즉시 지급됩니다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Receipt Shop")
+	TArray<FPGReceiptShopPack> ReceiptPacks;
 
 	// 상점 화면에서 사용할 CameraActor 태그
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Shop Camera")

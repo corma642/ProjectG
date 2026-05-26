@@ -70,6 +70,14 @@ void UPGCharacterShopItemWidget::SetCharacterSkin(const UPGCharacterSkinDefiniti
 	StartStateAnimation(bOwned, bEquipped, bSelected);
 }
 
+void UPGCharacterShopItemWidget::SetSelectionEnabled(bool bEnabled) const
+{
+	if (SelectButton)
+	{
+		SelectButton->SetIsEnabled(bEnabled);
+	}
+}
+
 void UPGCharacterShopItemWidget::HandleSelectButtonClicked()
 {
 	UPGAudioStatics::PlayCommonButtonClick(this);

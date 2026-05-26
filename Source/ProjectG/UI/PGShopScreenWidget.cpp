@@ -76,6 +76,10 @@ void UPGShopScreenWidget::NativeConstruct()
 	{
 		ActionButton->OnClicked.AddDynamic(this, &UPGShopScreenWidget::HandleActionClicked);
 	}
+	if (ReceiptAddButton)
+	{
+		ReceiptAddButton->OnClicked.AddDynamic(this, &UPGShopScreenWidget::HandleReceiptAddClicked);
+	}
 	if (MapsTabButton)
 	{
 		// 맵 상점은 아직 구현 범위가 아니므로 탭은 보이되 상호작용은 막는다.
@@ -107,6 +111,10 @@ void UPGShopScreenWidget::NativeDestruct()
 	if (ActionButton)
 	{
 		ActionButton->OnClicked.RemoveDynamic(this, &UPGShopScreenWidget::HandleActionClicked);
+	}
+	if (ReceiptAddButton)
+	{
+		ReceiptAddButton->OnClicked.RemoveDynamic(this, &UPGShopScreenWidget::HandleReceiptAddClicked);
 	}
 	if (MapsTabButton)
 	{
@@ -179,6 +187,13 @@ void UPGShopScreenWidget::PlayCloseAnimation()
 	bIsClosing = true;
 	AnimationElapsed = 0.0f;
 	SetShopButtonsEnabled(false);
+}
+
+void UPGShopScreenWidget::SetShopInteractionEnabled(bool bEnabled)
+{
+	bExternalInteractionEnabled = bEnabled;
+	SetShopButtonsEnabled(bEnabled && !bIsOpening && !bIsClosing);
+	RefreshSelectedCharacterState();
 }
 
 void UPGShopScreenWidget::HandleCloseClicked()
@@ -263,6 +278,12 @@ void UPGShopScreenWidget::HandleMapsTabClicked()
 	{
 		MapsTabButton->SetIsEnabled(false);
 	}
+}
+
+void UPGShopScreenWidget::HandleReceiptAddClicked()
+{
+	UPGAudioStatics::PlayCommonButtonClick(this);
+	OnReceiptShopRequested.Broadcast();
 }
 
 void UPGShopScreenWidget::HandleReceiptBalanceChanged(int32 NewBalance, FName Reason)
@@ -511,15 +532,19 @@ void UPGShopScreenWidget::RefreshSelectedCharacterState()
 	}
 	if (ActionButton)
 	{
-		ActionButton->SetIsEnabled(!bEquipped && !bIsOpening && !bIsClosing);
+		ActionButton->SetIsEnabled(!bEquipped && !bIsOpening && !bIsClosing && bExternalInteractionEnabled);
 	}
 	if (PrevCharacterButton)
 	{
-		PrevCharacterButton->SetIsEnabled(SelectedCharacterIndex > 0 && !bIsOpening && !bIsClosing);
+		PrevCharacterButton->SetIsEnabled(SelectedCharacterIndex > 0 && !bIsOpening && !bIsClosing && bExternalInteractionEnabled);
 	}
 	if (NextCharacterButton)
 	{
-		NextCharacterButton->SetIsEnabled(SelectedCharacterIndex < CharacterSkins.Num() - 1 && !bIsOpening && !bIsClosing);
+		NextCharacterButton->SetIsEnabled(SelectedCharacterIndex < CharacterSkins.Num() - 1 && !bIsOpening && !bIsClosing && bExternalInteractionEnabled);
+	}
+	if (ReceiptAddButton)
+	{
+		ReceiptAddButton->SetIsEnabled(!bIsOpening && !bIsClosing && bExternalInteractionEnabled);
 	}
 }
 
@@ -547,21 +572,26 @@ void UPGShopScreenWidget::ScrollSelectedCharacterIntoView() const
 
 void UPGShopScreenWidget::SetShopButtonsEnabled(bool bEnabled) const
 {
+	const bool bCanInteract = bEnabled && bExternalInteractionEnabled;
 	if (CloseButton)
 	{
-		CloseButton->SetIsEnabled(bEnabled);
+		CloseButton->SetIsEnabled(bCanInteract);
 	}
 	if (PrevCharacterButton)
 	{
-		PrevCharacterButton->SetIsEnabled(bEnabled);
+		PrevCharacterButton->SetIsEnabled(bCanInteract);
 	}
 	if (NextCharacterButton)
 	{
-		NextCharacterButton->SetIsEnabled(bEnabled);
+		NextCharacterButton->SetIsEnabled(bCanInteract);
 	}
 	if (ActionButton)
 	{
-		ActionButton->SetIsEnabled(bEnabled);
+		ActionButton->SetIsEnabled(bCanInteract);
+	}
+	if (ReceiptAddButton)
+	{
+		ReceiptAddButton->SetIsEnabled(bCanInteract);
 	}
 	if (CharactersTabButton)
 	{
@@ -570,6 +600,13 @@ void UPGShopScreenWidget::SetShopButtonsEnabled(bool bEnabled) const
 	if (MapsTabButton)
 	{
 		MapsTabButton->SetIsEnabled(false);
+	}
+	for (UPGCharacterShopItemWidget* ItemWidget : CharacterItemWidgets)
+	{
+		if (ItemWidget)
+		{
+			ItemWidget->SetSelectionEnabled(bCanInteract);
+		}
 	}
 }
 

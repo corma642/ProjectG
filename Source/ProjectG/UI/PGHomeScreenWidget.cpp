@@ -54,6 +54,10 @@ void UPGHomeScreenWidget::NativeConstruct()
 	{
 		HelpButton->OnClicked.AddDynamic(this, &UPGHomeScreenWidget::HandleHelpClicked);
 	}
+	if (ReceiptAddButton)
+	{
+		ReceiptAddButton->OnClicked.AddDynamic(this, &UPGHomeScreenWidget::HandleReceiptAddClicked);
+	}
 
 	StartEntryAnimation();
 }
@@ -75,6 +79,10 @@ void UPGHomeScreenWidget::NativeDestruct()
 	if (HelpButton)
 	{
 		HelpButton->OnClicked.RemoveDynamic(this, &UPGHomeScreenWidget::HandleHelpClicked);
+	}
+	if (ReceiptAddButton)
+	{
+		ReceiptAddButton->OnClicked.RemoveDynamic(this, &UPGHomeScreenWidget::HandleReceiptAddClicked);
 	}
 
 	Super::NativeDestruct();
@@ -153,6 +161,10 @@ void UPGHomeScreenWidget::SetHomeButtonsEnabled(bool bEnabled) const
 	{
 		HelpButton->SetIsEnabled(bEnabled);
 	}
+	if (ReceiptAddButton)
+	{
+		ReceiptAddButton->SetIsEnabled(bEnabled);
+	}
 }
 
 void UPGHomeScreenWidget::SetReceiptBalance(int32 Balance) const
@@ -185,6 +197,12 @@ void UPGHomeScreenWidget::HandleHelpClicked()
 {
 	UPGAudioStatics::PlayCommonButtonClick(this);
 	OnHelpRequested.Broadcast();
+}
+
+void UPGHomeScreenWidget::HandleReceiptAddClicked()
+{
+	UPGAudioStatics::PlayCommonButtonClick(this);
+	OnReceiptShopRequested.Broadcast();
 }
 
 void UPGHomeScreenWidget::StartEntryAnimation()

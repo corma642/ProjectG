@@ -14,6 +14,7 @@ class UTextBlock;
 class UWidget;
 
 DECLARE_MULTICAST_DELEGATE(FPGShopScreenClosedSignature);
+DECLARE_MULTICAST_DELEGATE(FPGShopReceiptShopRequestedSignature);
 
 /**
  * Home 상점 화면의 로직 전용 위젯입니다.
@@ -26,10 +27,12 @@ class PROJECTG_API UPGShopScreenWidget : public UUserWidget
 
 public:
 	FPGShopScreenClosedSignature OnShopScreenClosed;
+	FPGShopReceiptShopRequestedSignature OnReceiptShopRequested;
 
 	void InitializeShop(UPGUserDataSubsystem* InUserDataSubsystem, TSubclassOf<UPGCharacterShopItemWidget> InItemWidgetClass);
 	void PlayOpenAnimation();
 	void PlayCloseAnimation();
+	void SetShopInteractionEnabled(bool bEnabled);
 
 protected:
 	virtual void NativeConstruct() override;
@@ -58,6 +61,9 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UTextBlock> ReceiptBalanceText;
+
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
+	TObjectPtr<UButton> ReceiptAddButton;
 
 	// Characters / Maps 탭 버튼 묶음입니다. Maps 탭은 아직 비활성 상태로 유지합니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
@@ -127,6 +133,9 @@ private:
 	void HandleMapsTabClicked();
 
 	UFUNCTION()
+	void HandleReceiptAddClicked();
+
+	UFUNCTION()
 	void HandleReceiptBalanceChanged(int32 NewBalance, FName Reason);
 
 	UFUNCTION()
@@ -162,4 +171,5 @@ private:
 	float ActionFeedbackElapsed = 0.0f;
 	float ActionFeedbackDuration = 0.22f;
 	bool bActionFeedbackSuccess = true;
+	bool bExternalInteractionEnabled = true;
 };

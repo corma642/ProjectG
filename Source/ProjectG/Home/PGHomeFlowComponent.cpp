@@ -11,6 +11,8 @@
 #include "Loading/PGRuntimePreloadSubsystem.h"
 #include "Player/PGPlayerController.h"
 #include "UI/PGHomeScreenWidget.h"
+#include "UI/PGReceiptShopPackItemWidget.h"
+#include "UI/PGReceiptShopWidget.h"
 #include "UI/PGRunCountdownWidget.h"
 #include "UI/PGCharacterShopItemWidget.h"
 #include "UI/PGShopScreenWidget.h"
@@ -227,6 +229,7 @@ void UPGHomeFlowComponent::ShowHomeScreen()
 	HomeScreenWidget->OnShopRequested.AddUObject(this, &UPGHomeFlowComponent::HandleShopRequested);
 	HomeScreenWidget->OnSettingsRequested.AddUObject(this, &UPGHomeFlowComponent::HandleSettingsRequested);
 	HomeScreenWidget->OnHelpRequested.AddUObject(this, &UPGHomeFlowComponent::HandleHelpRequested);
+	HomeScreenWidget->OnReceiptShopRequested.AddUObject(this, &UPGHomeFlowComponent::HandleReceiptShopRequested);
 	HomeScreenWidget->SetReceiptBalance(UserDataSubsystem ? UserDataSubsystem->GetReceiptBalance() : 0);
 	HomeScreenWidget->AddToViewport(10);
 }
@@ -365,6 +368,7 @@ void UPGHomeFlowComponent::CleanupWidgets()
 		HomeScreenWidget->OnShopRequested.RemoveAll(this);
 		HomeScreenWidget->OnSettingsRequested.RemoveAll(this);
 		HomeScreenWidget->OnHelpRequested.RemoveAll(this);
+		HomeScreenWidget->OnReceiptShopRequested.RemoveAll(this);
 		HomeScreenWidget->RemoveFromParent();
 		HomeScreenWidget = nullptr;
 	}
@@ -378,8 +382,16 @@ void UPGHomeFlowComponent::CleanupWidgets()
 	if (ShopScreenWidget)
 	{
 		ShopScreenWidget->OnShopScreenClosed.RemoveAll(this);
+		ShopScreenWidget->OnReceiptShopRequested.RemoveAll(this);
 		ShopScreenWidget->RemoveFromParent();
 		ShopScreenWidget = nullptr;
+	}
+
+	if (ReceiptShopWidget)
+	{
+		ReceiptShopWidget->OnReceiptShopClosed.RemoveAll(this);
+		ReceiptShopWidget->RemoveFromParent();
+		ReceiptShopWidget = nullptr;
 	}
 
 	if (SettingsScreenWidget)
@@ -415,7 +427,7 @@ void UPGHomeFlowComponent::BlendToHomeCamera()
 
 void UPGHomeFlowComponent::HandleStartDeliveryRequested()
 {
-	if (SettingsScreenWidget || TutorialScreenWidget || ShopScreenWidget)
+	if (SettingsScreenWidget || TutorialScreenWidget || ShopScreenWidget || ReceiptShopWidget)
 	{
 		// Home 위에 다른 전면 UI가 올라와 있으면 화면 소유권을 유지하기 위해 START 입력을 무시한다.
 		return;
@@ -426,7 +438,7 @@ void UPGHomeFlowComponent::HandleStartDeliveryRequested()
 
 void UPGHomeFlowComponent::HandleShopRequested()
 {
-	if (SettingsScreenWidget || TutorialScreenWidget || ShopScreenWidget || !BoundGameMode || BoundGameMode->GetRunState() != EPGRunState::Home)
+	if (SettingsScreenWidget || TutorialScreenWidget || ShopScreenWidget || ReceiptShopWidget || !BoundGameMode || BoundGameMode->GetRunState() != EPGRunState::Home)
 	{
 		// Shop은 Home 상태 전용 화면이다. 러닝 상태나 다른 모달 위에서는 열지 않는다.
 		return;
@@ -472,6 +484,7 @@ void UPGHomeFlowComponent::HandleShopRequested()
 
 	SetShopCameraViewTarget();
 	ShopScreenWidget->OnShopScreenClosed.AddUObject(this, &UPGHomeFlowComponent::HandleShopScreenClosed);
+	ShopScreenWidget->OnReceiptShopRequested.AddUObject(this, &UPGHomeFlowComponent::HandleReceiptShopRequested);
 	ShopScreenWidget->AddToViewport(30);
 	ShopScreenWidget->InitializeShop(UserDataSubsystem, TSubclassOf<UPGCharacterShopItemWidget>(ItemWidgetClass));
 	ShopScreenWidget->PlayOpenAnimation();
@@ -482,6 +495,7 @@ void UPGHomeFlowComponent::HandleShopScreenClosed()
 	if (ShopScreenWidget)
 	{
 		ShopScreenWidget->OnShopScreenClosed.RemoveAll(this);
+		ShopScreenWidget->OnReceiptShopRequested.RemoveAll(this);
 		ShopScreenWidget = nullptr;
 	}
 
@@ -498,9 +512,37 @@ void UPGHomeFlowComponent::HandleShopScreenClosed()
 	}
 }
 
+void UPGHomeFlowComponent::HandleReceiptShopRequested()
+{
+	if (SettingsScreenWidget || TutorialScreenWidget || ReceiptShopWidget || !BoundGameMode || BoundGameMode->GetRunState() != EPGRunState::Home)
+	{
+		return;
+	}
+
+	ShowReceiptShopScreen();
+}
+
+void UPGHomeFlowComponent::HandleReceiptShopClosed()
+{
+	if (ReceiptShopWidget)
+	{
+		ReceiptShopWidget->OnReceiptShopClosed.RemoveAll(this);
+		ReceiptShopWidget = nullptr;
+	}
+
+	if (ShopScreenWidget)
+	{
+		ShopScreenWidget->SetShopInteractionEnabled(true);
+	}
+	else if (HomeScreenWidget)
+	{
+		HomeScreenWidget->SetHomeButtonsEnabled(true);
+	}
+}
+
 void UPGHomeFlowComponent::HandleSettingsRequested()
 {
-	if (TutorialScreenWidget || ShopScreenWidget)
+	if (TutorialScreenWidget || ShopScreenWidget || ReceiptShopWidget)
 	{
 		return;
 	}
@@ -519,7 +561,7 @@ void UPGHomeFlowComponent::HandleSettingsScreenClosed()
 
 void UPGHomeFlowComponent::HandleHelpRequested()
 {
-	if (SettingsScreenWidget || ShopScreenWidget)
+	if (SettingsScreenWidget || ShopScreenWidget || ReceiptShopWidget)
 	{
 		return;
 	}
@@ -543,7 +585,7 @@ void UPGHomeFlowComponent::HandleTutorialClosed()
 
 void UPGHomeFlowComponent::ShowSettingsScreen()
 {
-	if (!OwnerPlayerController || SettingsScreenWidget || TutorialScreenWidget)
+	if (!OwnerPlayerController || SettingsScreenWidget || TutorialScreenWidget || ReceiptShopWidget)
 	{
 		return;
 	}
@@ -573,7 +615,7 @@ void UPGHomeFlowComponent::ShowSettingsScreen()
 
 void UPGHomeFlowComponent::ShowTutorialScreen()
 {
-	if (!OwnerPlayerController || TutorialScreenWidget)
+	if (!OwnerPlayerController || TutorialScreenWidget || ReceiptShopWidget)
 	{
 		return;
 	}
@@ -613,6 +655,52 @@ void UPGHomeFlowComponent::ShowTutorialScreen()
 	TutorialScreenWidget->InitializeTutorial(PageSet);
 }
 
+void UPGHomeFlowComponent::ShowReceiptShopScreen()
+{
+	if (!OwnerPlayerController || ReceiptShopWidget || !UserDataSubsystem)
+	{
+		return;
+	}
+
+	UClass* WidgetClass = CachedShopSettings.ReceiptShopWidgetClass.Get();
+	UClass* ItemWidgetClass = CachedShopSettings.ReceiptShopPackItemWidgetClass.Get();
+	if (!WidgetClass)
+	{
+		UE_LOG(LogPGHomeFlow, Warning, TEXT("ReceiptShopWidgetClass is not set. Create WBP_ReceiptShop and assign it in Go Deliver Settings > Shop."));
+		return;
+	}
+	if (!WidgetClass->IsChildOf(UPGReceiptShopWidget::StaticClass()))
+	{
+		UE_LOG(LogPGHomeFlow, Warning, TEXT("ReceiptShopWidgetClass '%s' must inherit UPGReceiptShopWidget."), *GetNameSafe(WidgetClass));
+		return;
+	}
+	if (!ItemWidgetClass || !ItemWidgetClass->IsChildOf(UPGReceiptShopPackItemWidget::StaticClass()))
+	{
+		UE_LOG(LogPGHomeFlow, Warning, TEXT("ReceiptShopPackItemWidgetClass must inherit UPGReceiptShopPackItemWidget."));
+		return;
+	}
+
+	ReceiptShopWidget = CreateWidget<UPGReceiptShopWidget>(OwnerPlayerController, TSubclassOf<UPGReceiptShopWidget>(WidgetClass));
+	if (!ReceiptShopWidget)
+	{
+		return;
+	}
+
+	if (ShopScreenWidget)
+	{
+		ShopScreenWidget->SetShopInteractionEnabled(false);
+	}
+	else if (HomeScreenWidget)
+	{
+		HomeScreenWidget->SetHomeButtonsEnabled(false);
+	}
+
+	ReceiptShopWidget->OnReceiptShopClosed.AddUObject(this, &UPGHomeFlowComponent::HandleReceiptShopClosed);
+	ReceiptShopWidget->AddToViewport(30);
+	ReceiptShopWidget->InitializeReceiptShop(UserDataSubsystem, TSubclassOf<UPGReceiptShopPackItemWidget>(ItemWidgetClass), CachedShopSettings.ReceiptPacks);
+	ReceiptShopWidget->PlayOpenAnimation();
+}
+
 void UPGHomeFlowComponent::HandleRunCountdownStarted(float Duration)
 {
 	// 카운트다운이 시작되면 Home 계열 모달은 모두 닫고, 러너 카메라와 카운트다운 UI만 남긴다.
@@ -633,8 +721,16 @@ void UPGHomeFlowComponent::HandleRunCountdownStarted(float Duration)
 	if (ShopScreenWidget)
 	{
 		ShopScreenWidget->OnShopScreenClosed.RemoveAll(this);
+		ShopScreenWidget->OnReceiptShopRequested.RemoveAll(this);
 		ShopScreenWidget->RemoveFromParent();
 		ShopScreenWidget = nullptr;
+	}
+
+	if (ReceiptShopWidget)
+	{
+		ReceiptShopWidget->OnReceiptShopClosed.RemoveAll(this);
+		ReceiptShopWidget->RemoveFromParent();
+		ReceiptShopWidget = nullptr;
 	}
 
 	if (HomeScreenWidget)

@@ -26,6 +26,7 @@ public:
 	FPGCharacterShopItemSelectedSignature OnCharacterSelected;
 
 	void SetCharacterSkin(const UPGCharacterSkinDefinition* InSkinDefinition, bool bOwned, bool bEquipped, bool bSelected);
+	void SetSelectionEnabled(bool bEnabled) const;
 	FName GetSkinId() const { return SkinId; }
 
 protected:

@@ -42,4 +42,21 @@ UPGGameSettings::UPGGameSettings()
 	MobileQuality.High.MaxAnisotropy = 8;
 
 	MobileQuality.DefaultPreset = EPGMobileQualityPreset::High;
+
+	if (Shop.ReceiptPacks.Num() == 0)
+	{
+		auto AddReceiptPack = [this](const TCHAR* PackName, int32 ReceiptAmount, const TCHAR* PriceText)
+		{
+			FPGReceiptShopPack Pack;
+			Pack.PackName = PackName;
+			Pack.ReceiptAmount = ReceiptAmount;
+			Pack.PriceText = PriceText;
+			Shop.ReceiptPacks.Add(Pack);
+		};
+
+		AddReceiptPack(TEXT("SMALL PACK"), 50, TEXT("$0.99"));
+		AddReceiptPack(TEXT("STANDARD PACK"), 120, TEXT("$2.99"));
+		AddReceiptPack(TEXT("VALUE PACK"), 260, TEXT("$5.99"));
+		AddReceiptPack(TEXT("MEGA PACK"), 700, TEXT("$12.99"));
+	}
 }

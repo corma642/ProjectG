@@ -29,6 +29,7 @@ public:
 
 	int32 GetReceiptBalance() const;
 	void AddReceipts(int32 Amount, FName Reason);
+	bool TryAddReceipts(int32 Amount, FName Reason);
 	bool CanSpendReceipts(int32 Amount) const;
 	bool TrySpendReceipts(int32 Amount, FName Reason);
 

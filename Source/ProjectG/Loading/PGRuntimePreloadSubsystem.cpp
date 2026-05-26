@@ -68,6 +68,12 @@ void UPGRuntimePreloadSubsystem::CollectPrimaryResourcePaths(TArray<FSoftObjectP
 	AddUniquePath(OutPaths, Settings->Shop.ShopScreenWidgetClass.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->Shop.CharacterShopItemWidgetClass.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->Shop.CharacterShopCatalog.ToSoftObjectPath());
+	AddUniquePath(OutPaths, Settings->Shop.ReceiptShopWidgetClass.ToSoftObjectPath());
+	AddUniquePath(OutPaths, Settings->Shop.ReceiptShopPackItemWidgetClass.ToSoftObjectPath());
+	for (const FPGReceiptShopPack& ReceiptPack : Settings->Shop.ReceiptPacks)
+	{
+		AddUniquePath(OutPaths, ReceiptPack.Thumbnail.ToSoftObjectPath());
+	}
 	AddUniquePath(OutPaths, Settings->Music.HomeMusic.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->Music.RunMusic.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->SFX.CommonButtonClickSound.ToSoftObjectPath());

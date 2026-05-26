@@ -15,6 +15,7 @@ DECLARE_MULTICAST_DELEGATE(FPGHomeStartDeliveryRequestedSignature);
 DECLARE_MULTICAST_DELEGATE(FPGHomeSettingsRequestedSignature);
 DECLARE_MULTICAST_DELEGATE(FPGHomeHelpRequestedSignature);
 DECLARE_MULTICAST_DELEGATE(FPGHomeShopRequestedSignature);
+DECLARE_MULTICAST_DELEGATE(FPGHomeReceiptShopRequestedSignature);
 
 /**
  * 앱 시작 직후 표시되는 Home 화면의 로직 위젯입니다.
@@ -30,6 +31,7 @@ public:
 	FPGHomeSettingsRequestedSignature OnSettingsRequested;
 	FPGHomeHelpRequestedSignature OnHelpRequested;
 	FPGHomeShopRequestedSignature OnShopRequested;
+	FPGHomeReceiptShopRequestedSignature OnReceiptShopRequested;
 
 	// START DELIVERY 이후 Home 요소들이 화면 밖으로 빠지는 퇴장 애니메이션을 시작합니다.
 	void PlayExitAnimation(float Duration);
@@ -76,6 +78,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Home")
 	TObjectPtr<UTextBlock> ReceiptBalanceText;
 
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Home")
+	TObjectPtr<UButton> ReceiptAddButton;
+
 private:
 	UFUNCTION()
 	void HandleStartDeliveryClicked();
@@ -88,6 +93,9 @@ private:
 
 	UFUNCTION()
 	void HandleHelpClicked();
+
+	UFUNCTION()
+	void HandleReceiptAddClicked();
 
 	void StartEntryAnimation();
 	void ApplyEntryAnimation(float Alpha);
