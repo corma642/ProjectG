@@ -16,10 +16,19 @@ class UPGHomeScreenWidget;
 class UPGReceiptShopPackItemWidget;
 class UPGReceiptShopWidget;
 class UPGRunCountdownWidget;
+class UPGScreenTransitionFadeWidget;
 class UPGSettingsScreenWidget;
 class UPGShopScreenWidget;
 class UPGTutorialScreenWidget;
 class UPGUserDataSubsystem;
+
+enum class EPGHomeFlowTransition : uint8
+{
+	None,
+	HomeToShop,
+	ShopToHome,
+	HomeToCountdown
+};
 
 /**
  * 로컬 PlayerController가 소유하는 Home 흐름 관리자입니다.
@@ -64,9 +73,14 @@ private:
 	void BlendToHomeCamera();
 	void ShowCountdown(float Duration);
 	void CleanupWidgets();
+	bool StartScreenTransition(EPGHomeFlowTransition Transition);
+	void ApplyPendingScreenTransition();
+	void FinishScreenTransition();
+	bool AreShopScreenResourcesReady() const;
+	void ShowShopScreen();
 	void HandleStartDeliveryRequested();
 	void HandleShopRequested();
-	void HandleShopScreenClosed();
+	void HandleShopCloseRequested();
 	void HandleReceiptShopRequested();
 	void HandleReceiptShopClosed();
 	void HandleSettingsRequested();
@@ -102,6 +116,9 @@ private:
 	TObjectPtr<UPGRunCountdownWidget> CountdownWidget;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UPGScreenTransitionFadeWidget> ScreenTransitionFadeWidget;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UPGShopScreenWidget> ShopScreenWidget;
 
 	UPROPERTY(Transient)
@@ -126,4 +143,6 @@ private:
 
 	// Retry URL 옵션으로 들어온 경우 Home UI를 건너뛰고 카운트다운을 요청하는지 추적합니다.
 	bool bRetryCountdownRequested = false;
+	bool bIsScreenTransitionActive = false;
+	EPGHomeFlowTransition PendingScreenTransition = EPGHomeFlowTransition::None;
 };

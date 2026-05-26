@@ -281,6 +281,26 @@ struct FPGHomeFlowSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Tutorial")
 	TSoftObjectPtr<UPGTutorialPageSet> TutorialPageSet;
 
+	// Home/Shop/Start처럼 카메라와 UI가 동시에 바뀌는 구간을 덮을 전체 화면 페이드 위젯 클래스
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Transition")
+	TSoftClassPtr<UUserWidget> ScreenTransitionFadeWidgetClass;
+
+	// 전환 화면이 어두워지는 시간
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Transition", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0"))
+	float TransitionFadeInDuration = 0.12f;
+
+	// 화면을 완전히 덮은 상태로 유지하는 짧은 시간. 이 시점에 카메라와 위젯을 교체한다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Transition", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0"))
+	float TransitionHoldDuration = 0.04f;
+
+	// 새 화면을 보여주기 위해 페이드가 빠지는 시간
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Transition", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0"))
+	float TransitionFadeOutDuration = 0.18f;
+
+	// 페이드가 가장 어두워졌을 때의 투명도. 1.0이면 완전 암전이다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Transition", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float TransitionMaxOpacity = 0.85f;
+
 	// 홈 화면에서 사용할 CameraActor 태그
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Home Camera")
 	FName HomeCameraTag = TEXT("HomeCamera");

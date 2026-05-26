@@ -13,7 +13,7 @@ class UScrollBox;
 class UTextBlock;
 class UWidget;
 
-DECLARE_MULTICAST_DELEGATE(FPGShopScreenClosedSignature);
+DECLARE_MULTICAST_DELEGATE(FPGShopCloseRequestedSignature);
 DECLARE_MULTICAST_DELEGATE(FPGShopReceiptShopRequestedSignature);
 
 /**
@@ -26,12 +26,11 @@ class PROJECTG_API UPGShopScreenWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	FPGShopScreenClosedSignature OnShopScreenClosed;
+	FPGShopCloseRequestedSignature OnShopCloseRequested;
 	FPGShopReceiptShopRequestedSignature OnReceiptShopRequested;
 
 	void InitializeShop(UPGUserDataSubsystem* InUserDataSubsystem, TSubclassOf<UPGCharacterShopItemWidget> InItemWidgetClass);
 	void PlayOpenAnimation();
-	void PlayCloseAnimation();
 	void SetShopInteractionEnabled(bool bEnabled);
 
 protected:
@@ -163,7 +162,6 @@ private:
 	int32 SelectedCharacterIndex = INDEX_NONE;
 
 	bool bIsOpening = false;
-	bool bIsClosing = false;
 	float AnimationElapsed = 0.0f;
 	float AnimationDuration = 0.56f;
 

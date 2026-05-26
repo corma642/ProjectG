@@ -14,6 +14,7 @@
 #include "UI/PGReceiptShopPackItemWidget.h"
 #include "UI/PGReceiptShopWidget.h"
 #include "UI/PGRunCountdownWidget.h"
+#include "UI/PGScreenTransitionFadeWidget.h"
 #include "UI/PGCharacterShopItemWidget.h"
 #include "UI/PGShopScreenWidget.h"
 #include "UI/PGSettingsScreenWidget.h"
@@ -52,7 +53,7 @@ void UPGHomeFlowComponent::BeginPlay()
 	const FString StartFlowOption = GetWorld() ? GetWorld()->URL.GetOption(TEXT("StartFlow="), TEXT("")) : FString();
 	bRetryCountdownRequested = StartFlowOption.Equals(TEXT("RetryCountdown"), ESearchCase::IgnoreCase);
 
-	// 레벨 리로드 기반 Retry는 Home UI를 만들지 않고, 필수 리소스 예열이 끝난 뒤 바로 카운트다운으로 진입한다.
+		// 레벨 리로드 기반 Retry는 Home UI를 만들지 않고, 필수 리소스 예열이 끝난 뒤 바로 카운트다운으로 진입한다.
 	if (BoundGameMode && BoundGameMode->GetRunState() == EPGRunState::Home)
 	{
 		if (bRetryCountdownRequested)
@@ -177,11 +178,21 @@ void UPGHomeFlowComponent::RequestStartDeliveryAfterPreload()
 
 	if (!RuntimePreloadSubsystem || RuntimePreloadSubsystem->IsReady())
 	{
-		// START 직전에는 Shop 프리뷰 메시가 남지 않도록 실제 장착 스킨으로 돌린 뒤 GameMode에 시작을 위임한다.
-		bPendingStartDeliveryAfterPreload = false;
-		RestoreShopPreviewRunner();
-		BoundGameMode->RequestStartDelivery();
-		if (HomeScreenWidget && BoundGameMode->GetRunState() == EPGRunState::Home)
+		// Retry는 이미 레벨 로딩으로 화면 전환이 끝난 상태이므로 추가 페이드 없이 카운트다운으로 들어간다.
+		if (bRetryCountdownRequested)
+		{
+			bPendingStartDeliveryAfterPreload = false;
+			RestoreShopPreviewRunner();
+			BoundGameMode->RequestStartDelivery();
+			return;
+		}
+
+		if (HomeScreenWidget)
+		{
+			HomeScreenWidget->SetHomeButtonsEnabled(false);
+		}
+
+		if (!StartScreenTransition(EPGHomeFlowTransition::HomeToCountdown) && HomeScreenWidget)
 		{
 			HomeScreenWidget->SetHomeButtonsEnabled(true);
 		}
@@ -379,9 +390,17 @@ void UPGHomeFlowComponent::CleanupWidgets()
 		CountdownWidget = nullptr;
 	}
 
+	if (ScreenTransitionFadeWidget)
+	{
+		ScreenTransitionFadeWidget->OnFadeCovered.RemoveAll(this);
+		ScreenTransitionFadeWidget->OnFadeFinished.RemoveAll(this);
+		ScreenTransitionFadeWidget->RemoveFromParent();
+		ScreenTransitionFadeWidget = nullptr;
+	}
+
 	if (ShopScreenWidget)
 	{
-		ShopScreenWidget->OnShopScreenClosed.RemoveAll(this);
+		ShopScreenWidget->OnShopCloseRequested.RemoveAll(this);
 		ShopScreenWidget->OnReceiptShopRequested.RemoveAll(this);
 		ShopScreenWidget->RemoveFromParent();
 		ShopScreenWidget = nullptr;
@@ -425,50 +444,152 @@ void UPGHomeFlowComponent::BlendToHomeCamera()
 	SetHomeCameraViewTarget();
 }
 
-void UPGHomeFlowComponent::HandleStartDeliveryRequested()
+bool UPGHomeFlowComponent::StartScreenTransition(EPGHomeFlowTransition Transition)
 {
-	if (SettingsScreenWidget || TutorialScreenWidget || ShopScreenWidget || ReceiptShopWidget)
+	if (Transition == EPGHomeFlowTransition::None || bIsScreenTransitionActive)
 	{
-		// Home 위에 다른 전면 UI가 올라와 있으면 화면 소유권을 유지하기 위해 START 입력을 무시한다.
-		return;
+		return false;
 	}
 
-	RequestStartDeliveryAfterPreload();
+	PendingScreenTransition = Transition;
+	bIsScreenTransitionActive = true;
+
+	UClass* WidgetClass = CachedHomeFlowSettings.ScreenTransitionFadeWidgetClass.Get();
+	if (!WidgetClass)
+	{
+		// 페이드 위젯은 선택적 폴리싱 리소스다. 미설정 상태에서는 기존 즉시 전환 흐름을 유지한다.
+		ApplyPendingScreenTransition();
+		FinishScreenTransition();
+		return true;
+	}
+	if (!WidgetClass->IsChildOf(UPGScreenTransitionFadeWidget::StaticClass()))
+	{
+		UE_LOG(LogPGHomeFlow, Warning, TEXT("ScreenTransitionFadeWidgetClass '%s' must inherit UPGScreenTransitionFadeWidget."), *GetNameSafe(WidgetClass));
+		ApplyPendingScreenTransition();
+		FinishScreenTransition();
+		return true;
+	}
+
+	ScreenTransitionFadeWidget = CreateWidget<UPGScreenTransitionFadeWidget>(OwnerPlayerController, TSubclassOf<UPGScreenTransitionFadeWidget>(WidgetClass));
+	if (!ScreenTransitionFadeWidget)
+	{
+		ApplyPendingScreenTransition();
+		FinishScreenTransition();
+		return true;
+	}
+
+	ScreenTransitionFadeWidget->OnFadeCovered.AddUObject(this, &UPGHomeFlowComponent::ApplyPendingScreenTransition);
+	ScreenTransitionFadeWidget->OnFadeFinished.AddUObject(this, &UPGHomeFlowComponent::FinishScreenTransition);
+	ScreenTransitionFadeWidget->AddToViewport(500);
+	ScreenTransitionFadeWidget->PlayCoverThenReveal(
+		CachedHomeFlowSettings.TransitionFadeInDuration,
+		CachedHomeFlowSettings.TransitionHoldDuration,
+		CachedHomeFlowSettings.TransitionFadeOutDuration,
+		CachedHomeFlowSettings.TransitionMaxOpacity);
+
+	return true;
 }
 
-void UPGHomeFlowComponent::HandleShopRequested()
+void UPGHomeFlowComponent::ApplyPendingScreenTransition()
 {
-	if (SettingsScreenWidget || TutorialScreenWidget || ShopScreenWidget || ReceiptShopWidget || !BoundGameMode || BoundGameMode->GetRunState() != EPGRunState::Home)
+	switch (PendingScreenTransition)
 	{
-		// Shop은 Home 상태 전용 화면이다. 러닝 상태나 다른 모달 위에서는 열지 않는다.
+	case EPGHomeFlowTransition::HomeToShop:
+		ShowShopScreen();
+		break;
+	case EPGHomeFlowTransition::ShopToHome:
+		if (ShopScreenWidget)
+		{
+			ShopScreenWidget->OnShopCloseRequested.RemoveAll(this);
+			ShopScreenWidget->OnReceiptShopRequested.RemoveAll(this);
+			ShopScreenWidget->RemoveFromParent();
+			ShopScreenWidget = nullptr;
+		}
+		if (UserDataSubsystem)
+		{
+			RestoreShopPreviewRunner();
+		}
+		BlendToHomeCamera();
+		if (HomeScreenWidget)
+		{
+			HomeScreenWidget->SetRenderOpacity(1.0f);
+		}
+		break;
+	case EPGHomeFlowTransition::HomeToCountdown:
+		bPendingStartDeliveryAfterPreload = false;
+		RestoreShopPreviewRunner();
+		if (BoundGameMode)
+		{
+			BoundGameMode->RequestStartDelivery();
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+void UPGHomeFlowComponent::FinishScreenTransition()
+{
+	if (ScreenTransitionFadeWidget)
+	{
+		ScreenTransitionFadeWidget->OnFadeCovered.RemoveAll(this);
+		ScreenTransitionFadeWidget->OnFadeFinished.RemoveAll(this);
+		ScreenTransitionFadeWidget = nullptr;
+	}
+
+	if (PendingScreenTransition == EPGHomeFlowTransition::ShopToHome && HomeScreenWidget)
+	{
+		HomeScreenWidget->SetHomeButtonsEnabled(true);
+	}
+	else if (PendingScreenTransition == EPGHomeFlowTransition::HomeToShop && !ShopScreenWidget && HomeScreenWidget)
+	{
+		HomeScreenWidget->SetRenderOpacity(1.0f);
+		HomeScreenWidget->SetHomeButtonsEnabled(true);
+	}
+	else if (PendingScreenTransition == EPGHomeFlowTransition::HomeToCountdown && HomeScreenWidget && BoundGameMode && BoundGameMode->GetRunState() == EPGRunState::Home)
+	{
+		HomeScreenWidget->SetHomeButtonsEnabled(true);
+	}
+
+	PendingScreenTransition = EPGHomeFlowTransition::None;
+	bIsScreenTransitionActive = false;
+}
+
+bool UPGHomeFlowComponent::AreShopScreenResourcesReady() const
+{
+	const UClass* WidgetClass = CachedShopSettings.ShopScreenWidgetClass.Get();
+	const UClass* ItemWidgetClass = CachedShopSettings.CharacterShopItemWidgetClass.Get();
+	if (!WidgetClass)
+	{
+		UE_LOG(LogPGHomeFlow, Warning, TEXT("ShopScreenWidgetClass is not set. Create WBP_ShopScreen and assign it in Go Deliver Settings > Shop."));
+		return false;
+	}
+	if (!WidgetClass->IsChildOf(UPGShopScreenWidget::StaticClass()))
+	{
+		UE_LOG(LogPGHomeFlow, Warning, TEXT("ShopScreenWidgetClass '%s' must inherit UPGShopScreenWidget."), *GetNameSafe(WidgetClass));
+		return false;
+	}
+	if (!ItemWidgetClass || !ItemWidgetClass->IsChildOf(UPGCharacterShopItemWidget::StaticClass()))
+	{
+		UE_LOG(LogPGHomeFlow, Warning, TEXT("CharacterShopItemWidgetClass must inherit UPGCharacterShopItemWidget."));
+		return false;
+	}
+
+	return true;
+}
+
+void UPGHomeFlowComponent::ShowShopScreen()
+{
+	if (!OwnerPlayerController || !UserDataSubsystem || ShopScreenWidget || !AreShopScreenResourcesReady())
+	{
 		return;
 	}
 
-	if (!OwnerPlayerController || !UserDataSubsystem)
-	{
-		return;
-	}
 	UserDataSubsystem->RefreshShopCatalog();
 	UserDataSubsystem->SetPreviewRunner(BoundGameMode ? BoundGameMode->GetPlayableRunnerCharacter() : nullptr);
 
 	UClass* WidgetClass = CachedShopSettings.ShopScreenWidgetClass.Get();
 	UClass* ItemWidgetClass = CachedShopSettings.CharacterShopItemWidgetClass.Get();
-	if (!WidgetClass)
-	{
-		UE_LOG(LogPGHomeFlow, Warning, TEXT("ShopScreenWidgetClass is not set. Create WBP_ShopScreen and assign it in Go Deliver Settings > Shop."));
-		return;
-	}
-	if (!WidgetClass->IsChildOf(UPGShopScreenWidget::StaticClass()))
-	{
-		UE_LOG(LogPGHomeFlow, Warning, TEXT("ShopScreenWidgetClass '%s' must inherit UPGShopScreenWidget."), *GetNameSafe(WidgetClass));
-		return;
-	}
-	if (!ItemWidgetClass || !ItemWidgetClass->IsChildOf(UPGCharacterShopItemWidget::StaticClass()))
-	{
-		UE_LOG(LogPGHomeFlow, Warning, TEXT("CharacterShopItemWidgetClass must inherit UPGCharacterShopItemWidget."));
-		return;
-	}
-
 	ShopScreenWidget = CreateWidget<UPGShopScreenWidget>(OwnerPlayerController, TSubclassOf<UPGShopScreenWidget>(WidgetClass));
 	if (!ShopScreenWidget)
 	{
@@ -477,44 +598,75 @@ void UPGHomeFlowComponent::HandleShopRequested()
 
 	if (HomeScreenWidget)
 	{
-		// Shop UI가 전면을 소유하는 동안 Home 입력은 잠그고, 배경 UI는 완전히 숨긴다.
-		HomeScreenWidget->SetHomeButtonsEnabled(false);
 		HomeScreenWidget->SetRenderOpacity(0.0f);
 	}
 
 	SetShopCameraViewTarget();
-	ShopScreenWidget->OnShopScreenClosed.AddUObject(this, &UPGHomeFlowComponent::HandleShopScreenClosed);
+	ShopScreenWidget->OnShopCloseRequested.AddUObject(this, &UPGHomeFlowComponent::HandleShopCloseRequested);
 	ShopScreenWidget->OnReceiptShopRequested.AddUObject(this, &UPGHomeFlowComponent::HandleReceiptShopRequested);
 	ShopScreenWidget->AddToViewport(30);
 	ShopScreenWidget->InitializeShop(UserDataSubsystem, TSubclassOf<UPGCharacterShopItemWidget>(ItemWidgetClass));
 	ShopScreenWidget->PlayOpenAnimation();
 }
 
-void UPGHomeFlowComponent::HandleShopScreenClosed()
+void UPGHomeFlowComponent::HandleStartDeliveryRequested()
 {
-	if (ShopScreenWidget)
+	if (SettingsScreenWidget || TutorialScreenWidget || ShopScreenWidget || ReceiptShopWidget || bIsScreenTransitionActive)
 	{
-		ShopScreenWidget->OnShopScreenClosed.RemoveAll(this);
-		ShopScreenWidget->OnReceiptShopRequested.RemoveAll(this);
-		ShopScreenWidget = nullptr;
+		// Home 위에 다른 전면 UI가 올라와 있거나 전환 중이면 화면 소유권을 유지하기 위해 START 입력을 무시한다.
+		return;
 	}
 
-	if (UserDataSubsystem)
+	RequestStartDeliveryAfterPreload();
+}
+
+void UPGHomeFlowComponent::HandleShopRequested()
+{
+	if (SettingsScreenWidget || TutorialScreenWidget || ShopScreenWidget || ReceiptShopWidget || bIsScreenTransitionActive || !BoundGameMode || BoundGameMode->GetRunState() != EPGRunState::Home)
 	{
-		RestoreShopPreviewRunner();
+		return;
 	}
 
-	BlendToHomeCamera();
+	if (!OwnerPlayerController || !UserDataSubsystem || !AreShopScreenResourcesReady())
+	{
+		return;
+	}
+
 	if (HomeScreenWidget)
 	{
-		HomeScreenWidget->SetRenderOpacity(1.0f);
+		HomeScreenWidget->SetHomeButtonsEnabled(false);
+	}
+
+	if (!StartScreenTransition(EPGHomeFlowTransition::HomeToShop) && HomeScreenWidget)
+	{
 		HomeScreenWidget->SetHomeButtonsEnabled(true);
+	}
+}
+
+void UPGHomeFlowComponent::HandleShopCloseRequested()
+{
+	if (bIsScreenTransitionActive)
+	{
+		return;
+	}
+
+	if (ShopScreenWidget)
+	{
+		ShopScreenWidget->SetShopInteractionEnabled(false);
+	}
+
+	if (!StartScreenTransition(EPGHomeFlowTransition::ShopToHome))
+	{
+		if (HomeScreenWidget)
+		{
+			HomeScreenWidget->SetHomeButtonsEnabled(true);
+		}
 	}
 }
 
 void UPGHomeFlowComponent::HandleReceiptShopRequested()
 {
-	if (SettingsScreenWidget || TutorialScreenWidget || ReceiptShopWidget || !BoundGameMode || BoundGameMode->GetRunState() != EPGRunState::Home)
+	if (SettingsScreenWidget || TutorialScreenWidget || ReceiptShopWidget || bIsScreenTransitionActive || !BoundGameMode || BoundGameMode->GetRunState() != EPGRunState::Home)
 	{
 		return;
 	}
@@ -542,7 +694,7 @@ void UPGHomeFlowComponent::HandleReceiptShopClosed()
 
 void UPGHomeFlowComponent::HandleSettingsRequested()
 {
-	if (TutorialScreenWidget || ShopScreenWidget || ReceiptShopWidget)
+	if (TutorialScreenWidget || ShopScreenWidget || ReceiptShopWidget || bIsScreenTransitionActive)
 	{
 		return;
 	}
@@ -561,7 +713,7 @@ void UPGHomeFlowComponent::HandleSettingsScreenClosed()
 
 void UPGHomeFlowComponent::HandleHelpRequested()
 {
-	if (SettingsScreenWidget || ShopScreenWidget || ReceiptShopWidget)
+	if (SettingsScreenWidget || ShopScreenWidget || ReceiptShopWidget || bIsScreenTransitionActive)
 	{
 		return;
 	}
@@ -720,7 +872,7 @@ void UPGHomeFlowComponent::HandleRunCountdownStarted(float Duration)
 
 	if (ShopScreenWidget)
 	{
-		ShopScreenWidget->OnShopScreenClosed.RemoveAll(this);
+		ShopScreenWidget->OnShopCloseRequested.RemoveAll(this);
 		ShopScreenWidget->OnReceiptShopRequested.RemoveAll(this);
 		ShopScreenWidget->RemoveFromParent();
 		ShopScreenWidget = nullptr;
@@ -735,7 +887,22 @@ void UPGHomeFlowComponent::HandleRunCountdownStarted(float Duration)
 
 	if (HomeScreenWidget)
 	{
-		HomeScreenWidget->PlayExitAnimation(CachedHomeFlowSettings.HomeExitAnimationDuration);
+		if (bIsScreenTransitionActive && PendingScreenTransition == EPGHomeFlowTransition::HomeToCountdown)
+		{
+			// 카메라 전환 구간은 전역 Fade가 화면을 덮은 뒤에 교체한다.
+			// Home 퇴장 애니메이션을 함께 보여주면 Fade와 중복되어 전환 타이밍이 어색해진다.
+			HomeScreenWidget->OnStartDeliveryRequested.RemoveAll(this);
+			HomeScreenWidget->OnShopRequested.RemoveAll(this);
+			HomeScreenWidget->OnSettingsRequested.RemoveAll(this);
+			HomeScreenWidget->OnHelpRequested.RemoveAll(this);
+			HomeScreenWidget->OnReceiptShopRequested.RemoveAll(this);
+			HomeScreenWidget->RemoveFromParent();
+			HomeScreenWidget = nullptr;
+		}
+		else
+		{
+			HomeScreenWidget->PlayExitAnimation(CachedHomeFlowSettings.HomeExitAnimationDuration);
+		}
 	}
 
 	BlendToRunnerCamera();

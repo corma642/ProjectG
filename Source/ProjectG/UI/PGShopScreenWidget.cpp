@@ -135,32 +135,21 @@ void UPGShopScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaT
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
-	if (bIsOpening || bIsClosing)
+	if (bIsOpening)
 	{
 		AnimationElapsed += InDeltaTime;
 		const float RawAlpha = AnimationDuration > KINDA_SMALL_NUMBER ? FMath::Clamp(AnimationElapsed / AnimationDuration, 0.0f, 1.0f) : 1.0f;
-		const float Alpha = bIsClosing ? 1.0f - RawAlpha : RawAlpha;
+		const float Alpha = RawAlpha;
 
-		// 열림과 닫힘은 같은 패널 타이밍을 반대로 재생한다. 이렇게 두면 BP 레이아웃을 바꿔도
-		// C++은 각 패널의 최종 위치를 기준으로 RenderTransform만 보간하면 된다.
+		// Shop은 카메라 전환 화면이므로 닫힘은 HomeFlow의 전역 Fade가 담당한다.
+		// 위젯 자체는 진입 애니메이션만 재생해 중복 전환 연출을 피한다.
 		ApplyEntryAnimation(Alpha);
 
 		if (RawAlpha >= 1.0f)
 		{
-			// 닫힘 완료 시점에만 상위 HomeFlow에 알린다. 중간에 제거하면 카메라 복구와 프리뷰 복구 순서가 흔들릴 수 있다.
-			const bool bWasClosing = bIsClosing;
 			bIsOpening = false;
-			bIsClosing = false;
-			SetShopButtonsEnabled(!bWasClosing);
-			if (bWasClosing)
-			{
-				OnShopScreenClosed.Broadcast();
-				RemoveFromParent();
-			}
-			else
-			{
-				RefreshSelectedCharacterState();
-			}
+			SetShopButtonsEnabled(true);
+			RefreshSelectedCharacterState();
 		}
 	}
 
@@ -170,36 +159,23 @@ void UPGShopScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaT
 void UPGShopScreenWidget::PlayOpenAnimation()
 {
 	bIsOpening = true;
-	bIsClosing = false;
 	AnimationElapsed = 0.0f;
 	SetShopButtonsEnabled(false);
 	ApplyEntryAnimation(0.0f);
 }
 
-void UPGShopScreenWidget::PlayCloseAnimation()
-{
-	if (bIsClosing)
-	{
-		return;
-	}
-
-	bIsOpening = false;
-	bIsClosing = true;
-	AnimationElapsed = 0.0f;
-	SetShopButtonsEnabled(false);
-}
-
 void UPGShopScreenWidget::SetShopInteractionEnabled(bool bEnabled)
 {
 	bExternalInteractionEnabled = bEnabled;
-	SetShopButtonsEnabled(bEnabled && !bIsOpening && !bIsClosing);
+	SetShopButtonsEnabled(bEnabled && !bIsOpening);
 	RefreshSelectedCharacterState();
 }
 
 void UPGShopScreenWidget::HandleCloseClicked()
 {
 	UPGAudioStatics::PlayCommonButtonClick(this);
-	PlayCloseAnimation();
+	SetShopButtonsEnabled(false);
+	OnShopCloseRequested.Broadcast();
 }
 
 void UPGShopScreenWidget::HandlePrevCharacterClicked()
@@ -532,19 +508,19 @@ void UPGShopScreenWidget::RefreshSelectedCharacterState()
 	}
 	if (ActionButton)
 	{
-		ActionButton->SetIsEnabled(!bEquipped && !bIsOpening && !bIsClosing && bExternalInteractionEnabled);
+		ActionButton->SetIsEnabled(!bEquipped && !bIsOpening && bExternalInteractionEnabled);
 	}
 	if (PrevCharacterButton)
 	{
-		PrevCharacterButton->SetIsEnabled(SelectedCharacterIndex > 0 && !bIsOpening && !bIsClosing && bExternalInteractionEnabled);
+		PrevCharacterButton->SetIsEnabled(SelectedCharacterIndex > 0 && !bIsOpening && bExternalInteractionEnabled);
 	}
 	if (NextCharacterButton)
 	{
-		NextCharacterButton->SetIsEnabled(SelectedCharacterIndex < CharacterSkins.Num() - 1 && !bIsOpening && !bIsClosing && bExternalInteractionEnabled);
+		NextCharacterButton->SetIsEnabled(SelectedCharacterIndex < CharacterSkins.Num() - 1 && !bIsOpening && bExternalInteractionEnabled);
 	}
 	if (ReceiptAddButton)
 	{
-		ReceiptAddButton->SetIsEnabled(!bIsOpening && !bIsClosing && bExternalInteractionEnabled);
+		ReceiptAddButton->SetIsEnabled(!bIsOpening && bExternalInteractionEnabled);
 	}
 }
 

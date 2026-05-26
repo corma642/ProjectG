@@ -65,6 +65,7 @@ void UPGRuntimePreloadSubsystem::CollectPrimaryResourcePaths(TArray<FSoftObjectP
 	AddUniquePath(OutPaths, Settings->HomeFlow.SettingsScreenWidgetClass.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->HomeFlow.TutorialScreenWidgetClass.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->HomeFlow.TutorialPageSet.ToSoftObjectPath());
+	AddUniquePath(OutPaths, Settings->HomeFlow.ScreenTransitionFadeWidgetClass.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->Shop.ShopScreenWidgetClass.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->Shop.CharacterShopItemWidgetClass.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->Shop.CharacterShopCatalog.ToSoftObjectPath());
