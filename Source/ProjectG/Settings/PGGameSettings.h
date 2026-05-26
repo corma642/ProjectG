@@ -135,6 +135,10 @@ struct FPGGyroSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Gyro", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "20.0"))
 	float CalibrationBlendSpeed = 8.0f;
 
+	// 런 시작 또는 수동 보정 시 기울기 기준점을 잡기 위해 센서 값을 평균낼 시간
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Gyro", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0"))
+	float AutoCalibrationSampleDuration = 0.25f;
+
 	// 착지 직후 조작 안정화를 보조하는 시간
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Gyro", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "0.5"))
 	float LandingStabilizeTime = 0.15f;

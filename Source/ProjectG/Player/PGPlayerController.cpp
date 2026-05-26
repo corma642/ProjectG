@@ -76,7 +76,11 @@ void APGPlayerController::BeginPlay()
 		}
 	}
 
-	const APGGameModeBase* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APGGameModeBase>() : nullptr;
+	APGGameModeBase* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APGGameModeBase>() : nullptr;
+	if (GameMode)
+	{
+		GameMode->OnRunCountdownStarted.AddDynamic(this, &APGPlayerController::HandleRunCountdownStarted);
+	}
 	if (!GameMode || GameMode->GetRunState() == EPGRunState::Running)
 	{
 		SetInputMode(FInputModeGameOnly());
@@ -86,6 +90,11 @@ void APGPlayerController::BeginPlay()
 
 void APGPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (APGGameModeBase* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APGGameModeBase>() : nullptr)
+	{
+		GameMode->OnRunCountdownStarted.RemoveDynamic(this, &APGPlayerController::HandleRunCountdownStarted);
+	}
+
 	if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
 	{
 		if (UEnhancedInputLocalPlayerSubsystem* InputSubsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
@@ -179,6 +188,15 @@ bool APGPlayerController::HasRequiredInputAssets() const
 	return DefaultMappingContext && JumpAction && BalanceLeftAction && BalanceRightAction;
 }
 
+void APGPlayerController::HandleRunCountdownStarted(float Duration)
+{
+	// Android 첫 실행 직후 MotionState는 몇 프레임 동안 불안정할 수 있다.
+	// 실제 런 시작 전 카운트다운 구간에서 현재 자세를 다시 평균내 첫 판 기준점 틀어짐을 막는다.
+	bHasCalibration = false;
+	bIsCalibrating = false;
+	StartGyroCalibrationSample(false);
+}
+
 void APGPlayerController::HandleJumpStarted(const FInputActionValue& ActionValue)
 {
 	SendJumpRequest();
@@ -186,19 +204,9 @@ void APGPlayerController::HandleJumpStarted(const FInputActionValue& ActionValue
 
 void APGPlayerController::HandleGyroCalibrationStarted(const FInputActionValue& ActionValue)
 {
-	if (!bHasCalibration)
-	{
-		// 첫 보정은 즉시 적용해 시작 순간 입력 튐을 막는다.
-		CalibrationTilt = LastRawTilt;
-		TargetCalibrationTilt = LastRawTilt;
-		bHasCalibration = true;
-		bIsCalibrating = false;
-		return;
-	}
-
-	// 이미 기준값이 있으면 새 기준까지 부드럽게 보간해 플레이 중 급격한 입력 변화를 줄인다.
-	TargetCalibrationTilt = LastRawTilt;
-	bIsCalibrating = true;
+	// 수동 보정도 단일 프레임 값이 아니라 짧은 평균값을 사용한다.
+	// 이미 기준값이 있는 경우에는 샘플 완료 후 새 기준까지 부드럽게 보간한다.
+	StartGyroCalibrationSample(bHasCalibration);
 }
 
 void APGPlayerController::HandleBalanceLeftStarted(const FInputActionValue& ActionValue)
@@ -240,12 +248,44 @@ void APGPlayerController::UpdateGyroInput(float DeltaTime)
 	// 프로젝트 설정에서 선택한 센서 축을 중심 제어 입력으로 사용한다.
 	LastRawTilt = SelectTiltAxisValue(Tilt, CachedGyroSettings.TiltInputAxis);
 
+	if (bIsSamplingCalibration)
+	{
+		CalibrationSampleElapsedTime += DeltaTime;
+		CalibrationSampleSum += LastRawTilt;
+		++CalibrationSampleCount;
+
+		if (CalibrationSampleElapsedTime >= CachedGyroSettings.AutoCalibrationSampleDuration)
+		{
+			FinishGyroCalibrationSample();
+		}
+		else
+		{
+			// 기준점 샘플링 중에는 입력을 중립으로 고정한다. 카운트다운 중에는 조작이 잠겨 있고,
+			// 수동 보정 중에는 잠깐의 중립 유지가 단일 프레임 튐보다 낫다.
+			if (APGRunnerCharacter* RunnerCharacter = CachedRunnerCharacter.Get())
+			{
+				RunnerCharacter->SetBalanceInput(0.0f);
+			}
+			return;
+		}
+	}
+
 	if (!bHasCalibration)
 	{
-		// 별도 보정 입력이 없어도 첫 프레임 자세를 기준값으로 삼아 중립 상태를 만든다.
-		CalibrationTilt = LastRawTilt;
-		TargetCalibrationTilt = LastRawTilt;
-		bHasCalibration = true;
+		if (CachedGyroSettings.AutoCalibrationSampleDuration <= KINDA_SMALL_NUMBER)
+		{
+			StartGyroCalibrationSample(false);
+		}
+		else
+		{
+			// 첫 앱 실행 직후의 단일 MotionState 값은 기준점으로 쓰지 않는다.
+			// START/Countdown 또는 수동 보정에서 샘플링이 시작될 때까지 중립 입력만 전달한다.
+			if (APGRunnerCharacter* RunnerCharacter = CachedRunnerCharacter.Get())
+			{
+				RunnerCharacter->SetBalanceInput(0.0f);
+			}
+			return;
+		}
 	}
 
 	if (bIsCalibrating)
@@ -267,6 +307,44 @@ void APGPlayerController::UpdateGyroInput(float DeltaTime)
 		RunnerCharacter->SetBalanceInput(FinalBalanceInput);
 	}
 
+}
+
+void APGPlayerController::StartGyroCalibrationSample(bool bBlendToSample)
+{
+	bIsSamplingCalibration = true;
+	bBlendCalibrationSample = bBlendToSample;
+	CalibrationSampleSum = 0.0f;
+	CalibrationSampleCount = 0;
+	CalibrationSampleElapsedTime = 0.0f;
+	bIsCalibrating = false;
+
+	if (CachedGyroSettings.AutoCalibrationSampleDuration <= KINDA_SMALL_NUMBER)
+	{
+		CalibrationSampleSum = LastRawTilt;
+		CalibrationSampleCount = 1;
+		FinishGyroCalibrationSample();
+	}
+}
+
+void APGPlayerController::FinishGyroCalibrationSample()
+{
+	const float SampledTilt = CalibrationSampleCount > 0 ? CalibrationSampleSum / static_cast<float>(CalibrationSampleCount) : LastRawTilt;
+	bIsSamplingCalibration = false;
+	CalibrationSampleElapsedTime = 0.0f;
+	CalibrationSampleSum = 0.0f;
+	CalibrationSampleCount = 0;
+
+	if (bBlendCalibrationSample && bHasCalibration)
+	{
+		TargetCalibrationTilt = SampledTilt;
+		bIsCalibrating = true;
+		return;
+	}
+
+	CalibrationTilt = SampledTilt;
+	TargetCalibrationTilt = SampledTilt;
+	bHasCalibration = true;
+	bIsCalibrating = false;
 }
 
 float APGPlayerController::NormalizeTiltInput(float RawTilt) const

@@ -48,6 +48,9 @@ public:
 	virtual void SetupInputComponent() override;
 
 private:
+	UFUNCTION()
+	void HandleRunCountdownStarted(float Duration);
+
 	// Project Settings의 자이로 입력 설정을 캐시합니다.
 	void ApplyGameSettings();
 
@@ -80,6 +83,12 @@ private:
 
 	// 자이로 값을 중심 입력으로 변환해 전달합니다.
 	void UpdateGyroInput(float DeltaTime);
+
+	// 현재 자세를 기준점으로 삼기 위해 짧은 시간 동안 Raw 기울기 값을 평균냅니다.
+	void StartGyroCalibrationSample(bool bBlendToSample);
+
+	// 샘플링된 평균 기울기를 즉시 또는 보간 목표로 적용합니다.
+	void FinishGyroCalibrationSample();
 
 	// Raw 기울임 값을 -1~1 범위의 중심 입력으로 변환합니다.
 	float NormalizeTiltInput(float RawTilt) const;
@@ -158,6 +167,21 @@ private:
 
 	// 캘리브레이션 기준값을 부드럽게 보간 중인지 여부
 	bool bIsCalibrating = false;
+
+	// 런 시작/수동 보정 시 센서 안정화 프레임을 평균내는 중인지 여부
+	bool bIsSamplingCalibration = false;
+
+	// 샘플 완료 후 기존 기준값에서 새 기준값으로 보간할지 여부
+	bool bBlendCalibrationSample = false;
+
+	// 현재 샘플링에 누적된 Raw 기울기 값
+	float CalibrationSampleSum = 0.0f;
+
+	// 현재 샘플링에 사용한 Raw 기울기 샘플 개수
+	int32 CalibrationSampleCount = 0;
+
+	// 현재 샘플링이 진행된 시간
+	float CalibrationSampleElapsedTime = 0.0f;
 
 	// Q를 누르고 있는 동안 true가 되어 왼쪽 중심 보정을 적용합니다.
 	bool bIsBalanceLeftHeld = false;
