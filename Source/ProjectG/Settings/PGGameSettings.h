@@ -10,6 +10,8 @@ class APGMovingRunEventHazardActor;
 class UPGCargoDropSet;
 class UPGCharacterShopCatalog;
 class UPGCharacterShopItemWidget;
+class UPGMapShopCatalog;
+class UPGMapShopItemWidget;
 class UPGRunResultWidget;
 class UPGRunEventPresentationSet;
 class UPGRunEventSet;
@@ -363,6 +365,14 @@ struct FPGShopSettings
 	// 판매할 캐릭터 스킨 목록과 기본 캐릭터를 담은 카탈로그
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Shop")
 	TSoftObjectPtr<UPGCharacterShopCatalog> CharacterShopCatalog;
+
+	// 상점 맵 리스트에 사용할 카드 위젯 클래스
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Shop")
+	TSoftClassPtr<UUserWidget> MapShopItemWidgetClass;
+
+	// 판매할 맵 목록과 기본 맵을 담은 카탈로그
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Shop")
+	TSoftObjectPtr<UPGMapShopCatalog> MapShopCatalog;
 
 	// Home 영수증 + 버튼으로 표시할 영수증 상점 위젯 클래스
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Receipt Shop")

@@ -7,7 +7,9 @@
 #include "PGShopScreenWidget.generated.h"
 
 class UButton;
+class UImage;
 class UPGCharacterShopItemWidget;
+class UPGMapShopItemWidget;
 class UPGUserDataSubsystem;
 class UScrollBox;
 class UTextBlock;
@@ -15,6 +17,14 @@ class UWidget;
 
 DECLARE_MULTICAST_DELEGATE(FPGShopCloseRequestedSignature);
 DECLARE_MULTICAST_DELEGATE(FPGShopReceiptShopRequestedSignature);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPGShopMapTravelRequestedSignature, FName);
+
+UENUM()
+enum class EPGShopTab : uint8
+{
+	Characters,
+	Maps
+};
 
 /**
  * Home 상점 화면의 로직 전용 위젯입니다.
@@ -28,8 +38,9 @@ class PROJECTG_API UPGShopScreenWidget : public UUserWidget
 public:
 	FPGShopCloseRequestedSignature OnShopCloseRequested;
 	FPGShopReceiptShopRequestedSignature OnReceiptShopRequested;
+	FPGShopMapTravelRequestedSignature OnMapTravelRequested;
 
-	void InitializeShop(UPGUserDataSubsystem* InUserDataSubsystem, TSubclassOf<UPGCharacterShopItemWidget> InItemWidgetClass);
+	void InitializeShop(UPGUserDataSubsystem* InUserDataSubsystem, TSubclassOf<UPGCharacterShopItemWidget> InCharacterItemWidgetClass, TSubclassOf<UPGMapShopItemWidget> InMapItemWidgetClass);
 	void PlayOpenAnimation();
 	void SetShopInteractionEnabled(bool bEnabled);
 
@@ -76,27 +87,31 @@ protected:
 
 	// 선택 캐릭터를 이전/다음으로 넘기는 보조 버튼 영역입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
-	TObjectPtr<UWidget> CharacterNavPanel;
+	TObjectPtr<UWidget> ItemNavPanel;
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
-	TObjectPtr<UButton> PrevCharacterButton;
+	TObjectPtr<UButton> PrevItemButton;
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
-	TObjectPtr<UButton> NextCharacterButton;
+	TObjectPtr<UButton> NextItemButton;
 
 	// 캐릭터 카드 ScrollBox를 감싸는 패널입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
-	TObjectPtr<UWidget> CharacterListPanel;
+	TObjectPtr<UWidget> ItemListPanel;
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
-	TObjectPtr<UScrollBox> CharacterListBox;
+	TObjectPtr<UScrollBox> ItemListBox;
+
+	// 맵 탭 전체 콘텐츠 패널입니다. 중앙 썸네일 프리뷰와 맵 카드 리스트를 포함합니다.
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
+	TObjectPtr<UImage> SelectedMapThumbnailImage;
 
 	// 선택된 캐릭터 이름을 보여주는 상세 영역입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UWidget> SelectedNamePanel;
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
-	TObjectPtr<UTextBlock> SelectedCharacterNameText;
+	TObjectPtr<UTextBlock> SelectedItemNameText;
 
 	// 미보유 캐릭터 선택 시 가격과 영수증 아이콘을 보여주는 상세 가격 패널입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
@@ -120,13 +135,16 @@ private:
 	void HandleCloseClicked();
 
 	UFUNCTION()
-	void HandlePrevCharacterClicked();
+	void HandlePrevItemClicked();
 
 	UFUNCTION()
-	void HandleNextCharacterClicked();
+	void HandleNextItemClicked();
 
 	UFUNCTION()
 	void HandleActionClicked();
+
+	UFUNCTION()
+	void HandleCharactersTabClicked();
 
 	UFUNCTION()
 	void HandleMapsTabClicked();
@@ -143,13 +161,28 @@ private:
 	UFUNCTION()
 	void HandleShopEquippedChanged(FName SkinId);
 
+	UFUNCTION()
+	void HandleMapOwnershipChanged(FName MapId);
+
+	UFUNCTION()
+	void HandleMapEquippedChanged(FName MapId);
+
 	void SelectCharacterByIndex(int32 NewIndex);
 	void SelectCharacterById(FName SkinId);
+	void SelectMapByIndex(int32 NewIndex);
+	void SelectMapById(FName MapId);
+	void SetActiveTab(EPGShopTab NewTab);
+	void RebuildActiveItemList();
 	void RebuildCharacterList();
+	void RebuildMapList();
 	void RefreshCharacterItems();
+	void RefreshMapItems();
 	void RefreshSelectedCharacterState();
+	void RefreshSelectedMapState();
+	void RefreshActiveTabState();
 	void RefreshReceiptBalance();
 	void ScrollSelectedCharacterIntoView() const;
+	void ScrollSelectedMapIntoView() const;
 	void SetShopButtonsEnabled(bool bEnabled) const;
 	void ApplyEntryAnimation(float Alpha);
 	void ApplyWidgetAnimationState(UWidget* Widget, const FVector2D& StartOffset, float Alpha, float Delay, float Duration, float StartScale = 1.0f, float EndScale = 1.0f) const;
@@ -157,9 +190,13 @@ private:
 
 	TWeakObjectPtr<UPGUserDataSubsystem> UserDataSubsystem;
 	TSubclassOf<UPGCharacterShopItemWidget> CharacterItemWidgetClass;
+	TSubclassOf<UPGMapShopItemWidget> MapItemWidgetClass;
 
 	TArray<TObjectPtr<UPGCharacterShopItemWidget>> CharacterItemWidgets;
+	TArray<TObjectPtr<UPGMapShopItemWidget>> MapItemWidgets;
 	int32 SelectedCharacterIndex = INDEX_NONE;
+	int32 SelectedMapIndex = INDEX_NONE;
+	EPGShopTab ActiveTab = EPGShopTab::Characters;
 
 	bool bIsOpening = false;
 	float AnimationElapsed = 0.0f;

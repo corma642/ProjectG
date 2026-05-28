@@ -27,7 +27,8 @@ enum class EPGHomeFlowTransition : uint8
 	None,
 	HomeToShop,
 	ShopToHome,
-	HomeToCountdown
+	HomeToCountdown,
+	ShopToMapLevel
 };
 
 /**
@@ -84,6 +85,7 @@ private:
 	void HandleStartDeliveryRequested();
 	void HandleShopRequested();
 	void HandleShopCloseRequested();
+	void HandleShopMapTravelRequested(FName MapId);
 	void HandleReceiptShopRequested();
 	void HandleReceiptShopClosed();
 	void HandleSettingsRequested();
@@ -148,4 +150,5 @@ private:
 	bool bRetryCountdownRequested = false;
 	bool bIsScreenTransitionActive = false;
 	EPGHomeFlowTransition PendingScreenTransition = EPGHomeFlowTransition::None;
+	FName PendingMapTravelLevelName;
 };

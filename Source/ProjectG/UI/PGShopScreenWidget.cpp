@@ -4,12 +4,17 @@
 
 #include "Audio/PGAudioStatics.h"
 #include "Components/Button.h"
+#include "Components/Image.h"
 #include "Components/ScrollBox.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
+#include "Engine/World.h"
+#include "Misc/PackageName.h"
 #include "Settings/PGGameSettings.h"
 #include "Shop/PGCharacterSkinDefinition.h"
+#include "Shop/PGMapDefinition.h"
 #include "UI/PGCharacterShopItemWidget.h"
+#include "UI/PGMapShopItemWidget.h"
 #include "User/PGUserDataSubsystem.h"
 
 namespace
@@ -40,19 +45,23 @@ float ShopEaseOutBack(float Alpha)
 }
 }
 
-void UPGShopScreenWidget::InitializeShop(UPGUserDataSubsystem* InUserDataSubsystem, TSubclassOf<UPGCharacterShopItemWidget> InItemWidgetClass)
+void UPGShopScreenWidget::InitializeShop(UPGUserDataSubsystem* InUserDataSubsystem, TSubclassOf<UPGCharacterShopItemWidget> InCharacterItemWidgetClass, TSubclassOf<UPGMapShopItemWidget> InMapItemWidgetClass)
 {
 	UserDataSubsystem = InUserDataSubsystem;
-	CharacterItemWidgetClass = InItemWidgetClass;
+	CharacterItemWidgetClass = InCharacterItemWidgetClass;
+	MapItemWidgetClass = InMapItemWidgetClass;
 
 	if (UPGUserDataSubsystem* UserData = UserDataSubsystem.Get())
 	{
 		UserData->OnReceiptBalanceChanged.AddDynamic(this, &UPGShopScreenWidget::HandleReceiptBalanceChanged);
 		UserData->OnCharacterOwnershipChanged.AddDynamic(this, &UPGShopScreenWidget::HandleShopOwnershipChanged);
 		UserData->OnEquippedCharacterChanged.AddDynamic(this, &UPGShopScreenWidget::HandleShopEquippedChanged);
+		UserData->OnMapOwnershipChanged.AddDynamic(this, &UPGShopScreenWidget::HandleMapOwnershipChanged);
+		UserData->OnEquippedMapChanged.AddDynamic(this, &UPGShopScreenWidget::HandleMapEquippedChanged);
 	}
 
-	RebuildCharacterList();
+	RebuildActiveItemList();
+	RefreshActiveTabState();
 	RefreshReceiptBalance();
 }
 
@@ -64,13 +73,13 @@ void UPGShopScreenWidget::NativeConstruct()
 	{
 		CloseButton->OnClicked.AddDynamic(this, &UPGShopScreenWidget::HandleCloseClicked);
 	}
-	if (PrevCharacterButton)
+	if (PrevItemButton)
 	{
-		PrevCharacterButton->OnClicked.AddDynamic(this, &UPGShopScreenWidget::HandlePrevCharacterClicked);
+		PrevItemButton->OnClicked.AddDynamic(this, &UPGShopScreenWidget::HandlePrevItemClicked);
 	}
-	if (NextCharacterButton)
+	if (NextItemButton)
 	{
-		NextCharacterButton->OnClicked.AddDynamic(this, &UPGShopScreenWidget::HandleNextCharacterClicked);
+		NextItemButton->OnClicked.AddDynamic(this, &UPGShopScreenWidget::HandleNextItemClicked);
 	}
 	if (ActionButton)
 	{
@@ -82,12 +91,11 @@ void UPGShopScreenWidget::NativeConstruct()
 	}
 	if (MapsTabButton)
 	{
-		// 맵 상점은 아직 구현 범위가 아니므로 탭은 보이되 상호작용은 막는다.
-		MapsTabButton->SetIsEnabled(false);
+		MapsTabButton->OnClicked.AddDynamic(this, &UPGShopScreenWidget::HandleMapsTabClicked);
 	}
 	if (CharactersTabButton)
 	{
-		CharactersTabButton->SetIsEnabled(false);
+		CharactersTabButton->OnClicked.AddDynamic(this, &UPGShopScreenWidget::HandleCharactersTabClicked);
 	}
 
 	ApplyEntryAnimation(0.0f);
@@ -100,13 +108,13 @@ void UPGShopScreenWidget::NativeDestruct()
 	{
 		CloseButton->OnClicked.RemoveDynamic(this, &UPGShopScreenWidget::HandleCloseClicked);
 	}
-	if (PrevCharacterButton)
+	if (PrevItemButton)
 	{
-		PrevCharacterButton->OnClicked.RemoveDynamic(this, &UPGShopScreenWidget::HandlePrevCharacterClicked);
+		PrevItemButton->OnClicked.RemoveDynamic(this, &UPGShopScreenWidget::HandlePrevItemClicked);
 	}
-	if (NextCharacterButton)
+	if (NextItemButton)
 	{
-		NextCharacterButton->OnClicked.RemoveDynamic(this, &UPGShopScreenWidget::HandleNextCharacterClicked);
+		NextItemButton->OnClicked.RemoveDynamic(this, &UPGShopScreenWidget::HandleNextItemClicked);
 	}
 	if (ActionButton)
 	{
@@ -120,12 +128,18 @@ void UPGShopScreenWidget::NativeDestruct()
 	{
 		MapsTabButton->OnClicked.RemoveDynamic(this, &UPGShopScreenWidget::HandleMapsTabClicked);
 	}
+	if (CharactersTabButton)
+	{
+		CharactersTabButton->OnClicked.RemoveDynamic(this, &UPGShopScreenWidget::HandleCharactersTabClicked);
+	}
 
 	if (UPGUserDataSubsystem* UserData = UserDataSubsystem.Get())
 	{
 		UserData->OnReceiptBalanceChanged.RemoveDynamic(this, &UPGShopScreenWidget::HandleReceiptBalanceChanged);
 		UserData->OnCharacterOwnershipChanged.RemoveDynamic(this, &UPGShopScreenWidget::HandleShopOwnershipChanged);
 		UserData->OnEquippedCharacterChanged.RemoveDynamic(this, &UPGShopScreenWidget::HandleShopEquippedChanged);
+		UserData->OnMapOwnershipChanged.RemoveDynamic(this, &UPGShopScreenWidget::HandleMapOwnershipChanged);
+		UserData->OnEquippedMapChanged.RemoveDynamic(this, &UPGShopScreenWidget::HandleMapEquippedChanged);
 	}
 
 	Super::NativeDestruct();
@@ -149,7 +163,7 @@ void UPGShopScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaT
 		{
 			bIsOpening = false;
 			SetShopButtonsEnabled(true);
-			RefreshSelectedCharacterState();
+			RefreshActiveTabState();
 		}
 	}
 
@@ -168,7 +182,7 @@ void UPGShopScreenWidget::SetShopInteractionEnabled(bool bEnabled)
 {
 	bExternalInteractionEnabled = bEnabled;
 	SetShopButtonsEnabled(bEnabled && !bIsOpening);
-	RefreshSelectedCharacterState();
+	RefreshActiveTabState();
 }
 
 void UPGShopScreenWidget::HandleCloseClicked()
@@ -178,15 +192,25 @@ void UPGShopScreenWidget::HandleCloseClicked()
 	OnShopCloseRequested.Broadcast();
 }
 
-void UPGShopScreenWidget::HandlePrevCharacterClicked()
+void UPGShopScreenWidget::HandlePrevItemClicked()
 {
 	UPGAudioStatics::PlayCommonButtonClick(this);
+	if (ActiveTab == EPGShopTab::Maps)
+	{
+		SelectMapByIndex(SelectedMapIndex - 1);
+		return;
+	}
 	SelectCharacterByIndex(SelectedCharacterIndex - 1);
 }
 
-void UPGShopScreenWidget::HandleNextCharacterClicked()
+void UPGShopScreenWidget::HandleNextItemClicked()
 {
 	UPGAudioStatics::PlayCommonButtonClick(this);
+	if (ActiveTab == EPGShopTab::Maps)
+	{
+		SelectMapByIndex(SelectedMapIndex + 1);
+		return;
+	}
 	SelectCharacterByIndex(SelectedCharacterIndex + 1);
 }
 
@@ -196,6 +220,58 @@ void UPGShopScreenWidget::HandleActionClicked()
 	if (!UserData)
 	{
 		UPGAudioStatics::PlayCommonButtonClick(this);
+		return;
+	}
+
+	if (ActiveTab == EPGShopTab::Maps)
+	{
+		const auto& Maps = UserData->GetMaps();
+		if (!Maps.IsValidIndex(SelectedMapIndex) || !Maps[SelectedMapIndex])
+		{
+			UPGAudioStatics::PlayCommonButtonClick(this);
+			return;
+		}
+
+		const FName MapId = Maps[SelectedMapIndex]->MapId;
+		bool bSuccess = false;
+		bool bWasPurchaseAction = false;
+		if (!UserData->IsMapOwned(MapId))
+		{
+			bWasPurchaseAction = true;
+			bSuccess = UserData->PurchaseMap(MapId);
+		}
+		else if (!UserData->IsMapEquipped(MapId))
+		{
+			bSuccess = UserData->EquipMap(MapId);
+			if (bSuccess)
+			{
+				OnMapTravelRequested.Broadcast(MapId);
+			}
+		}
+		else
+		{
+			bSuccess = true;
+		}
+
+		bActionFeedbackActive = true;
+		ActionFeedbackElapsed = 0.0f;
+		bActionFeedbackSuccess = bSuccess;
+		if (bWasPurchaseAction)
+		{
+			if (const UPGGameSettings* Settings = GetDefault<UPGGameSettings>())
+			{
+				UPGAudioStatics::PlayUIButtonSound(this, bSuccess ? Settings->SFX.ShopPurchaseSuccessSound.Get() : Settings->SFX.ShopPurchaseFailSound.Get());
+			}
+			else
+			{
+				UPGAudioStatics::PlayCommonButtonClick(this);
+			}
+		}
+		else
+		{
+			UPGAudioStatics::PlayCommonButtonClick(this);
+		}
+		RefreshSelectedMapState();
 		return;
 	}
 
@@ -247,13 +323,16 @@ void UPGShopScreenWidget::HandleActionClicked()
 	RefreshSelectedCharacterState();
 }
 
+void UPGShopScreenWidget::HandleCharactersTabClicked()
+{
+	UPGAudioStatics::PlayCommonButtonClick(this);
+	SetActiveTab(EPGShopTab::Characters);
+}
+
 void UPGShopScreenWidget::HandleMapsTabClicked()
 {
 	UPGAudioStatics::PlayCommonButtonClick(this);
-	if (MapsTabButton)
-	{
-		MapsTabButton->SetIsEnabled(false);
-	}
+	SetActiveTab(EPGShopTab::Maps);
 }
 
 void UPGShopScreenWidget::HandleReceiptAddClicked()
@@ -265,7 +344,7 @@ void UPGShopScreenWidget::HandleReceiptAddClicked()
 void UPGShopScreenWidget::HandleReceiptBalanceChanged(int32 NewBalance, FName Reason)
 {
 	RefreshReceiptBalance();
-	RefreshSelectedCharacterState();
+	RefreshActiveTabState();
 }
 
 void UPGShopScreenWidget::HandleShopOwnershipChanged(FName SkinId)
@@ -278,6 +357,18 @@ void UPGShopScreenWidget::HandleShopEquippedChanged(FName SkinId)
 {
 	RefreshCharacterItems();
 	SelectCharacterById(SkinId);
+}
+
+void UPGShopScreenWidget::HandleMapOwnershipChanged(FName MapId)
+{
+	RefreshMapItems();
+	SelectMapById(MapId);
+}
+
+void UPGShopScreenWidget::HandleMapEquippedChanged(FName MapId)
+{
+	RefreshMapItems();
+	SelectMapById(MapId);
 }
 
 void UPGShopScreenWidget::SelectCharacterByIndex(int32 NewIndex)
@@ -327,15 +418,90 @@ void UPGShopScreenWidget::SelectCharacterById(FName SkinId)
 	}
 }
 
-void UPGShopScreenWidget::RebuildCharacterList()
+void UPGShopScreenWidget::SelectMapByIndex(int32 NewIndex)
 {
 	UPGUserDataSubsystem* UserData = UserDataSubsystem.Get();
-	if (!UserData || !CharacterListBox || !CharacterItemWidgetClass)
+	if (!UserData)
 	{
 		return;
 	}
 
-	CharacterListBox->ClearChildren();
+	const int32 MapCount = UserData->GetMaps().Num();
+	if (MapCount <= 0)
+	{
+		return;
+	}
+
+	SelectedMapIndex = FMath::Clamp(NewIndex, 0, MapCount - 1);
+	const UPGMapDefinition* SelectedMap = UserData->GetMaps()[SelectedMapIndex];
+	if (SelectedMap)
+	{
+		UserData->SetLastSelectedMapId(SelectedMap->MapId);
+	}
+	RefreshSelectedMapState();
+	RefreshMapItems();
+	ScrollSelectedMapIntoView();
+}
+
+void UPGShopScreenWidget::SelectMapById(FName MapId)
+{
+	UPGUserDataSubsystem* UserData = UserDataSubsystem.Get();
+	if (!UserData)
+	{
+		return;
+	}
+
+	const auto& Maps = UserData->GetMaps();
+	for (int32 Index = 0; Index < Maps.Num(); ++Index)
+	{
+		if (Maps[Index] && Maps[Index]->MapId == MapId)
+		{
+			SelectMapByIndex(Index);
+			return;
+		}
+	}
+}
+
+void UPGShopScreenWidget::SetActiveTab(EPGShopTab NewTab)
+{
+	if (ActiveTab == NewTab)
+	{
+		RefreshActiveTabState();
+		return;
+	}
+
+	ActiveTab = NewTab;
+	RebuildActiveItemList();
+	RefreshActiveTabState();
+}
+
+void UPGShopScreenWidget::RebuildActiveItemList()
+{
+	if (ItemListBox)
+	{
+		ItemListBox->ClearChildren();
+	}
+	CharacterItemWidgets.Reset();
+	MapItemWidgets.Reset();
+
+	if (ActiveTab == EPGShopTab::Maps)
+	{
+		RebuildMapList();
+	}
+	else
+	{
+		RebuildCharacterList();
+	}
+}
+
+void UPGShopScreenWidget::RebuildCharacterList()
+{
+	UPGUserDataSubsystem* UserData = UserDataSubsystem.Get();
+	if (!UserData || !ItemListBox || !CharacterItemWidgetClass)
+	{
+		return;
+	}
+
 	CharacterItemWidgets.Reset();
 
 	const auto& CharacterSkins = UserData->GetCharacterSkins();
@@ -404,7 +570,7 @@ void UPGShopScreenWidget::RebuildCharacterList()
 		// RefreshCharacterItems()에서 기존 카드의 상태만 갱신해 ScrollBox 관성 입력을 보존한다.
 		ItemWidget->SetCharacterSkin(SkinDefinition, bOwned, bEquipped, bSelected);
 		ItemWidget->OnCharacterSelected.AddUObject(this, &UPGShopScreenWidget::SelectCharacterById);
-		CharacterListBox->AddChild(ItemWidget);
+		ItemListBox->AddChild(ItemWidget);
 		CharacterItemWidgets.Add(ItemWidget);
 	}
 
@@ -417,6 +583,91 @@ void UPGShopScreenWidget::RebuildCharacterList()
 	}
 	RefreshSelectedCharacterState();
 	ScrollSelectedCharacterIntoView();
+}
+
+void UPGShopScreenWidget::RebuildMapList()
+{
+	UPGUserDataSubsystem* UserData = UserDataSubsystem.Get();
+	if (!UserData || !ItemListBox || !MapItemWidgetClass)
+	{
+		return;
+	}
+
+	MapItemWidgets.Reset();
+
+	const auto& Maps = UserData->GetMaps();
+	if (Maps.Num() > 0)
+	{
+		if (SelectedMapIndex == INDEX_NONE)
+		{
+			const auto FindMapIndex = [&Maps](FName MapId) -> int32
+			{
+				if (MapId.IsNone())
+				{
+					return INDEX_NONE;
+				}
+
+				for (int32 Index = 0; Index < Maps.Num(); ++Index)
+				{
+					if (Maps[Index] && Maps[Index]->MapId == MapId)
+					{
+						return Index;
+					}
+				}
+				return INDEX_NONE;
+			};
+
+			SelectedMapIndex = FindMapIndex(UserData->GetLastSelectedMapId());
+			if (SelectedMapIndex == INDEX_NONE)
+			{
+				const UPGMapDefinition* EquippedMap = UserData->GetEquippedMap();
+				SelectedMapIndex = EquippedMap ? FindMapIndex(EquippedMap->MapId) : INDEX_NONE;
+			}
+			if (SelectedMapIndex == INDEX_NONE)
+			{
+				SelectedMapIndex = 0;
+			}
+		}
+		else
+		{
+			SelectedMapIndex = FMath::Clamp(SelectedMapIndex, 0, Maps.Num() - 1);
+		}
+	}
+	else
+	{
+		SelectedMapIndex = INDEX_NONE;
+	}
+
+	for (int32 Index = 0; Index < Maps.Num(); ++Index)
+	{
+		UPGMapDefinition* MapDefinition = Maps[Index];
+		if (!MapDefinition)
+		{
+			continue;
+		}
+
+		UPGMapShopItemWidget* ItemWidget = CreateWidget<UPGMapShopItemWidget>(GetOwningPlayer(), MapItemWidgetClass);
+		if (!ItemWidget)
+		{
+			continue;
+		}
+
+		const bool bOwned = UserData->IsMapOwned(MapDefinition->MapId);
+		const bool bEquipped = UserData->IsMapEquipped(MapDefinition->MapId);
+		const bool bSelected = Index == SelectedMapIndex;
+		ItemWidget->SetMapDefinition(MapDefinition, bOwned, bEquipped, bSelected);
+		ItemWidget->OnMapSelected.AddUObject(this, &UPGShopScreenWidget::SelectMapById);
+		ItemListBox->AddChild(ItemWidget);
+		MapItemWidgets.Add(ItemWidget);
+	}
+
+	if (const UPGMapDefinition* SelectedMap = Maps.IsValidIndex(SelectedMapIndex) ? Maps[SelectedMapIndex] : nullptr)
+	{
+		UserData->SetLastSelectedMapId(SelectedMap->MapId);
+	}
+	RefreshMapItems();
+	RefreshSelectedMapState();
+	ScrollSelectedMapIntoView();
 }
 
 void UPGShopScreenWidget::RefreshCharacterItems()
@@ -444,6 +695,31 @@ void UPGShopScreenWidget::RefreshCharacterItems()
 	}
 }
 
+void UPGShopScreenWidget::RefreshMapItems()
+{
+	UPGUserDataSubsystem* UserData = UserDataSubsystem.Get();
+	if (!UserData)
+	{
+		return;
+	}
+
+	const auto& Maps = UserData->GetMaps();
+	for (int32 Index = 0; Index < MapItemWidgets.Num(); ++Index)
+	{
+		UPGMapShopItemWidget* ItemWidget = MapItemWidgets[Index];
+		const UPGMapDefinition* MapDefinition = Maps.IsValidIndex(Index) ? Maps[Index] : nullptr;
+		if (!ItemWidget || !MapDefinition)
+		{
+			continue;
+		}
+
+		const bool bOwned = UserData->IsMapOwned(MapDefinition->MapId);
+		const bool bEquipped = UserData->IsMapEquipped(MapDefinition->MapId);
+		const bool bSelected = Index == SelectedMapIndex;
+		ItemWidget->SetMapDefinition(MapDefinition, bOwned, bEquipped, bSelected);
+	}
+}
+
 void UPGShopScreenWidget::RefreshSelectedCharacterState()
 {
 	UPGUserDataSubsystem* UserData = UserDataSubsystem.Get();
@@ -456,9 +732,9 @@ void UPGShopScreenWidget::RefreshSelectedCharacterState()
 	const UPGCharacterSkinDefinition* SelectedSkin = CharacterSkins.IsValidIndex(SelectedCharacterIndex) ? CharacterSkins[SelectedCharacterIndex] : nullptr;
 	if (!SelectedSkin)
 	{
-		if (SelectedCharacterNameText)
+		if (SelectedItemNameText)
 		{
-			SelectedCharacterNameText->SetText(FText::GetEmpty());
+			SelectedItemNameText->SetText(FText::GetEmpty());
 		}
 		if (SelectedPricePanel)
 		{
@@ -475,9 +751,9 @@ void UPGShopScreenWidget::RefreshSelectedCharacterState()
 		return;
 	}
 
-	if (SelectedCharacterNameText)
+	if (SelectedItemNameText)
 	{
-		SelectedCharacterNameText->SetText(SelectedSkin->DisplayName);
+		SelectedItemNameText->SetText(SelectedSkin->DisplayName);
 	}
 
 	const bool bOwned = UserData->IsCharacterOwned(SelectedSkin->SkinId);
@@ -510,17 +786,147 @@ void UPGShopScreenWidget::RefreshSelectedCharacterState()
 	{
 		ActionButton->SetIsEnabled(!bEquipped && !bIsOpening && bExternalInteractionEnabled);
 	}
-	if (PrevCharacterButton)
+	if (PrevItemButton)
 	{
-		PrevCharacterButton->SetIsEnabled(SelectedCharacterIndex > 0 && !bIsOpening && bExternalInteractionEnabled);
+		PrevItemButton->SetIsEnabled(SelectedCharacterIndex > 0 && !bIsOpening && bExternalInteractionEnabled);
 	}
-	if (NextCharacterButton)
+	if (NextItemButton)
 	{
-		NextCharacterButton->SetIsEnabled(SelectedCharacterIndex < CharacterSkins.Num() - 1 && !bIsOpening && bExternalInteractionEnabled);
+		NextItemButton->SetIsEnabled(SelectedCharacterIndex < CharacterSkins.Num() - 1 && !bIsOpening && bExternalInteractionEnabled);
 	}
 	if (ReceiptAddButton)
 	{
 		ReceiptAddButton->SetIsEnabled(!bIsOpening && bExternalInteractionEnabled);
+	}
+}
+
+void UPGShopScreenWidget::RefreshSelectedMapState()
+{
+	UPGUserDataSubsystem* UserData = UserDataSubsystem.Get();
+	if (!UserData)
+	{
+		return;
+	}
+
+	const auto& Maps = UserData->GetMaps();
+	const UPGMapDefinition* SelectedMap = Maps.IsValidIndex(SelectedMapIndex) ? Maps[SelectedMapIndex] : nullptr;
+	if (!SelectedMap)
+	{
+		if (SelectedItemNameText)
+		{
+			SelectedItemNameText->SetText(FText::GetEmpty());
+		}
+		if (SelectedMapThumbnailImage)
+		{
+			SelectedMapThumbnailImage->SetBrushFromTexture(nullptr);
+		}
+		if (SelectedPricePanel)
+		{
+			SelectedPricePanel->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		if (SelectedPriceText)
+		{
+			SelectedPriceText->SetText(FText::GetEmpty());
+		}
+		if (ActionButton)
+		{
+			ActionButton->SetIsEnabled(false);
+		}
+		return;
+	}
+
+	if (SelectedItemNameText)
+	{
+		SelectedItemNameText->SetText(SelectedMap->DisplayName);
+	}
+	if (SelectedMapThumbnailImage)
+	{
+		SelectedMapThumbnailImage->SetBrushFromTexture(SelectedMap->Thumbnail.Get());
+	}
+
+	const bool bOwned = UserData->IsMapOwned(SelectedMap->MapId);
+	const bool bEquipped = UserData->IsMapEquipped(SelectedMap->MapId);
+	if (SelectedPricePanel)
+	{
+		SelectedPricePanel->SetVisibility(!bOwned ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+	if (SelectedPriceText)
+	{
+		SelectedPriceText->SetText(!bOwned ? FText::AsNumber(FMath::Max(0, SelectedMap->PriceReceipts)) : FText::GetEmpty());
+	}
+	if (ActionButtonText)
+	{
+		if (!bOwned)
+		{
+			ActionButtonText->SetText(NSLOCTEXT("ProjectGShop", "BuyMap", "BUY"));
+		}
+		else if (!bEquipped)
+		{
+			ActionButtonText->SetText(NSLOCTEXT("ProjectGShop", "HeldMap", "HOLDED"));
+		}
+		else
+		{
+			ActionButtonText->SetText(NSLOCTEXT("ProjectGShop", "SelectedMap", "SELECTED"));
+		}
+	}
+	if (ActionButton)
+	{
+		ActionButton->SetIsEnabled(!bEquipped && !bIsOpening && bExternalInteractionEnabled);
+	}
+	if (PrevItemButton)
+	{
+		PrevItemButton->SetIsEnabled(SelectedMapIndex > 0 && !bIsOpening && bExternalInteractionEnabled);
+	}
+	if (NextItemButton)
+	{
+		NextItemButton->SetIsEnabled(SelectedMapIndex < Maps.Num() - 1 && !bIsOpening && bExternalInteractionEnabled);
+	}
+	if (ReceiptAddButton)
+	{
+		ReceiptAddButton->SetIsEnabled(!bIsOpening && bExternalInteractionEnabled);
+	}
+}
+
+void UPGShopScreenWidget::RefreshActiveTabState()
+{
+	const bool bCharactersActive = ActiveTab == EPGShopTab::Characters;
+	if (ItemNavPanel)
+	{
+		ItemNavPanel->SetVisibility(ESlateVisibility::Visible);
+	}
+	if (ItemListPanel)
+	{
+		ItemListPanel->SetVisibility(ESlateVisibility::Visible);
+	}
+	if (SelectedItemNameText)
+	{
+		SelectedItemNameText->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+	if (SelectedMapThumbnailImage)
+	{
+		SelectedMapThumbnailImage->SetVisibility(bCharactersActive ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+
+	if (CharactersTabButton)
+	{
+		CharactersTabButton->SetIsEnabled(!bCharactersActive && !bIsOpening && bExternalInteractionEnabled);
+	}
+	if (MapsTabButton)
+	{
+		MapsTabButton->SetIsEnabled(bCharactersActive && !bIsOpening && bExternalInteractionEnabled);
+	}
+
+	if (bCharactersActive)
+	{
+		RefreshSelectedCharacterState();
+		RefreshCharacterItems();
+		ScrollSelectedCharacterIntoView();
+	}
+	else
+	{
+		RefreshSelectedMapState();
+		RefreshMapItems();
+		ScrollSelectedMapIntoView();
 	}
 }
 
@@ -535,14 +941,27 @@ void UPGShopScreenWidget::RefreshReceiptBalance()
 
 void UPGShopScreenWidget::ScrollSelectedCharacterIntoView() const
 {
-	if (!CharacterListBox || !CharacterItemWidgets.IsValidIndex(SelectedCharacterIndex))
+	if (!ItemListBox || !CharacterItemWidgets.IsValidIndex(SelectedCharacterIndex))
 	{
 		return;
 	}
 
 	if (UPGCharacterShopItemWidget* SelectedItemWidget = CharacterItemWidgets[SelectedCharacterIndex])
 	{
-		CharacterListBox->ScrollWidgetIntoView(SelectedItemWidget, true, EDescendantScrollDestination::Center);
+		ItemListBox->ScrollWidgetIntoView(SelectedItemWidget, true, EDescendantScrollDestination::Center);
+	}
+}
+
+void UPGShopScreenWidget::ScrollSelectedMapIntoView() const
+{
+	if (!ItemListBox || !MapItemWidgets.IsValidIndex(SelectedMapIndex))
+	{
+		return;
+	}
+
+	if (UPGMapShopItemWidget* SelectedItemWidget = MapItemWidgets[SelectedMapIndex])
+	{
+		ItemListBox->ScrollWidgetIntoView(SelectedItemWidget, true, EDescendantScrollDestination::Center);
 	}
 }
 
@@ -553,13 +972,13 @@ void UPGShopScreenWidget::SetShopButtonsEnabled(bool bEnabled) const
 	{
 		CloseButton->SetIsEnabled(bCanInteract);
 	}
-	if (PrevCharacterButton)
+	if (PrevItemButton)
 	{
-		PrevCharacterButton->SetIsEnabled(bCanInteract);
+		PrevItemButton->SetIsEnabled(bCanInteract);
 	}
-	if (NextCharacterButton)
+	if (NextItemButton)
 	{
-		NextCharacterButton->SetIsEnabled(bCanInteract);
+		NextItemButton->SetIsEnabled(bCanInteract);
 	}
 	if (ActionButton)
 	{
@@ -571,17 +990,24 @@ void UPGShopScreenWidget::SetShopButtonsEnabled(bool bEnabled) const
 	}
 	if (CharactersTabButton)
 	{
-		CharactersTabButton->SetIsEnabled(false);
+		CharactersTabButton->SetIsEnabled(bCanInteract && ActiveTab != EPGShopTab::Characters);
 	}
 	if (MapsTabButton)
 	{
-		MapsTabButton->SetIsEnabled(false);
+		MapsTabButton->SetIsEnabled(bCanInteract && ActiveTab != EPGShopTab::Maps);
 	}
 	for (UPGCharacterShopItemWidget* ItemWidget : CharacterItemWidgets)
 	{
 		if (ItemWidget)
 		{
-			ItemWidget->SetSelectionEnabled(bCanInteract);
+			ItemWidget->SetSelectionEnabled(bCanInteract && ActiveTab == EPGShopTab::Characters);
+		}
+	}
+	for (UPGMapShopItemWidget* ItemWidget : MapItemWidgets)
+	{
+		if (ItemWidget)
+		{
+			ItemWidget->SetSelectionEnabled(bCanInteract && ActiveTab == EPGShopTab::Maps);
 		}
 	}
 }
@@ -595,8 +1021,8 @@ void UPGShopScreenWidget::ApplyEntryAnimation(float Alpha)
 	ApplyWidgetAnimationState(ReceiptPanel, FVector2D(ShopReceiptStartXOffset, ShopTopBarStartYOffset), Alpha, 0.09f, ShopElementAnimationDuration, 1.0f, 1.0f);
 	ApplyWidgetAnimationState(CloseButton, FVector2D(ShopCloseStartXOffset, ShopTopBarStartYOffset), Alpha, 0.1f, ShopElementAnimationDuration, 1.0f, 1.0f);
 	ApplyWidgetAnimationState(TabPanel, FVector2D(0.0f, -120.0f), Alpha, 0.12f, ShopElementAnimationDuration, 0.98f, 1.0f);
-	ApplyWidgetAnimationState(CharacterNavPanel, FVector2D::ZeroVector, Alpha, 0.16f, ShopElementAnimationDuration, 0.9f, 1.0f);
-	ApplyWidgetAnimationState(CharacterListPanel, FVector2D(0.0f, ShopListStartYOffset), Alpha, 0.18f, ShopElementAnimationDuration, 0.98f, 1.0f);
+	ApplyWidgetAnimationState(ItemNavPanel, FVector2D::ZeroVector, Alpha, 0.16f, ShopElementAnimationDuration, 0.9f, 1.0f);
+	ApplyWidgetAnimationState(ItemListPanel, FVector2D(0.0f, ShopListStartYOffset), Alpha, 0.18f, ShopElementAnimationDuration, 0.98f, 1.0f);
 	ApplyWidgetAnimationState(SelectedNamePanel, FVector2D(0.0f, 70.0f), Alpha, 0.23f, ShopElementAnimationDuration, 0.92f, 1.0f);
 	ApplyWidgetAnimationState(SelectedPricePanel, FVector2D(0.0f, 86.0f), Alpha, 0.25f, ShopElementAnimationDuration, 0.92f, 1.0f);
 	ApplyWidgetAnimationState(ActionButtonPanel, FVector2D(0.0f, ShopActionStartYOffset), Alpha, 0.29f, ShopElementAnimationDuration, 0.94f, 1.0f);

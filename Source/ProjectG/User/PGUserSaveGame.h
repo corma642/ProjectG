@@ -32,4 +32,12 @@ public:
 	// 현재 러너에 적용할 장착 캐릭터 스킨 ID입니다.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectG | User")
 	FName EquippedCharacterSkinId;
+
+	// 구매했거나 기본 보유 중인 맵 상품 ID 목록입니다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectG | User")
+	TArray<FName> OwnedMapIds;
+
+	// 현재 Home/Run 레벨로 사용할 장착 맵 ID입니다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectG | User")
+	FName EquippedMapId;
 };

@@ -9,6 +9,8 @@
 class APGRunnerCharacter;
 class UPGCharacterShopCatalog;
 class UPGCharacterSkinDefinition;
+class UPGMapDefinition;
+class UPGMapShopCatalog;
 class UPGUserSaveGame;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPGUserReceiptBalanceChangedSignature, int32, NewBalance, FName, Reason);
@@ -41,11 +43,18 @@ public:
 	const UPGCharacterSkinDefinition* FindCharacterSkin(FName SkinId) const;
 	const UPGCharacterSkinDefinition* GetDefaultCharacterSkin() const;
 	const UPGCharacterSkinDefinition* GetEquippedCharacterSkin() const;
+	const UPGMapShopCatalog* GetMapCatalog() const;
+	const TArray<TObjectPtr<UPGMapDefinition>>& GetMaps() const;
+	const UPGMapDefinition* FindMap(FName MapId) const;
+	const UPGMapDefinition* GetDefaultMap() const;
+	const UPGMapDefinition* GetEquippedMap() const;
 	void RefreshShopCatalog();
 
 	void SetPreviewRunner(APGRunnerCharacter* RunnerCharacter);
 	void SetLastSelectedCharacterSkinId(FName SkinId);
 	FName GetLastSelectedCharacterSkinId() const { return LastSelectedCharacterSkinId; }
+	void SetLastSelectedMapId(FName MapId);
+	FName GetLastSelectedMapId() const { return LastSelectedMapId; }
 
 	UFUNCTION(BlueprintPure, Category = "ProjectG | User")
 	bool IsCharacterOwned(FName SkinId) const;
@@ -53,11 +62,23 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | User")
 	bool IsCharacterEquipped(FName SkinId) const;
 
+	UFUNCTION(BlueprintPure, Category = "ProjectG | User")
+	bool IsMapOwned(FName MapId) const;
+
+	UFUNCTION(BlueprintPure, Category = "ProjectG | User")
+	bool IsMapEquipped(FName MapId) const;
+
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | User")
 	bool PurchaseCharacter(FName SkinId);
 
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | User")
 	bool EquipCharacter(FName SkinId);
+
+	UFUNCTION(BlueprintCallable, Category = "ProjectG | User")
+	bool PurchaseMap(FName MapId);
+
+	UFUNCTION(BlueprintCallable, Category = "ProjectG | User")
+	bool EquipMap(FName MapId);
 
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | User")
 	bool PreviewCharacter(FName SkinId);
@@ -76,6 +97,12 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | User")
 	FPGUserCharacterSkinChangedSignature OnEquippedCharacterChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "ProjectG | User")
+	FPGUserCharacterSkinChangedSignature OnMapOwnershipChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "ProjectG | User")
+	FPGUserCharacterSkinChangedSignature OnEquippedMapChanged;
 
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | User")
 	FPGUserCharacterSkinChangedSignature OnPreviewCharacterChanged;
@@ -99,8 +126,15 @@ private:
 	TObjectPtr<UPGCharacterShopCatalog> CachedCatalog;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UPGMapShopCatalog> CachedMapCatalog;
+
+	UPROPERTY(Transient)
 	TArray<TObjectPtr<UPGCharacterSkinDefinition>> CachedCharacterSkins;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UPGMapDefinition>> CachedMaps;
 
 	TWeakObjectPtr<APGRunnerCharacter> PreviewRunnerCharacter;
 	FName LastSelectedCharacterSkinId;
+	FName LastSelectedMapId;
 };

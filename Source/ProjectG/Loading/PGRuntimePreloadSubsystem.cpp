@@ -8,6 +8,8 @@
 #include "Settings/PGGameSettings.h"
 #include "Shop/PGCharacterShopCatalog.h"
 #include "Shop/PGCharacterSkinDefinition.h"
+#include "Shop/PGMapDefinition.h"
+#include "Shop/PGMapShopCatalog.h"
 #include "Sound/SoundBase.h"
 #include "Tutorial/PGTutorialPageSet.h"
 
@@ -69,6 +71,8 @@ void UPGRuntimePreloadSubsystem::CollectPrimaryResourcePaths(TArray<FSoftObjectP
 	AddUniquePath(OutPaths, Settings->Shop.ShopScreenWidgetClass.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->Shop.CharacterShopItemWidgetClass.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->Shop.CharacterShopCatalog.ToSoftObjectPath());
+	AddUniquePath(OutPaths, Settings->Shop.MapShopItemWidgetClass.ToSoftObjectPath());
+	AddUniquePath(OutPaths, Settings->Shop.MapShopCatalog.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->Shop.ReceiptShopWidgetClass.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->Shop.ReceiptShopPackItemWidgetClass.ToSoftObjectPath());
 	for (const FPGReceiptShopPack& ReceiptPack : Settings->Shop.ReceiptPacks)
@@ -165,6 +169,24 @@ void UPGRuntimePreloadSubsystem::CollectNestedResourcePaths(TArray<FSoftObjectPa
 			if (SkinDefinition->AnimClass)
 			{
 				AddUniquePath(OutPaths, FSoftObjectPath(SkinDefinition->AnimClass));
+			}
+		}
+	}
+
+	const UPGMapShopCatalog* MapCatalog = Settings->Shop.MapShopCatalog.Get();
+	if (MapCatalog)
+	{
+		for (const UPGMapDefinition* MapDefinition : MapCatalog->Maps)
+		{
+			if (!MapDefinition)
+			{
+				continue;
+			}
+
+			AddUniquePath(OutPaths, FSoftObjectPath(MapDefinition));
+			if (MapDefinition->Thumbnail)
+			{
+				AddUniquePath(OutPaths, FSoftObjectPath(MapDefinition->Thumbnail.Get()));
 			}
 		}
 	}

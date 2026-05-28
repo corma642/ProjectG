@@ -9,13 +9,17 @@
 #include "EngineUtils.h"
 #include "GameModes/PGGameModeBase.h"
 #include "Loading/PGRuntimePreloadSubsystem.h"
+#include "Kismet/GameplayStatics.h"
+#include "Misc/PackageName.h"
 #include "Player/PGPlayerController.h"
+#include "Shop/PGMapDefinition.h"
 #include "UI/PGHomeScreenWidget.h"
 #include "UI/PGReceiptShopPackItemWidget.h"
 #include "UI/PGReceiptShopWidget.h"
 #include "UI/PGRunCountdownWidget.h"
 #include "UI/PGScreenTransitionFadeWidget.h"
 #include "UI/PGCharacterShopItemWidget.h"
+#include "UI/PGMapShopItemWidget.h"
 #include "UI/PGShopScreenWidget.h"
 #include "UI/PGSettingsScreenWidget.h"
 #include "UI/PGTutorialScreenWidget.h"
@@ -405,6 +409,7 @@ void UPGHomeFlowComponent::CleanupWidgets()
 	{
 		ShopScreenWidget->OnShopCloseRequested.RemoveAll(this);
 		ShopScreenWidget->OnReceiptShopRequested.RemoveAll(this);
+		ShopScreenWidget->OnMapTravelRequested.RemoveAll(this);
 		ShopScreenWidget->RemoveFromParent();
 		ShopScreenWidget = nullptr;
 	}
@@ -505,6 +510,7 @@ void UPGHomeFlowComponent::ApplyPendingScreenTransition()
 		{
 			ShopScreenWidget->OnShopCloseRequested.RemoveAll(this);
 			ShopScreenWidget->OnReceiptShopRequested.RemoveAll(this);
+			ShopScreenWidget->OnMapTravelRequested.RemoveAll(this);
 			ShopScreenWidget->RemoveFromParent();
 			ShopScreenWidget = nullptr;
 		}
@@ -524,6 +530,12 @@ void UPGHomeFlowComponent::ApplyPendingScreenTransition()
 		if (BoundGameMode)
 		{
 			BoundGameMode->RequestStartDelivery();
+		}
+		break;
+	case EPGHomeFlowTransition::ShopToMapLevel:
+		if (!PendingMapTravelLevelName.IsNone())
+		{
+			UGameplayStatics::OpenLevel(this, PendingMapTravelLevelName);
 		}
 		break;
 	default:
@@ -555,6 +567,7 @@ void UPGHomeFlowComponent::FinishScreenTransition()
 	}
 
 	PendingScreenTransition = EPGHomeFlowTransition::None;
+	PendingMapTravelLevelName = NAME_None;
 	bIsScreenTransitionActive = false;
 }
 
@@ -562,6 +575,7 @@ bool UPGHomeFlowComponent::AreShopScreenResourcesReady() const
 {
 	const UClass* WidgetClass = CachedShopSettings.ShopScreenWidgetClass.Get();
 	const UClass* ItemWidgetClass = CachedShopSettings.CharacterShopItemWidgetClass.Get();
+	const UClass* MapItemWidgetClass = CachedShopSettings.MapShopItemWidgetClass.Get();
 	if (!WidgetClass)
 	{
 		UE_LOG(LogPGHomeFlow, Warning, TEXT("ShopScreenWidgetClass is not set. Create WBP_ShopScreen and assign it in Go Deliver Settings > Shop."));
@@ -575,6 +589,11 @@ bool UPGHomeFlowComponent::AreShopScreenResourcesReady() const
 	if (!ItemWidgetClass || !ItemWidgetClass->IsChildOf(UPGCharacterShopItemWidget::StaticClass()))
 	{
 		UE_LOG(LogPGHomeFlow, Warning, TEXT("CharacterShopItemWidgetClass must inherit UPGCharacterShopItemWidget."));
+		return false;
+	}
+	if (!MapItemWidgetClass || !MapItemWidgetClass->IsChildOf(UPGMapShopItemWidget::StaticClass()))
+	{
+		UE_LOG(LogPGHomeFlow, Warning, TEXT("MapShopItemWidgetClass must inherit UPGMapShopItemWidget."));
 		return false;
 	}
 
@@ -593,6 +612,7 @@ void UPGHomeFlowComponent::ShowShopScreen()
 
 	UClass* WidgetClass = CachedShopSettings.ShopScreenWidgetClass.Get();
 	UClass* ItemWidgetClass = CachedShopSettings.CharacterShopItemWidgetClass.Get();
+	UClass* MapItemWidgetClass = CachedShopSettings.MapShopItemWidgetClass.Get();
 	ShopScreenWidget = CreateWidget<UPGShopScreenWidget>(OwnerPlayerController, TSubclassOf<UPGShopScreenWidget>(WidgetClass));
 	if (!ShopScreenWidget)
 	{
@@ -607,8 +627,9 @@ void UPGHomeFlowComponent::ShowShopScreen()
 	SetShopCameraViewTarget();
 	ShopScreenWidget->OnShopCloseRequested.AddUObject(this, &UPGHomeFlowComponent::HandleShopCloseRequested);
 	ShopScreenWidget->OnReceiptShopRequested.AddUObject(this, &UPGHomeFlowComponent::HandleReceiptShopRequested);
+	ShopScreenWidget->OnMapTravelRequested.AddUObject(this, &UPGHomeFlowComponent::HandleShopMapTravelRequested);
 	ShopScreenWidget->AddToViewport(30);
-	ShopScreenWidget->InitializeShop(UserDataSubsystem, TSubclassOf<UPGCharacterShopItemWidget>(ItemWidgetClass));
+	ShopScreenWidget->InitializeShop(UserDataSubsystem, TSubclassOf<UPGCharacterShopItemWidget>(ItemWidgetClass), TSubclassOf<UPGMapShopItemWidget>(MapItemWidgetClass));
 	ShopScreenWidget->PlayOpenAnimation();
 }
 
@@ -664,6 +685,40 @@ void UPGHomeFlowComponent::HandleShopCloseRequested()
 		{
 			HomeScreenWidget->SetHomeButtonsEnabled(true);
 		}
+	}
+}
+
+void UPGHomeFlowComponent::HandleShopMapTravelRequested(FName MapId)
+{
+	if (bIsScreenTransitionActive || !UserDataSubsystem)
+	{
+		return;
+	}
+
+	const UPGMapDefinition* MapDefinition = UserDataSubsystem->FindMap(MapId);
+	if (!MapDefinition || MapDefinition->Level.IsNull())
+	{
+		UE_LOG(LogPGHomeFlow, Warning, TEXT("Selected map '%s' has no level to open."), *MapId.ToString());
+		return;
+	}
+
+	const FString PackageName = FPackageName::ObjectPathToPackageName(MapDefinition->Level.ToSoftObjectPath().ToString());
+	if (PackageName.IsEmpty())
+	{
+		UE_LOG(LogPGHomeFlow, Warning, TEXT("Selected map '%s' has invalid level path '%s'."), *MapId.ToString(), *MapDefinition->Level.ToSoftObjectPath().ToString());
+		return;
+	}
+
+	PendingMapTravelLevelName = FName(*PackageName);
+	if (ShopScreenWidget)
+	{
+		ShopScreenWidget->SetShopInteractionEnabled(false);
+	}
+
+	if (!StartScreenTransition(EPGHomeFlowTransition::ShopToMapLevel) && ShopScreenWidget)
+	{
+		ShopScreenWidget->SetShopInteractionEnabled(true);
+		PendingMapTravelLevelName = NAME_None;
 	}
 }
 
@@ -877,6 +932,7 @@ void UPGHomeFlowComponent::HandleRunCountdownStarted(float Duration)
 	{
 		ShopScreenWidget->OnShopCloseRequested.RemoveAll(this);
 		ShopScreenWidget->OnReceiptShopRequested.RemoveAll(this);
+		ShopScreenWidget->OnMapTravelRequested.RemoveAll(this);
 		ShopScreenWidget->RemoveFromParent();
 		ShopScreenWidget = nullptr;
 	}

@@ -8,6 +8,8 @@
 #include "Settings/PGGameSettings.h"
 #include "Shop/PGCharacterShopCatalog.h"
 #include "Shop/PGCharacterSkinDefinition.h"
+#include "Shop/PGMapDefinition.h"
+#include "Shop/PGMapShopCatalog.h"
 #include "User/PGUserSaveGame.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGUserData, Log, All);
@@ -27,7 +29,9 @@ void UPGUserDataSubsystem::Deinitialize()
 	SaveUserData();
 	UserSaveGame = nullptr;
 	CachedCatalog = nullptr;
+	CachedMapCatalog = nullptr;
 	CachedCharacterSkins.Reset();
+	CachedMaps.Reset();
 	Super::Deinitialize();
 }
 
@@ -188,6 +192,67 @@ const UPGCharacterSkinDefinition* UPGUserDataSubsystem::GetEquippedCharacterSkin
 	return GetDefaultCharacterSkin();
 }
 
+const UPGMapShopCatalog* UPGUserDataSubsystem::GetMapCatalog() const
+{
+	return CachedMapCatalog;
+}
+
+const TArray<TObjectPtr<UPGMapDefinition>>& UPGUserDataSubsystem::GetMaps() const
+{
+	return CachedMaps;
+}
+
+const UPGMapDefinition* UPGUserDataSubsystem::FindMap(FName MapId) const
+{
+	if (MapId.IsNone())
+	{
+		return nullptr;
+	}
+
+	for (const UPGMapDefinition* MapDefinition : CachedMaps)
+	{
+		if (MapDefinition && MapDefinition->MapId == MapId)
+		{
+			return MapDefinition;
+		}
+	}
+	return nullptr;
+}
+
+const UPGMapDefinition* UPGUserDataSubsystem::GetDefaultMap() const
+{
+	if (CachedMapCatalog && !CachedMapCatalog->DefaultMapId.IsNone())
+	{
+		if (const UPGMapDefinition* DefaultMap = FindMap(CachedMapCatalog->DefaultMapId))
+		{
+			return DefaultMap;
+		}
+	}
+
+	for (const UPGMapDefinition* MapDefinition : CachedMaps)
+	{
+		if (MapDefinition && MapDefinition->bUnlockedByDefault)
+		{
+			return MapDefinition;
+		}
+	}
+
+	return CachedMaps.Num() > 0 ? CachedMaps[0] : nullptr;
+}
+
+const UPGMapDefinition* UPGUserDataSubsystem::GetEquippedMap() const
+{
+	if (UserSaveGame && !UserSaveGame->EquippedMapId.IsNone())
+	{
+		if (const UPGMapDefinition* EquippedMap = FindMap(UserSaveGame->EquippedMapId))
+		{
+			return EquippedMap;
+		}
+	}
+
+	return GetDefaultMap();
+}
+
 void UPGUserDataSubsystem::RefreshShopCatalog()
 {
 	RefreshCatalogCache();
@@ -202,6 +267,11 @@ void UPGUserDataSubsystem::SetPreviewRunner(APGRunnerCharacter* RunnerCharacter)
 void UPGUserDataSubsystem::SetLastSelectedCharacterSkinId(FName SkinId)
 {
 	LastSelectedCharacterSkinId = SkinId;
+}
+
+void UPGUserDataSubsystem::SetLastSelectedMapId(FName MapId)
+{
+	LastSelectedMapId = MapId;
 }
 
 bool UPGUserDataSubsystem::IsCharacterOwned(FName SkinId) const
@@ -225,6 +295,29 @@ bool UPGUserDataSubsystem::IsCharacterOwned(FName SkinId) const
 bool UPGUserDataSubsystem::IsCharacterEquipped(FName SkinId) const
 {
 	return UserSaveGame && !SkinId.IsNone() && UserSaveGame->EquippedCharacterSkinId == SkinId;
+}
+
+bool UPGUserDataSubsystem::IsMapOwned(FName MapId) const
+{
+	if (MapId.IsNone())
+	{
+		return false;
+	}
+
+	if (const UPGMapDefinition* MapDefinition = FindMap(MapId))
+	{
+		if (MapDefinition->bUnlockedByDefault)
+		{
+			return true;
+		}
+	}
+
+	return UserSaveGame && UserSaveGame->OwnedMapIds.Contains(MapId);
+}
+
+bool UPGUserDataSubsystem::IsMapEquipped(FName MapId) const
+{
+	return UserSaveGame && !MapId.IsNone() && UserSaveGame->EquippedMapId == MapId;
 }
 
 bool UPGUserDataSubsystem::PurchaseCharacter(FName SkinId)
@@ -300,6 +393,77 @@ bool UPGUserDataSubsystem::EquipCharacter(FName SkinId)
 	return true;
 }
 
+bool UPGUserDataSubsystem::PurchaseMap(FName MapId)
+{
+	const UPGMapDefinition* MapDefinition = FindMap(MapId);
+	if (!MapDefinition)
+	{
+		return false;
+	}
+
+	if (IsMapOwned(MapId))
+	{
+		return true;
+	}
+
+	UPGUserSaveGame* UserData = EnsureUserData();
+	if (!UserData)
+	{
+		return false;
+	}
+
+	const int32 Price = FMath::Max(0, MapDefinition->PriceReceipts);
+	if (Price > 0 && GetReceiptBalance() < Price)
+	{
+		return false;
+	}
+
+	const int32 PreviousBalance = UserData->ReceiptBalance;
+	const TArray<FName> PreviousOwnedMapIds = UserData->OwnedMapIds;
+
+	UserData->ReceiptBalance = FMath::Max(0, UserData->ReceiptBalance - Price);
+	UserData->OwnedMapIds.AddUnique(MapId);
+
+	if (!SaveUserData())
+	{
+		UserData->ReceiptBalance = PreviousBalance;
+		UserData->OwnedMapIds = PreviousOwnedMapIds;
+		return false;
+	}
+
+	if (Price > 0)
+	{
+		OnReceiptBalanceChanged.Broadcast(UserData->ReceiptBalance, TEXT("MapPurchase"));
+	}
+	OnMapOwnershipChanged.Broadcast(MapId);
+	return true;
+}
+
+bool UPGUserDataSubsystem::EquipMap(FName MapId)
+{
+	if (!IsMapOwned(MapId) || !FindMap(MapId))
+	{
+		return false;
+	}
+
+	UPGUserSaveGame* UserData = EnsureUserData();
+	if (!UserData)
+	{
+		return false;
+	}
+
+	const FName PreviousEquippedMapId = UserData->EquippedMapId;
+	UserData->EquippedMapId = MapId;
+	if (!SaveUserData())
+	{
+		UserData->EquippedMapId = PreviousEquippedMapId;
+		return false;
+	}
+
+	OnEquippedMapChanged.Broadcast(MapId);
+	return true;
+}
+
 bool UPGUserDataSubsystem::PreviewCharacter(FName SkinId)
 {
 	const UPGCharacterSkinDefinition* SkinDefinition = FindCharacterSkin(SkinId);
@@ -368,7 +532,9 @@ UPGUserSaveGame* UPGUserDataSubsystem::EnsureUserData()
 void UPGUserDataSubsystem::RefreshCatalogCache()
 {
 	CachedCharacterSkins.Reset();
+	CachedMaps.Reset();
 	CachedCatalog = nullptr;
+	CachedMapCatalog = nullptr;
 
 	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
 	if (!Settings)
@@ -377,41 +543,77 @@ void UPGUserDataSubsystem::RefreshCatalogCache()
 	}
 
 	CachedCatalog = Settings->Shop.CharacterShopCatalog.Get();
-	if (!CachedCatalog)
+	if (CachedCatalog)
+	{
+		TSet<FName> SeenSkinIds;
+		for (UPGCharacterSkinDefinition* SkinDefinition : CachedCatalog->CharacterSkins)
+		{
+			if (!SkinDefinition)
+			{
+				continue;
+			}
+
+			if (SkinDefinition->SkinId.IsNone())
+			{
+				UE_LOG(LogPGUserData, Warning, TEXT("Character skin '%s' has empty SkinId."), *GetNameSafe(SkinDefinition));
+				continue;
+			}
+			if (SeenSkinIds.Contains(SkinDefinition->SkinId))
+			{
+				UE_LOG(LogPGUserData, Warning, TEXT("Duplicate character SkinId '%s' in shop catalog."), *SkinDefinition->SkinId.ToString());
+				continue;
+			}
+			if (!SkinDefinition->SkeletalMesh)
+			{
+				UE_LOG(LogPGUserData, Warning, TEXT("Character skin '%s' has no SkeletalMesh."), *SkinDefinition->SkinId.ToString());
+			}
+
+			SeenSkinIds.Add(SkinDefinition->SkinId);
+			CachedCharacterSkins.Add(SkinDefinition);
+		}
+
+		if (!CachedCatalog->DefaultSkinId.IsNone() && !FindCharacterSkin(CachedCatalog->DefaultSkinId))
+		{
+			UE_LOG(LogPGUserData, Warning, TEXT("DefaultSkinId '%s' was not found in character shop catalog."), *CachedCatalog->DefaultSkinId.ToString());
+		}
+	}
+
+	CachedMapCatalog = Settings->Shop.MapShopCatalog.Get();
+	if (!CachedMapCatalog)
 	{
 		return;
 	}
 
-	TSet<FName> SeenSkinIds;
-	for (UPGCharacterSkinDefinition* SkinDefinition : CachedCatalog->CharacterSkins)
+	TSet<FName> SeenMapIds;
+	for (UPGMapDefinition* MapDefinition : CachedMapCatalog->Maps)
 	{
-		if (!SkinDefinition)
+		if (!MapDefinition)
 		{
 			continue;
 		}
 
-		if (SkinDefinition->SkinId.IsNone())
+		if (MapDefinition->MapId.IsNone())
 		{
-			UE_LOG(LogPGUserData, Warning, TEXT("Character skin '%s' has empty SkinId."), *GetNameSafe(SkinDefinition));
+			UE_LOG(LogPGUserData, Warning, TEXT("Map definition '%s' has empty MapId."), *GetNameSafe(MapDefinition));
 			continue;
 		}
-		if (SeenSkinIds.Contains(SkinDefinition->SkinId))
+		if (SeenMapIds.Contains(MapDefinition->MapId))
 		{
-			UE_LOG(LogPGUserData, Warning, TEXT("Duplicate character SkinId '%s' in shop catalog."), *SkinDefinition->SkinId.ToString());
+			UE_LOG(LogPGUserData, Warning, TEXT("Duplicate map MapId '%s' in map shop catalog."), *MapDefinition->MapId.ToString());
 			continue;
 		}
-		if (!SkinDefinition->SkeletalMesh)
+		if (MapDefinition->Level.IsNull())
 		{
-			UE_LOG(LogPGUserData, Warning, TEXT("Character skin '%s' has no SkeletalMesh."), *SkinDefinition->SkinId.ToString());
+			UE_LOG(LogPGUserData, Warning, TEXT("Map '%s' has no Level asset."), *MapDefinition->MapId.ToString());
 		}
 
-		SeenSkinIds.Add(SkinDefinition->SkinId);
-		CachedCharacterSkins.Add(SkinDefinition);
+		SeenMapIds.Add(MapDefinition->MapId);
+		CachedMaps.Add(MapDefinition);
 	}
 
-	if (!CachedCatalog->DefaultSkinId.IsNone() && !FindCharacterSkin(CachedCatalog->DefaultSkinId))
+	if (!CachedMapCatalog->DefaultMapId.IsNone() && !FindMap(CachedMapCatalog->DefaultMapId))
 	{
-		UE_LOG(LogPGUserData, Warning, TEXT("DefaultSkinId '%s' was not found in character shop catalog."), *CachedCatalog->DefaultSkinId.ToString());
+		UE_LOG(LogPGUserData, Warning, TEXT("DefaultMapId '%s' was not found in map shop catalog."), *CachedMapCatalog->DefaultMapId.ToString());
 	}
 }
 
@@ -419,13 +621,13 @@ void UPGUserDataSubsystem::EnsureDefaultOwnership()
 {
 	UPGUserSaveGame* UserData = EnsureUserData();
 	const UPGCharacterSkinDefinition* DefaultSkin = GetDefaultCharacterSkin();
-	if (!UserData || !DefaultSkin)
+	if (!UserData)
 	{
 		return;
 	}
 
 	bool bChanged = false;
-	if (!UserData->OwnedCharacterSkinIds.Contains(DefaultSkin->SkinId))
+	if (DefaultSkin && !UserData->OwnedCharacterSkinIds.Contains(DefaultSkin->SkinId))
 	{
 		UserData->OwnedCharacterSkinIds.Add(DefaultSkin->SkinId);
 		bChanged = true;
@@ -438,10 +640,33 @@ void UPGUserDataSubsystem::EnsureDefaultOwnership()
 			bChanged = true;
 		}
 	}
-	if (UserData->EquippedCharacterSkinId.IsNone() || !IsCharacterOwned(UserData->EquippedCharacterSkinId))
+	if (DefaultSkin && (UserData->EquippedCharacterSkinId.IsNone() || !IsCharacterOwned(UserData->EquippedCharacterSkinId)))
 	{
 		UserData->EquippedCharacterSkinId = DefaultSkin->SkinId;
 		bChanged = true;
+	}
+
+	const UPGMapDefinition* DefaultMap = GetDefaultMap();
+	if (DefaultMap)
+	{
+		if (!UserData->OwnedMapIds.Contains(DefaultMap->MapId))
+		{
+			UserData->OwnedMapIds.Add(DefaultMap->MapId);
+			bChanged = true;
+		}
+		for (const UPGMapDefinition* MapDefinition : CachedMaps)
+		{
+			if (MapDefinition && MapDefinition->bUnlockedByDefault && !UserData->OwnedMapIds.Contains(MapDefinition->MapId))
+			{
+				UserData->OwnedMapIds.Add(MapDefinition->MapId);
+				bChanged = true;
+			}
+		}
+		if (UserData->EquippedMapId.IsNone() || !IsMapOwned(UserData->EquippedMapId))
+		{
+			UserData->EquippedMapId = DefaultMap->MapId;
+			bChanged = true;
+		}
 	}
 
 	if (bChanged)
