@@ -67,6 +67,7 @@ private:
 	void BindRuntimePreloadSubsystem();
 	void BindUserDataSubsystem();
 	void UnbindUserDataSubsystem();
+	void HandleRetryCountdownInitializationReady();
 	void RequestStartDeliveryAfterPreload();
 	void ShowHomeScreen();
 	void SetHomeCameraViewTarget();
@@ -148,6 +149,9 @@ private:
 
 	// Retry URL 옵션으로 들어온 경우 Home UI를 건너뛰고 카운트다운을 요청하는지 추적합니다.
 	bool bRetryCountdownRequested = false;
+
+	// Retry 카운트다운이 Controller 초기화 이후 다음 Tick부터 시작 가능한지 추적합니다.
+	bool bRetryCountdownInitializationReady = false;
 	bool bIsScreenTransitionActive = false;
 	EPGHomeFlowTransition PendingScreenTransition = EPGHomeFlowTransition::None;
 	FName PendingMapTravelLevelName;

@@ -80,6 +80,13 @@ void APGPlayerController::BeginPlay()
 	if (GameMode)
 	{
 		GameMode->OnRunCountdownStarted.AddDynamic(this, &APGPlayerController::HandleRunCountdownStarted);
+
+		// Retry는 Home 화면을 건너뛰므로 Controller가 델리게이트를 구독하기 전에
+		// 카운트다운이 시작됐더라도 현재 상태를 기준으로 입력 초기화를 복구한다.
+		if (GameMode->GetRunState() == EPGRunState::Countdown)
+		{
+			HandleRunCountdownStarted(0.0f);
+		}
 	}
 	if (!GameMode || GameMode->GetRunState() == EPGRunState::Running)
 	{
@@ -190,6 +197,9 @@ bool APGPlayerController::HasRequiredInputAssets() const
 
 void APGPlayerController::HandleRunCountdownStarted(float Duration)
 {
+	bIsBalanceLeftHeld = false;
+	bIsBalanceRightHeld = false;
+
 	// Android 첫 실행 직후 MotionState는 몇 프레임 동안 불안정할 수 있다.
 	// 실제 런 시작 전 카운트다운 구간에서 현재 자세를 다시 평균내 첫 판 기준점 틀어짐을 막는다.
 	bHasCalibration = false;
@@ -239,6 +249,16 @@ void APGPlayerController::SendJumpRequest()
 
 void APGPlayerController::UpdateGyroInput(float DeltaTime)
 {
+#if !PLATFORM_ANDROID
+	// 데스크탑 Q/E 테스트 입력은 모바일 센서 보정 상태와 무관해야 한다.
+	// Retry 직후 MotionState 샘플링이 아직 시작되지 않았더라도 키보드 입력을 즉시 전달한다.
+	if (APGRunnerCharacter* RunnerCharacter = CachedRunnerCharacter.Get())
+	{
+		RunnerCharacter->SetBalanceInput(GetKeyboardBalanceInput());
+	}
+	return;
+#else
+
 	FVector Tilt = FVector::ZeroVector;
 	FVector RotationRate = FVector::ZeroVector;
 	FVector Gravity = FVector::ZeroVector;
@@ -307,6 +327,7 @@ void APGPlayerController::UpdateGyroInput(float DeltaTime)
 		RunnerCharacter->SetBalanceInput(FinalBalanceInput);
 	}
 
+#endif
 }
 
 void APGPlayerController::StartGyroCalibrationSample(bool bBlendToSample)

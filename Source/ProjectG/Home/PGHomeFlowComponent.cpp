@@ -25,6 +25,7 @@
 #include "UI/PGTutorialScreenWidget.h"
 #include "Tutorial/PGTutorialPageSet.h"
 #include "User/PGUserDataSubsystem.h"
+#include "TimerManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGHomeFlow, Log, All);
 
@@ -62,7 +63,9 @@ void UPGHomeFlowComponent::BeginPlay()
 	{
 		if (bRetryCountdownRequested)
 		{
-			RequestStartDeliveryAfterPreload();
+			// Retry 레벨 로드는 Home UI를 건너뛰지만, 카운트다운을 이 프레임에 바로 시작하면
+			// PlayerController의 입력 및 델리게이트 초기화보다 앞설 수 있다.
+			GetWorld()->GetTimerManager().SetTimerForNextTick(this, &UPGHomeFlowComponent::HandleRetryCountdownInitializationReady);
 			return;
 		}
 
@@ -175,9 +178,20 @@ void UPGHomeFlowComponent::UnbindUserDataSubsystem()
 	}
 }
 
+void UPGHomeFlowComponent::HandleRetryCountdownInitializationReady()
+{
+	bRetryCountdownInitializationReady = true;
+	RequestStartDeliveryAfterPreload();
+}
+
 void UPGHomeFlowComponent::RequestStartDeliveryAfterPreload()
 {
 	if (!BoundGameMode)
+	{
+		return;
+	}
+
+	if (bRetryCountdownRequested && !bRetryCountdownInitializationReady)
 	{
 		return;
 	}
@@ -986,7 +1000,7 @@ void UPGHomeFlowComponent::HandleRuntimePreloadCompleted()
 		return;
 	}
 
-	if (bPendingStartDeliveryAfterPreload || bRetryCountdownRequested)
+	if (bPendingStartDeliveryAfterPreload || (bRetryCountdownRequested && bRetryCountdownInitializationReady))
 	{
 		RequestStartDeliveryAfterPreload();
 		return;
