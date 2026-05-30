@@ -37,6 +37,8 @@ public:
 	bool TrySpendReceipts(int32 Amount, FName Reason);
 	int32 GetBestRunScore() const;
 	bool TryUpdateBestRunScore(int32 Score, FName Reason);
+	// 현재 런의 영수증과 최고 점수를 하나의 SaveGame 트랜잭션으로 확정합니다.
+	bool TrySettleRunRewards(int32 Receipts, int32 Score, FName Reason);
 
 	const UPGCharacterShopCatalog* GetCharacterCatalog() const;
 	const TArray<TObjectPtr<UPGCharacterSkinDefinition>>& GetCharacterSkins() const;
@@ -108,6 +110,9 @@ public:
 	FPGUserCharacterSkinChangedSignature OnPreviewCharacterChanged;
 
 private:
+	UFUNCTION()
+	void HandleRuntimePreloadCompleted();
+
 	void LoadUserData();
 	bool SaveUserData() const;
 	UPGUserSaveGame* EnsureUserData();

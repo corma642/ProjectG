@@ -63,6 +63,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run Director")
 	int32 GetActiveSegmentCount() const { return ActiveSegments.Num(); }
 
+	// 맵 계약 검증에서 사용하는 시작 세그먼트와 세그먼트 카탈로그입니다.
+	APGTrackSegment* GetInitialSegment() const { return InitialSegment; }
+	UPGTrackSegmentSet* GetSegmentSet() const { return SegmentSet; }
+
 protected:
 	// 자동 생성할 트랙 세그먼트 후보 DataAsset입니다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Run Director | Track")

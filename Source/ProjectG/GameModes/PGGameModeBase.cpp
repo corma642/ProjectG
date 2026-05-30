@@ -6,9 +6,12 @@
 #include "Engine/EngineBaseTypes.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
+#include "Loading/PGRuntimePreloadSubsystem.h"
 #include "Player/PGPlayerController.h"
 #include "Settings/PGGameSettings.h"
 #include "TimerManager.h"
+#include "Track/PGRunDirector.h"
+#include "Track/PGTrackSegment.h"
 #include "User/PGUserDataSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGGameModeBase, Log, All);
@@ -30,6 +33,7 @@ void APGGameModeBase::BeginPlay()
 	Super::BeginPlay();
 
 	RunState = EPGRunState::Home;
+	bIsCurrentMapSetupValid = ValidateCurrentMapSetup();
 
 	const UWorld* World = GetWorld();
 	const FString StartFlowOption = World ? World->URL.GetOption(TEXT("StartFlow="), TEXT("")) : FString();
@@ -43,6 +47,22 @@ void APGGameModeBase::RequestStartDelivery()
 {
 	if (RunState != EPGRunState::Home)
 	{
+		return;
+	}
+	if (!bIsCurrentMapSetupValid)
+	{
+		UE_LOG(LogPGGameModeBase, Warning, TEXT("Start delivery aborted: the current map does not satisfy the run setup contract."));
+		return;
+	}
+
+	UGameInstance* GameInstance = GetGameInstance();
+	UPGRuntimePreloadSubsystem* PreloadSubsystem = GameInstance ? GameInstance->GetSubsystem<UPGRuntimePreloadSubsystem>() : nullptr;
+	if (!PreloadSubsystem || !PreloadSubsystem->IsReadyForRun())
+	{
+		if (PreloadSubsystem)
+		{
+			PreloadSubsystem->StartPreload();
+		}
 		return;
 	}
 
@@ -101,6 +121,11 @@ void APGGameModeBase::HandleRetryCountdownFallback()
 	if (RunState == EPGRunState::Home)
 	{
 		RequestStartDelivery();
+		if (RunState == EPGRunState::Home)
+		{
+			// Retry는 Home UI가 없으므로 필수 예열이 아직 끝나지 않았으면 짧게 재시도한다.
+			GetWorldTimerManager().SetTimer(RetryCountdownFallbackTimerHandle, this, &APGGameModeBase::HandleRetryCountdownFallback, 0.25f, false);
+		}
 	}
 }
 
@@ -172,14 +197,70 @@ APGRunnerCharacter* APGGameModeBase::FindSingleRunnerInWorld() const
 	return FoundRunner;
 }
 
-void APGGameModeBase::SettleCurrentRunRewards(FName Reason)
+bool APGGameModeBase::ValidateCurrentMapSetup()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	int32 RunnerCount = 0;
+	for (TActorIterator<APGRunnerCharacter> RunnerIt(World); RunnerIt; ++RunnerIt)
+	{
+		RunnerCount += IsValid(*RunnerIt) ? 1 : 0;
+	}
+
+	int32 DirectorCount = 0;
+	APGRunDirector* FoundDirector = nullptr;
+	for (TActorIterator<APGRunDirector> DirectorIt(World); DirectorIt; ++DirectorIt)
+	{
+		if (IsValid(*DirectorIt))
+		{
+			FoundDirector = *DirectorIt;
+			++DirectorCount;
+		}
+	}
+
+	bool bValid = true;
+	if (RunnerCount != 1)
+	{
+		UE_LOG(LogPGGameModeBase, Warning, TEXT("Map setup error: expected exactly one APGRunnerCharacter, found %d."), RunnerCount);
+		bValid = false;
+	}
+	if (DirectorCount != 1 || !FoundDirector)
+	{
+		UE_LOG(LogPGGameModeBase, Warning, TEXT("Map setup error: expected exactly one APGRunDirector, found %d."), DirectorCount);
+		return false;
+	}
+	if (!FoundDirector->GetInitialSegment())
+	{
+		UE_LOG(LogPGGameModeBase, Warning, TEXT("Map setup error: RunDirector '%s' has no InitialSegment."), *GetNameSafe(FoundDirector));
+		bValid = false;
+	}
+	if (!FoundDirector->GetSegmentSet())
+	{
+		UE_LOG(LogPGGameModeBase, Warning, TEXT("Map setup error: RunDirector '%s' has no SegmentSet."), *GetNameSafe(FoundDirector));
+		bValid = false;
+	}
+	if (const APGTrackSegment* InitialSegment = FoundDirector->GetInitialSegment())
+	{
+		const FVector SegmentForward = InitialSegment->GetSegmentForwardVector().GetSafeNormal();
+		if (FVector::DotProduct(SegmentForward, FVector::ForwardVector) < 0.99f)
+		{
+			UE_LOG(LogPGGameModeBase, Warning, TEXT("Map setup error: InitialSegment '%s' must face world +X."), *GetNameSafe(InitialSegment));
+			bValid = false;
+		}
+	}
+	return bValid;
+}
+
+bool APGGameModeBase::SettleCurrentRunRewards(FName Reason)
 {
 	if (bRunRewardsSettled)
 	{
-		return;
+		return true;
 	}
-
-	bRunRewardsSettled = true;
 
 	UWorld* World = GetWorld();
 	const APGRunnerCharacter* RunnerCharacter = GetPlayableRunnerCharacter();
@@ -187,18 +268,19 @@ void APGGameModeBase::SettleCurrentRunRewards(FName Reason)
 	const int32 RunScore = RunnerCharacter ? RunnerCharacter->GetRunScore() : 0;
 	if (RunReceipts <= 0 && RunScore <= 0)
 	{
-		return;
+		bRunRewardsSettled = true;
+		return true;
 	}
 
 	UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
 	UPGUserDataSubsystem* UserDataSubsystem = GameInstance ? GameInstance->GetSubsystem<UPGUserDataSubsystem>() : nullptr;
-	if (UserDataSubsystem)
+	if (!UserDataSubsystem)
 	{
-		if (RunReceipts > 0)
-		{
-			UserDataSubsystem->AddReceipts(RunReceipts, Reason);
-		}
-		UserDataSubsystem->TryUpdateBestRunScore(RunScore, Reason);
+		UE_LOG(LogPGGameModeBase, Warning, TEXT("Run reward settlement failed: UPGUserDataSubsystem is unavailable."));
+		return false;
 	}
+
+	bRunRewardsSettled = UserDataSubsystem->TrySettleRunRewards(RunReceipts, RunScore, Reason);
+	return bRunRewardsSettled;
 }
 

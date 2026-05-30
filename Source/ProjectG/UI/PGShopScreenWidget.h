@@ -57,7 +57,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UWidget> ShopPanel;
 
-	// 탭, 캐릭터 리스트, 선택 정보, 액션 버튼을 담는 메인 콘텐츠 패널입니다.
+	// 탭, 상품 리스트, 선택 정보, 액션 버튼을 담는 공용 콘텐츠 패널입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UWidget> ShopContentPanel;
 
@@ -75,7 +75,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UButton> ReceiptAddButton;
 
-	// Characters / Maps 탭 버튼 묶음입니다. Maps 탭은 아직 비활성 상태로 유지합니다.
+	// Characters / Maps 상품 종류를 전환하는 탭 버튼 묶음입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UWidget> TabPanel;
 
@@ -85,7 +85,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UButton> MapsTabButton;
 
-	// 선택 캐릭터를 이전/다음으로 넘기는 보조 버튼 영역입니다.
+	// 현재 탭의 선택 상품을 이전/다음으로 넘기는 보조 버튼 영역입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UWidget> ItemNavPanel;
 
@@ -95,25 +95,25 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UButton> NextItemButton;
 
-	// 캐릭터 카드 ScrollBox를 감싸는 패널입니다.
+	// 현재 탭의 상품 카드 ScrollBox를 감싸는 공용 패널입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UWidget> ItemListPanel;
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UScrollBox> ItemListBox;
 
-	// 맵 탭 전체 콘텐츠 패널입니다. 중앙 썸네일 프리뷰와 맵 카드 리스트를 포함합니다.
+	// 맵 탭에서 월드 프리뷰 대신 표시하는 중앙 썸네일입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UImage> SelectedMapThumbnailImage;
 
-	// 선택된 캐릭터 이름을 보여주는 상세 영역입니다.
+	// 현재 선택된 캐릭터 또는 맵 이름을 보여주는 상세 영역입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UWidget> SelectedNamePanel;
 
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UTextBlock> SelectedItemNameText;
 
-	// 미보유 캐릭터 선택 시 가격과 영수증 아이콘을 보여주는 상세 가격 패널입니다.
+	// 미보유 상품 선택 시 가격과 영수증 아이콘을 보여주는 상세 가격 패널입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UWidget> SelectedPricePanel;
 
@@ -207,4 +207,6 @@ private:
 	float ActionFeedbackDuration = 0.22f;
 	bool bActionFeedbackSuccess = true;
 	bool bExternalInteractionEnabled = true;
+	bool bCharactersTabAvailable = false;
+	bool bMapsTabAvailable = false;
 };

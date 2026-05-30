@@ -5,6 +5,7 @@
 #include "Character/PGRunnerCharacter.h"
 #include "GameModes/PGGameModeBase.h"
 #include "Kismet/GameplayStatics.h"
+#include "Loading/PGRuntimePreloadSubsystem.h"
 #include "Settings/PGGameSettings.h"
 #include "Shop/PGCharacterShopCatalog.h"
 #include "Shop/PGCharacterSkinDefinition.h"
@@ -20,12 +21,25 @@ void UPGUserDataSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 	LoadUserData();
-	RefreshCatalogCache();
-	EnsureDefaultOwnership();
+
+	// 카탈로그는 Soft Reference 예열 이후에만 읽는다. HomeFlow가 우연히 먼저 열려
+	// 캐시를 복구하는 초기화 순서 의존성을 만들지 않는다.
+	if (UPGRuntimePreloadSubsystem* PreloadSubsystem = GetGameInstance()->GetSubsystem<UPGRuntimePreloadSubsystem>())
+	{
+		PreloadSubsystem->OnPreloadCompleted.AddDynamic(this, &UPGUserDataSubsystem::HandleRuntimePreloadCompleted);
+		if (PreloadSubsystem->IsReady())
+		{
+			HandleRuntimePreloadCompleted();
+		}
+	}
 }
 
 void UPGUserDataSubsystem::Deinitialize()
 {
+	if (UPGRuntimePreloadSubsystem* PreloadSubsystem = GetGameInstance()->GetSubsystem<UPGRuntimePreloadSubsystem>())
+	{
+		PreloadSubsystem->OnPreloadCompleted.RemoveDynamic(this, &UPGUserDataSubsystem::HandleRuntimePreloadCompleted);
+	}
 	SaveUserData();
 	UserSaveGame = nullptr;
 	CachedCatalog = nullptr;
@@ -33,6 +47,12 @@ void UPGUserDataSubsystem::Deinitialize()
 	CachedCharacterSkins.Reset();
 	CachedMaps.Reset();
 	Super::Deinitialize();
+}
+
+void UPGUserDataSubsystem::HandleRuntimePreloadCompleted()
+{
+	RefreshCatalogCache();
+	EnsureDefaultOwnership();
 }
 
 int32 UPGUserDataSubsystem::GetReceiptBalance() const
@@ -128,6 +148,42 @@ bool UPGUserDataSubsystem::TryUpdateBestRunScore(int32 Score, FName Reason)
 	}
 
 	OnBestRunScoreChanged.Broadcast(UserData->BestRunScore, Reason);
+	return true;
+}
+
+bool UPGUserDataSubsystem::TrySettleRunRewards(int32 Receipts, int32 Score, FName Reason)
+{
+	UPGUserSaveGame* UserData = EnsureUserData();
+	if (!UserData)
+	{
+		return false;
+	}
+
+	const int32 ReceiptDelta = FMath::Max(0, Receipts);
+	const int32 SanitizedScore = FMath::Max(0, Score);
+	const int32 PreviousBalance = UserData->ReceiptBalance;
+	const int32 PreviousBestScore = UserData->BestRunScore;
+
+	UserData->ReceiptBalance = FMath::Max(0, UserData->ReceiptBalance) + ReceiptDelta;
+	UserData->BestRunScore = FMath::Max(UserData->BestRunScore, SanitizedScore);
+
+	// 런 보상은 영수증과 최고 점수가 함께 확정되어야 한다. 저장 실패 시 메모리 상태도
+	// 이전 값으로 되돌려 다음 이동 요청에서 같은 런 보상을 다시 저장할 수 있게 한다.
+	if (!SaveUserData())
+	{
+		UserData->ReceiptBalance = PreviousBalance;
+		UserData->BestRunScore = PreviousBestScore;
+		return false;
+	}
+
+	if (UserData->ReceiptBalance != PreviousBalance)
+	{
+		OnReceiptBalanceChanged.Broadcast(UserData->ReceiptBalance, Reason);
+	}
+	if (UserData->BestRunScore != PreviousBestScore)
+	{
+		OnBestRunScoreChanged.Broadcast(UserData->BestRunScore, Reason);
+	}
 	return true;
 }
 

@@ -54,7 +54,7 @@ public:
 
 	// 실패 연출 없이 현재 런 보상만 정산합니다. Pause Home처럼 런을 종료하고 홈으로 돌아갈 때 사용합니다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Run")
-	void SettleCurrentRunRewards(FName Reason);
+	bool SettleCurrentRunRewards(FName Reason);
 
 	// 현재 플레이에 사용할 러너를 반환합니다. Possess 전에는 레벨에 배치된 단일 러너를 사용합니다.
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run")
@@ -81,6 +81,7 @@ private:
 	void HandleRetryCountdownFallback();
 	APGRunnerCharacter* EnsureRunnerPossessedForRun();
 	APGRunnerCharacter* FindSingleRunnerInWorld() const;
+	bool ValidateCurrentMapSetup();
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Run", meta = (AllowPrivateAccess = "true"))
 	EPGRunState RunState = EPGRunState::Home;
@@ -88,4 +89,5 @@ private:
 	FTimerHandle RunCountdownTimerHandle;
 	FTimerHandle RetryCountdownFallbackTimerHandle;
 	bool bRunRewardsSettled = false;
+	bool bIsCurrentMapSetupValid = false;
 };

@@ -134,7 +134,6 @@ void UPGGameUserSettings::CopyPresetToSavedSettings(EPGMobileQualityPreset Prese
 	SelectedMobileQualityPreset = Preset;
 	ResolutionScalePercent = FMath::Clamp(PresetSettings.ResolutionScalePercent, MinMobileResolutionScale, MaxMobileResolutionScale);
 	SavedMobileFrameRateLimit = FMath::Clamp(PresetSettings.FrameRateLimit, 0, MaxMobileFrameRateLimit);
-	MobileAntiAliasingMode = FMath::Clamp(PresetSettings.MobileAntiAliasingMode, 0, 3);
 	AntiAliasingQuality = ClampScalabilityQuality(PresetSettings.AntiAliasingQuality);
 	TextureQuality = ClampScalabilityQuality(PresetSettings.TextureQuality);
 	ShadowQuality = ClampScalabilityQuality(PresetSettings.ShadowQuality);
@@ -167,7 +166,6 @@ void UPGGameUserSettings::ApplySavedMobileQualityToEngine()
 	MusicVolumePercent = FMath::Clamp(MusicVolumePercent, MinUserVolumePercent, MaxUserVolumePercent);
 	SFXVolumePercent = FMath::Clamp(SFXVolumePercent, MinUserVolumePercent, MaxUserVolumePercent);
 	SavedMobileFrameRateLimit = FMath::Clamp(SavedMobileFrameRateLimit, 0, MaxMobileFrameRateLimit);
-	MobileAntiAliasingMode = FMath::Clamp(MobileAntiAliasingMode, 0, 3);
 	MaxAnisotropy = FMath::Clamp(MaxAnisotropy, 1, 8);
 
 	SetResolutionScaleValueEx(ResolutionScalePercent);
@@ -183,7 +181,6 @@ void UPGGameUserSettings::ApplySavedMobileQualityToEngine()
 	ScalabilityQuality.SetViewDistanceQuality(ClampScalabilityQuality(ViewDistanceQuality));
 	Scalability::SetQualityLevels(ScalabilityQuality, true);
 
-	SetConsoleVariableInt(TEXT("r.Mobile.AntiAliasing"), MobileAntiAliasingMode);
 	SetConsoleVariableInt(TEXT("r.MaxAnisotropy"), MaxAnisotropy);
 
 	ApplySettings(false);
@@ -216,7 +213,7 @@ void UPGGameUserSettings::SetConsoleVariableInt(const TCHAR* Name, int32 Value)
 {
 	if (IConsoleVariable* ConsoleVariable = IConsoleManager::Get().FindConsoleVariable(Name))
 	{
-		ConsoleVariable->Set(Value, ECVF_SetByGameSetting);
+		ConsoleVariable->Set(Value, ECVF_SetByScalability);
 	}
 }
 

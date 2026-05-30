@@ -14,18 +14,58 @@ DEFINE_LOG_CATEGORY_STATIC(LogPGCargoStack, Log, All);
 UPGCargoStackComponent::UPGCargoStackComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+}
 
-	ScriptedCargoMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ScriptedCargoDisplay"));
+void UPGCargoStackComponent::BeginPlay()
+{
+	Super::BeginPlay();
+	EnsureScriptedCargoMeshComponent();
+}
+
+void UPGCargoStackComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	DestroyScriptedCargoMeshComponent();
+	Super::EndPlay(EndPlayReason);
+}
+
+void UPGCargoStackComponent::EnsureScriptedCargoMeshComponent()
+{
+	if (ScriptedCargoMeshComponent)
+	{
+		return;
+	}
+
+	AActor* OwnerActor = GetOwner();
+	if (!OwnerActor)
+	{
+		return;
+	}
+
+	// CargoStack은 러너 BP의 기본 컴포넌트다. 생성자에서 자식 기본 서브오브젝트를 만들면
+	// archetype과 런타임 인스턴스가 섞일 수 있으므로 Hold 표시는 러너 인스턴스에만 만든다.
+	ScriptedCargoMeshComponent = NewObject<UStaticMeshComponent>(OwnerActor, TEXT("ScriptedCargoDisplay"), RF_Transient);
+	OwnerActor->AddInstanceComponent(ScriptedCargoMeshComponent);
 	ScriptedCargoMeshComponent->SetupAttachment(this);
 	ScriptedCargoMeshComponent->SetMobility(EComponentMobility::Movable);
 	ScriptedCargoMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	ScriptedCargoMeshComponent->SetGenerateOverlapEvents(false);
 	ScriptedCargoMeshComponent->SetVisibility(false, true);
 	ScriptedCargoMeshComponent->SetHiddenInGame(true, true);
+	ScriptedCargoMeshComponent->RegisterComponent();
+}
+
+void UPGCargoStackComponent::DestroyScriptedCargoMeshComponent()
+{
+	if (ScriptedCargoMeshComponent)
+	{
+		ScriptedCargoMeshComponent->DestroyComponent();
+		ScriptedCargoMeshComponent = nullptr;
+	}
 }
 
 void UPGCargoStackComponent::InitializeCargoStack(const FPGCargoSettings& InCargoSettings)
 {
+	EnsureScriptedCargoMeshComponent();
 	CachedCargoSettings = InCargoSettings;
 	CargoInstances.Reset();
 	PendingCargoType = nullptr;

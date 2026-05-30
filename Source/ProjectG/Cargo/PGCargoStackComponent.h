@@ -72,6 +72,8 @@ class PROJECTG_API UPGCargoStackComponent : public USceneComponent
 
 public:
 	UPGCargoStackComponent();
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	// 배달 적재물이 플레이어 기준 손실 범위를 벗어나면 발생합니다.
 	FPGCargoLostSignature OnCargoLost;
@@ -114,6 +116,8 @@ public:
 
 private:
 	bool IsValidCargoTypeForSpawn(const UPGCargoTypeDefinition* CargoType, const TCHAR* Context) const;
+	void EnsureScriptedCargoMeshComponent();
+	void DestroyScriptedCargoMeshComponent();
 	bool StartCargoDropHold(UPGCargoTypeDefinition* CargoType);
 	void FinishCargoDropHold();
 	APGPhysicsCargoActor* SpawnPhysicsCargo(UPGCargoTypeDefinition* CargoType, const FTransform& SpawnTransform);
@@ -132,7 +136,7 @@ private:
 	FPGCargoSettings CachedCargoSettings;
 
 	// Hold 중인 적재물을 보여주는 비물리 프리뷰 메시입니다. 실제 물리 Actor는 Hold 종료 후 별도로 생성됩니다.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cargo", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Transient)
 	TObjectPtr<UStaticMeshComponent> ScriptedCargoMeshComponent;
 
 	UPROPERTY(Transient)

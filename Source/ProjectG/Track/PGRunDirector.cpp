@@ -28,7 +28,8 @@ void APGRunDirector::BeginPlay()
 				// Director가 둘 이상이면 각자 세그먼트를 생성해 트랙이 겹친다.
 				// 자동 복구하지 않고 경고만 남겨 레벨 배치 문제를 바로 드러낸다.
 				UE_LOG(LogPGRunDirector, Warning, TEXT("Multiple RunDirector actors exist in this world. Keep only one APGRunDirector to avoid duplicate track spawning. Current='%s', Other='%s'."), *GetNameSafe(this), *GetNameSafe(*DirectorIt));
-				break;
+				SetActorTickEnabled(false);
+				return;
 			}
 		}
 	}
@@ -135,11 +136,7 @@ void APGRunDirector::InitializeInitialSegment()
 	{
 		// 에디터에서 시작 세그먼트를 지정하지 않아도, 레벨에 배치된 첫 TrackSegment를 기준으로 런 축을 잡는다.
 		// 시작 축이 정해져야 이후 세그먼트를 끝점에 이어 붙일 수 있다.
-		for (TActorIterator<APGTrackSegment> SegmentIt(GetWorld()); SegmentIt; ++SegmentIt)
-		{
-			InitialSegment = *SegmentIt;
-			break;
-		}
+		// 시작 세그먼트는 맵 계약의 일부다. 임의 Actor 선택 fallback은 잘못된 신규 맵을 숨기므로 사용하지 않는다.
 	}
 
 	if (InitialSegment)

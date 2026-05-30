@@ -50,6 +50,12 @@ void UPGShopScreenWidget::InitializeShop(UPGUserDataSubsystem* InUserDataSubsyst
 	UserDataSubsystem = InUserDataSubsystem;
 	CharacterItemWidgetClass = InCharacterItemWidgetClass;
 	MapItemWidgetClass = InMapItemWidgetClass;
+	bCharactersTabAvailable = CharacterItemWidgetClass && InUserDataSubsystem && InUserDataSubsystem->GetCharacterCatalog();
+	bMapsTabAvailable = MapItemWidgetClass && InUserDataSubsystem && InUserDataSubsystem->GetMapCatalog();
+	if (!bCharactersTabAvailable && bMapsTabAvailable)
+	{
+		ActiveTab = EPGShopTab::Maps;
+	}
 
 	if (UPGUserDataSubsystem* UserData = UserDataSubsystem.Get())
 	{
@@ -464,6 +470,12 @@ void UPGShopScreenWidget::SelectMapById(FName MapId)
 
 void UPGShopScreenWidget::SetActiveTab(EPGShopTab NewTab)
 {
+	if ((NewTab == EPGShopTab::Characters && !bCharactersTabAvailable)
+		|| (NewTab == EPGShopTab::Maps && !bMapsTabAvailable))
+	{
+		return;
+	}
+
 	if (ActiveTab == NewTab)
 	{
 		RefreshActiveTabState();
@@ -909,11 +921,11 @@ void UPGShopScreenWidget::RefreshActiveTabState()
 
 	if (CharactersTabButton)
 	{
-		CharactersTabButton->SetIsEnabled(!bCharactersActive && !bIsOpening && bExternalInteractionEnabled);
+		CharactersTabButton->SetIsEnabled(bCharactersTabAvailable && !bCharactersActive && !bIsOpening && bExternalInteractionEnabled);
 	}
 	if (MapsTabButton)
 	{
-		MapsTabButton->SetIsEnabled(bCharactersActive && !bIsOpening && bExternalInteractionEnabled);
+		MapsTabButton->SetIsEnabled(bMapsTabAvailable && bCharactersActive && !bIsOpening && bExternalInteractionEnabled);
 	}
 
 	if (bCharactersActive)
@@ -990,11 +1002,11 @@ void UPGShopScreenWidget::SetShopButtonsEnabled(bool bEnabled) const
 	}
 	if (CharactersTabButton)
 	{
-		CharactersTabButton->SetIsEnabled(bCanInteract && ActiveTab != EPGShopTab::Characters);
+		CharactersTabButton->SetIsEnabled(bCanInteract && bCharactersTabAvailable && ActiveTab != EPGShopTab::Characters);
 	}
 	if (MapsTabButton)
 	{
-		MapsTabButton->SetIsEnabled(bCanInteract && ActiveTab != EPGShopTab::Maps);
+		MapsTabButton->SetIsEnabled(bCanInteract && bMapsTabAvailable && ActiveTab != EPGShopTab::Maps);
 	}
 	for (UPGCharacterShopItemWidget* ItemWidget : CharacterItemWidgets)
 	{

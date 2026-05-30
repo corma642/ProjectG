@@ -4,7 +4,9 @@
 
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
+#include "Cargo/PGCargoDropSet.h"
 #include "RunEvents/PGRunEventPresentationSet.h"
+#include "RunEvents/PGRunEventSet.h"
 #include "Settings/PGGameSettings.h"
 #include "Shop/PGCharacterShopCatalog.h"
 #include "Shop/PGCharacterSkinDefinition.h"
@@ -12,6 +14,7 @@
 #include "Shop/PGMapShopCatalog.h"
 #include "Sound/SoundBase.h"
 #include "Tutorial/PGTutorialPageSet.h"
+#include "UI/PGRunResultWidget.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGRuntimePreload, Log, All);
 
@@ -35,9 +38,11 @@ void UPGRuntimePreloadSubsystem::StartPreload()
 	}
 
 	bIsPreloading = true;
+	RequestedResourcePaths.Reset();
 
 	TArray<FSoftObjectPath> ResourcePaths;
 	CollectPrimaryResourcePaths(ResourcePaths);
+	RequestedResourcePaths.Append(ResourcePaths);
 	if (ResourcePaths.IsEmpty())
 	{
 		HandlePrimaryResourcesLoaded();
@@ -206,6 +211,10 @@ void UPGRuntimePreloadSubsystem::HandlePrimaryResourcesLoaded()
 {
 	TArray<FSoftObjectPath> ResourcePaths;
 	CollectNestedResourcePaths(ResourcePaths);
+	for (const FSoftObjectPath& ResourcePath : ResourcePaths)
+	{
+		RequestedResourcePaths.AddUnique(ResourcePath);
+	}
 	if (ResourcePaths.IsEmpty())
 	{
 		CompletePreload();
@@ -230,8 +239,40 @@ void UPGRuntimePreloadSubsystem::HandleNestedResourcesLoaded()
 void UPGRuntimePreloadSubsystem::CompletePreload()
 {
 	bIsPreloading = false;
+	ValidateLoadedResources();
 	bIsReady = true;
 	OnPreloadCompleted.Broadcast();
+}
+
+void UPGRuntimePreloadSubsystem::ValidateLoadedResources()
+{
+	TArray<FString> FailedPaths;
+	for (const FSoftObjectPath& ResourcePath : RequestedResourcePaths)
+	{
+		if (ResourcePath.IsValid() && !ResourcePath.ResolveObject())
+		{
+			FailedPaths.Add(ResourcePath.ToString());
+		}
+	}
+
+	if (!FailedPaths.IsEmpty())
+	{
+		UE_LOG(LogPGRuntimePreload, Warning, TEXT("Runtime preload could not load assigned resources: %s"), *FString::Join(FailedPaths, TEXT(", ")));
+	}
+
+	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
+	bAreRequiredRunResourcesReady = Settings
+		&& Settings->HomeFlow.RunCountdownWidgetClass.Get()
+		&& Settings->RunHUD.RunHUDWidgetClass.Get()
+		&& Settings->RunHUD.RunPauseWidgetClass.Get()
+		&& Settings->RunResult.GameOverWidgetClass.Get()
+		&& Settings->CargoDelivery.DefaultCargoDropSet.Get()
+		&& Settings->RunEvent.DefaultRunEventSet.Get();
+
+	if (!bAreRequiredRunResourcesReady)
+	{
+		UE_LOG(LogPGRuntimePreload, Warning, TEXT("Runtime preload completed, but one or more required run resources are missing. Check Countdown, RunHUD, Pause, RunResult, CargoDropSet, and RunEventSet settings."));
+	}
 }
 
 void UPGRuntimePreloadSubsystem::ReleaseHandles()
@@ -250,4 +291,6 @@ void UPGRuntimePreloadSubsystem::ReleaseHandles()
 
 	bIsReady = false;
 	bIsPreloading = false;
+	bAreRequiredRunResourcesReady = false;
+	RequestedResourcePaths.Reset();
 }

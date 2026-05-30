@@ -31,6 +31,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runtime Preload")
 	bool IsReady() const { return bIsReady; }
 
+	// 카운트다운 이후 즉시 필요한 리소스가 모두 준비되었는지 반환합니다.
+	UFUNCTION(BlueprintPure, Category = "ProjectG | Runtime Preload")
+	bool IsReadyForRun() const { return bIsReady && bAreRequiredRunResourcesReady; }
+
 	// 현재 비동기 예열이 진행 중인지 반환합니다.
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runtime Preload")
 	bool IsPreloading() const { return bIsPreloading; }
@@ -47,10 +51,13 @@ private:
 	void HandleNestedResourcesLoaded();
 	void CompletePreload();
 	void ReleaseHandles();
+	void ValidateLoadedResources();
 
 	TSharedPtr<FStreamableHandle> PrimaryLoadHandle;
 	TSharedPtr<FStreamableHandle> NestedLoadHandle;
+	TArray<FSoftObjectPath> RequestedResourcePaths;
 
 	bool bIsReady = false;
 	bool bIsPreloading = false;
+	bool bAreRequiredRunResourcesReady = false;
 };

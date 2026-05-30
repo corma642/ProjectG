@@ -501,10 +501,6 @@ struct FPGMobileQualityPresetSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Quality | Mobile Performance", meta = (ClampMin = "0", UIMin = "0", UIMax = "60"))
 	int32 FrameRateLimit = 60;
 
-	// 모바일 안티앨리어싱 방식 CVar 값. 기본값 2는 FXAA보다 외곽 자글거림을 줄이는 쪽으로 둔다.
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Quality | Mobile Rendering", meta = (ClampMin = "0", ClampMax = "3", UIMin = "0", UIMax = "3"))
-	int32 MobileAntiAliasingMode = 2;
-
 	// Scalability AntiAliasing 품질 단계
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Quality | Mobile Scalability", meta = (ClampMin = "0", ClampMax = "3", UIMin = "0", UIMax = "3"))
 	int32 AntiAliasingQuality = 2;

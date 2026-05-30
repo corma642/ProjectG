@@ -7,6 +7,7 @@
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
+#include "GameModes/PGGameModeBase.h"
 #include "Kismet/GameplayStatics.h"
 
 namespace
@@ -315,6 +316,13 @@ FText UPGRunResultWidget::FormatNumber(int32 Value) const
 void UPGRunResultWidget::HandleRetryClicked()
 {
 	UPGAudioStatics::PlayCommonButtonClick(this);
+	if (APGGameModeBase* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APGGameModeBase>() : nullptr)
+	{
+		if (!GameMode->SettleCurrentRunRewards(TEXT("ResultRetry")))
+		{
+			return;
+		}
+	}
 	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
 	if (!CurrentLevelName.IsEmpty())
 	{
@@ -337,6 +345,13 @@ void UPGRunResultWidget::HandleRetryReleased()
 void UPGRunResultWidget::HandleHomeClicked()
 {
 	UPGAudioStatics::PlayCommonButtonClick(this);
+	if (APGGameModeBase* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APGGameModeBase>() : nullptr)
+	{
+		if (!GameMode->SettleCurrentRunRewards(TEXT("ResultHome")))
+		{
+			return;
+		}
+	}
 	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
 	if (!CurrentLevelName.IsEmpty())
 	{

@@ -106,9 +106,6 @@ private:
 
 	// 모바일 안티앨리어싱 방식 CVar 값입니다.
 	UPROPERTY(Config)
-	int32 MobileAntiAliasingMode = 2;
-
-	UPROPERTY(Config)
 	int32 AntiAliasingQuality = 3;
 
 	UPROPERTY(Config)

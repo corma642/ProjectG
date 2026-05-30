@@ -215,10 +215,16 @@ void UPGRunHUDComponent::HandlePauseHomeRequested()
 		return;
 	}
 
-	if (BoundGameMode)
+	if (!BoundGameMode)
 	{
-		// Pause Home은 실패가 아니지만 현재 런을 종료하는 선택이므로 결과창 없이 영수증만 정산한다.
-		BoundGameMode->SettleCurrentRunRewards(TEXT("PauseHome"));
+		return;
+	}
+
+	// Pause Home은 실패가 아니지만 현재 런을 종료하는 선택이므로 결과창 없이 영수증만 정산한다.
+	if (!BoundGameMode->SettleCurrentRunRewards(TEXT("PauseHome")))
+	{
+		UE_LOG(LogPGRunHUDComponent, Warning, TEXT("Pause Home was blocked because run rewards could not be saved."));
+		return;
 	}
 
 	CleanupSettingsScreen();

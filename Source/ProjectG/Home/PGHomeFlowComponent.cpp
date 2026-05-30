@@ -58,7 +58,7 @@ void UPGHomeFlowComponent::BeginPlay()
 	const FString StartFlowOption = GetWorld() ? GetWorld()->URL.GetOption(TEXT("StartFlow="), TEXT("")) : FString();
 	bRetryCountdownRequested = StartFlowOption.Equals(TEXT("RetryCountdown"), ESearchCase::IgnoreCase);
 
-		// 레벨 리로드 기반 Retry는 Home UI를 만들지 않고, 필수 리소스 예열이 끝난 뒤 바로 카운트다운으로 진입한다.
+	// 레벨 리로드 기반 Retry는 Home UI를 만들지 않고, 필수 리소스 예열이 끝난 뒤 바로 카운트다운으로 진입한다.
 	if (BoundGameMode && BoundGameMode->GetRunState() == EPGRunState::Home)
 	{
 		if (bRetryCountdownRequested)
@@ -173,7 +173,6 @@ void UPGHomeFlowComponent::UnbindUserDataSubsystem()
 	{
 		UserDataSubsystem->OnReceiptBalanceChanged.RemoveDynamic(this, &UPGHomeFlowComponent::HandleReceiptBalanceChanged);
 		UserDataSubsystem->OnBestRunScoreChanged.RemoveDynamic(this, &UPGHomeFlowComponent::HandleBestRunScoreChanged);
-		UserDataSubsystem->RestoreEquippedCharacter();
 		UserDataSubsystem = nullptr;
 	}
 }
@@ -196,7 +195,19 @@ void UPGHomeFlowComponent::RequestStartDeliveryAfterPreload()
 		return;
 	}
 
-	if (!RuntimePreloadSubsystem || RuntimePreloadSubsystem->IsReady())
+	if (RuntimePreloadSubsystem && RuntimePreloadSubsystem->IsReady() && !RuntimePreloadSubsystem->IsReadyForRun())
+	{
+		// 예열은 끝났지만 필수 런 리소스가 누락된 경우 자동 재시도로 복구할 수 없다.
+		// Home 입력을 되돌려 설정 오류를 수정한 뒤 다시 시도할 수 있게 한다.
+		bPendingStartDeliveryAfterPreload = false;
+		if (HomeScreenWidget)
+		{
+			HomeScreenWidget->SetHomeButtonsEnabled(true);
+		}
+		return;
+	}
+
+	if (!RuntimePreloadSubsystem || RuntimePreloadSubsystem->IsReadyForRun())
 	{
 		// Retry는 이미 레벨 로딩으로 화면 전환이 끝난 상태이므로 추가 페이드 없이 카운트다운으로 들어간다.
 		if (bRetryCountdownRequested)
@@ -311,17 +322,24 @@ ACameraActor* UPGHomeFlowComponent::FindCameraByTag(FName CameraTag, TWeakObject
 	}
 
 	// Home/Shop 카메라는 레벨 배치 Actor이므로 태그 검색은 최초 1회만 수행하고 이후 약한 참조를 재사용한다.
+	ACameraActor* FoundCameraActor = nullptr;
+	int32 MatchingCameraCount = 0;
 	for (TActorIterator<ACameraActor> CameraIt(GetWorld()); CameraIt; ++CameraIt)
 	{
 		ACameraActor* CameraActor = *CameraIt;
 		if (CameraActor && CameraActor->ActorHasTag(CameraTag))
 		{
-			CameraCache = CameraActor;
-			return CameraActor;
+			FoundCameraActor = CameraActor;
+			++MatchingCameraCount;
 		}
 	}
 
-	return nullptr;
+	if (MatchingCameraCount > 1)
+	{
+		UE_LOG(LogPGHomeFlow, Warning, TEXT("Multiple cameras use tag '%s'. Keep exactly one camera for deterministic Home/Shop transitions."), *CameraTag.ToString());
+	}
+	CameraCache = FoundCameraActor;
+	return FoundCameraActor;
 }
 
 void UPGHomeFlowComponent::RestoreShopPreviewRunner(bool bRestoreHomeTransform)
@@ -338,7 +356,6 @@ void UPGHomeFlowComponent::RestoreShopPreviewRunner(bool bRestoreHomeTransform)
 		PreviewRunner->RestoreHomePreviewTransform();
 	}
 
-	UserDataSubsystem->RefreshShopCatalog();
 	UserDataSubsystem->SetPreviewRunner(PreviewRunner);
 	UserDataSubsystem->RestoreEquippedCharacter();
 }
@@ -588,8 +605,6 @@ void UPGHomeFlowComponent::FinishScreenTransition()
 bool UPGHomeFlowComponent::AreShopScreenResourcesReady() const
 {
 	const UClass* WidgetClass = CachedShopSettings.ShopScreenWidgetClass.Get();
-	const UClass* ItemWidgetClass = CachedShopSettings.CharacterShopItemWidgetClass.Get();
-	const UClass* MapItemWidgetClass = CachedShopSettings.MapShopItemWidgetClass.Get();
 	if (!WidgetClass)
 	{
 		UE_LOG(LogPGHomeFlow, Warning, TEXT("ShopScreenWidgetClass is not set. Create WBP_ShopScreen and assign it in Go Deliver Settings > Shop."));
@@ -600,17 +615,6 @@ bool UPGHomeFlowComponent::AreShopScreenResourcesReady() const
 		UE_LOG(LogPGHomeFlow, Warning, TEXT("ShopScreenWidgetClass '%s' must inherit UPGShopScreenWidget."), *GetNameSafe(WidgetClass));
 		return false;
 	}
-	if (!ItemWidgetClass || !ItemWidgetClass->IsChildOf(UPGCharacterShopItemWidget::StaticClass()))
-	{
-		UE_LOG(LogPGHomeFlow, Warning, TEXT("CharacterShopItemWidgetClass must inherit UPGCharacterShopItemWidget."));
-		return false;
-	}
-	if (!MapItemWidgetClass || !MapItemWidgetClass->IsChildOf(UPGMapShopItemWidget::StaticClass()))
-	{
-		UE_LOG(LogPGHomeFlow, Warning, TEXT("MapShopItemWidgetClass must inherit UPGMapShopItemWidget."));
-		return false;
-	}
-
 	return true;
 }
 
@@ -621,12 +625,21 @@ void UPGHomeFlowComponent::ShowShopScreen()
 		return;
 	}
 
-	UserDataSubsystem->RefreshShopCatalog();
 	UserDataSubsystem->SetPreviewRunner(BoundGameMode ? BoundGameMode->GetPlayableRunnerCharacter() : nullptr);
 
 	UClass* WidgetClass = CachedShopSettings.ShopScreenWidgetClass.Get();
 	UClass* ItemWidgetClass = CachedShopSettings.CharacterShopItemWidgetClass.Get();
 	UClass* MapItemWidgetClass = CachedShopSettings.MapShopItemWidgetClass.Get();
+	if (ItemWidgetClass && !ItemWidgetClass->IsChildOf(UPGCharacterShopItemWidget::StaticClass()))
+	{
+		UE_LOG(LogPGHomeFlow, Warning, TEXT("Characters tab disabled: CharacterShopItemWidgetClass must inherit UPGCharacterShopItemWidget."));
+		ItemWidgetClass = nullptr;
+	}
+	if (MapItemWidgetClass && !MapItemWidgetClass->IsChildOf(UPGMapShopItemWidget::StaticClass()))
+	{
+		UE_LOG(LogPGHomeFlow, Warning, TEXT("Maps tab disabled: MapShopItemWidgetClass must inherit UPGMapShopItemWidget."));
+		MapItemWidgetClass = nullptr;
+	}
 	ShopScreenWidget = CreateWidget<UPGShopScreenWidget>(OwnerPlayerController, TSubclassOf<UPGShopScreenWidget>(WidgetClass));
 	if (!ShopScreenWidget)
 	{
