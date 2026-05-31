@@ -52,6 +52,12 @@ public:
 	/** START가 차단된 원인을 조치 가능한 설정 경고로 출력합니다. */
 	void LogRunReadinessIssues() const;
 
+	/**
+	 * 동일 레벨 Retry 직전에 호출해 다음 맵 로드 1회 동안 준비된 Run 리소스를 유지합니다.
+	 * 다른 맵으로 이동하거나 Run 예열이 완료되지 않은 상태라면 기존처럼 리소스를 해제합니다.
+	 */
+	void PreserveRunResourcesForNextSameMapTravel(FName ExpectedLevelName);
+
 	/** 화면 흐름 하나의 예열이 완료될 때마다 해당 그룹을 전달합니다. */
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Runtime Preload")
 	FPGRuntimePreloadCompletedSignature OnPreloadCompleted;
@@ -82,4 +88,5 @@ private:
 	bool IsCurrentMapCargoDropSetReady(bool bLogIssues) const;
 
 	TMap<EPGRuntimePreloadGroup, FPGPreloadGroupState> GroupStates;
+	FName PreservedRunResourcesExpectedLevelName = NAME_None;
 };

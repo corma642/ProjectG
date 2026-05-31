@@ -7,8 +7,10 @@
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
+#include "Engine/GameInstance.h"
 #include "GameModes/PGGameModeBase.h"
 #include "Kismet/GameplayStatics.h"
+#include "Loading/PGRuntimePreloadSubsystem.h"
 
 namespace
 {
@@ -327,7 +329,14 @@ void UPGRunResultWidget::HandleRetryClicked()
 	if (!CurrentLevelName.IsEmpty())
 	{
 		// Retry는 같은 레벨을 다시 열되 Home을 건너뛰고 카운트다운부터 시작한다.
-		// 현재는 레벨 리로드가 가장 확실한 런 상태 초기화 경로다.
+		// 월드 Actor는 다시 만들지만 이미 준비한 Run 에셋은 한 번 재사용해 재구축 대기를 줄인다.
+		if (UGameInstance* GameInstance = GetGameInstance())
+		{
+			if (UPGRuntimePreloadSubsystem* PreloadSubsystem = GameInstance->GetSubsystem<UPGRuntimePreloadSubsystem>())
+			{
+				PreloadSubsystem->PreserveRunResourcesForNextSameMapTravel(FName(*CurrentLevelName));
+			}
+		}
 		UGameplayStatics::OpenLevel(this, FName(*CurrentLevelName), true, TEXT("StartFlow=RetryCountdown"));
 	}
 }

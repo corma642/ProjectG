@@ -5,6 +5,8 @@
 #include "Cargo/PGCargoDropSet.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
+#include "Engine/World.h"
+#include "Misc/PackageName.h"
 #include "RunEvents/PGRunEventPresentationSet.h"
 #include "Settings/PGGameSettings.h"
 #include "Shop/PGCharacterShopCatalog.h"
@@ -18,6 +20,21 @@
 #include "User/PGUserDataSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGRuntimePreload, Log, All);
+
+namespace
+{
+FName GetNormalizedTravelLevelName(const FString& LevelName)
+{
+	FString LevelPackageName = LevelName;
+	int32 OptionsIndex = INDEX_NONE;
+	if (LevelPackageName.FindChar(TEXT('?'), OptionsIndex))
+	{
+		LevelPackageName.LeftInline(OptionsIndex);
+	}
+
+	return FName(*UWorld::RemovePIEPrefix(FPackageName::GetShortName(LevelPackageName)));
+}
+}
 
 void UPGRuntimePreloadSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -98,6 +115,13 @@ void UPGRuntimePreloadSubsystem::LogRunReadinessIssues() const
 {
 	AreRequiredRunResourcesReady(true);
 	IsCurrentMapCargoDropSetReady(true);
+}
+
+void UPGRuntimePreloadSubsystem::PreserveRunResourcesForNextSameMapTravel(FName ExpectedLevelName)
+{
+	// Retry 호출부는 짧은 레벨명을 전달하지만 PreLoadMap은 패키지 경로를 전달할 수 있다.
+	// 비교 기준을 통일해 PIE와 패키징 실행 모두에서 동일 맵 Retry만 정확히 허용한다.
+	PreservedRunResourcesExpectedLevelName = GetNormalizedTravelLevelName(ExpectedLevelName.ToString());
 }
 
 UPGRuntimePreloadSubsystem::FPGPreloadGroupState& UPGRuntimePreloadSubsystem::GetOrAddGroupState(EPGRuntimePreloadGroup Group)
@@ -451,6 +475,11 @@ void UPGRuntimePreloadSubsystem::HandlePreLoadMap(const FString& MapName)
 {
 	// Home 최소 리소스는 다음 레벨에서도 바로 재사용한다. 나머지 그룹은 이전 월드의 무거운 리소스를
 	// 새 월드 로드와 겹치지 않게 먼저 해제하고, 실제 진입 흐름에서 필요한 그룹만 다시 예열한다.
+	const FName LoadedLevelName = GetNormalizedTravelLevelName(MapName);
+	const bool bIsExpectedSameMapRetry = !PreservedRunResourcesExpectedLevelName.IsNone()
+		&& LoadedLevelName == PreservedRunResourcesExpectedLevelName;
+	PreservedRunResourcesExpectedLevelName = NAME_None;
+
 	const EPGRuntimePreloadGroup GroupsToRelease[] =
 	{
 		EPGRuntimePreloadGroup::Run,
@@ -462,6 +491,16 @@ void UPGRuntimePreloadSubsystem::HandlePreLoadMap(const FString& MapName)
 	{
 		if (FPGPreloadGroupState* GroupState = GroupStates.Find(Group))
 		{
+			// 같은 맵 Retry는 이미 준비된 에셋 핸들만 다음 월드에서 재사용한다.
+			// 예열이 끝나지 않았다면 이전 월드의 비동기 요청을 넘기지 않고 기존 재예열 경로를 사용한다.
+			if (Group == EPGRuntimePreloadGroup::Run
+				&& bIsExpectedSameMapRetry
+				&& GroupState->bIsReady
+				&& !GroupState->bIsPreloading)
+			{
+				continue;
+			}
+
 			ReleaseGroupHandles(*GroupState);
 		}
 	}
@@ -469,6 +508,7 @@ void UPGRuntimePreloadSubsystem::HandlePreLoadMap(const FString& MapName)
 
 void UPGRuntimePreloadSubsystem::ReleaseHandles()
 {
+	PreservedRunResourcesExpectedLevelName = NAME_None;
 	for (TPair<EPGRuntimePreloadGroup, FPGPreloadGroupState>& Pair : GroupStates)
 	{
 		ReleaseGroupHandles(Pair.Value);
