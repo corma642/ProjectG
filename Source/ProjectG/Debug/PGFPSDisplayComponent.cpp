@@ -53,9 +53,12 @@ void UPGFPSDisplayComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void UPGFPSDisplayComponent::HandleRuntimePreloadCompleted()
+void UPGFPSDisplayComponent::HandleRuntimePreloadCompleted(EPGRuntimePreloadGroup Group)
 {
-	RefreshDisplay();
+	if (Group == EPGRuntimePreloadGroup::Home)
+	{
+		RefreshDisplay();
+	}
 }
 
 void UPGFPSDisplayComponent::HandleShowFPSDisplayChanged(bool bShow)
@@ -84,7 +87,7 @@ void UPGFPSDisplayComponent::ShowFPSDisplay()
 
 	if (const UPGRuntimePreloadSubsystem* PreloadSubsystem = GetRuntimePreloadSubsystem())
 	{
-		if (!PreloadSubsystem->IsReady())
+		if (!PreloadSubsystem->IsGroupReady(EPGRuntimePreloadGroup::Home))
 		{
 			return;
 		}

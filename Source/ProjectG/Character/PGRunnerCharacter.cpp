@@ -260,15 +260,17 @@ int32 APGRunnerCharacter::GetDeliveredCargoCount() const
 bool APGRunnerCharacter::ApplyCharacterSkin(const UPGCharacterSkinDefinition* SkinDefinition)
 {
 	USkeletalMeshComponent* MeshComponent = GetMesh();
-	if (!MeshComponent || !SkinDefinition || !SkinDefinition->SkeletalMesh)
+	USkeletalMesh* LoadedMesh = SkinDefinition ? SkinDefinition->SkeletalMesh.Get() : nullptr;
+	if (!MeshComponent || !LoadedMesh)
 	{
 		return false;
 	}
 
-	MeshComponent->SetSkeletalMesh(SkinDefinition->SkeletalMesh);
-	if (SkinDefinition->AnimClass)
+	// 선택된 스킨 리소스가 준비된 뒤에만 교체합니다. 로드 중에는 기존 프리뷰 메시를 유지합니다.
+	MeshComponent->SetSkeletalMesh(LoadedMesh);
+	if (UClass* LoadedAnimClass = SkinDefinition->AnimClass.Get())
 	{
-		MeshComponent->SetAnimInstanceClass(SkinDefinition->AnimClass);
+		MeshComponent->SetAnimInstanceClass(LoadedAnimClass);
 	}
 
 	// 캐릭터별 피벗/스케일은 DCC에서 통일하고, BP_Runner의 Mesh 상대 Transform을 단일 기준으로 사용한다.

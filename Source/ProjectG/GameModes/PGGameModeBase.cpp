@@ -61,8 +61,8 @@ void APGGameModeBase::RequestStartDelivery()
 	{
 		if (PreloadSubsystem)
 		{
-			PreloadSubsystem->StartPreload();
-			if (PreloadSubsystem->IsReady())
+			PreloadSubsystem->RequestPreload(EPGRuntimePreloadGroup::Run);
+			if (PreloadSubsystem->IsGroupReady(EPGRuntimePreloadGroup::Run))
 			{
 				PreloadSubsystem->LogRunReadinessIssues();
 			}

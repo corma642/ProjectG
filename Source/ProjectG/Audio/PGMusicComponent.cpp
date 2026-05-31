@@ -77,8 +77,13 @@ void UPGMusicComponent::HandleRunFailed(FName FailureReason)
 	FadeOutAllMusic();
 }
 
-void UPGMusicComponent::HandleRuntimePreloadCompleted()
+void UPGMusicComponent::HandleRuntimePreloadCompleted(EPGRuntimePreloadGroup Group)
 {
+	if (Group != GetRequiredPreloadGroup())
+	{
+		return;
+	}
+
 	UnbindRuntimePreload();
 	RefreshMusicForCurrentState();
 }
@@ -137,13 +142,18 @@ void UPGMusicComponent::BindRuntimePreloadIfNeeded()
 {
 	const UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
 	UPGRuntimePreloadSubsystem* PreloadSubsystem = GameInstance ? GameInstance->GetSubsystem<UPGRuntimePreloadSubsystem>() : nullptr;
-	if (!PreloadSubsystem || PreloadSubsystem->IsReady() || bIsBoundToRuntimePreload)
+	if (!PreloadSubsystem)
 	{
 		return;
 	}
 
-	PreloadSubsystem->OnPreloadCompleted.AddDynamic(this, &UPGMusicComponent::HandleRuntimePreloadCompleted);
-	bIsBoundToRuntimePreload = true;
+	const EPGRuntimePreloadGroup RequiredGroup = GetRequiredPreloadGroup();
+	PreloadSubsystem->RequestPreload(RequiredGroup);
+	if (!PreloadSubsystem->IsGroupReady(RequiredGroup) && !bIsBoundToRuntimePreload)
+	{
+		PreloadSubsystem->OnPreloadCompleted.AddDynamic(this, &UPGMusicComponent::HandleRuntimePreloadCompleted);
+		bIsBoundToRuntimePreload = true;
+	}
 }
 
 void UPGMusicComponent::UnbindRuntimePreload()
@@ -290,4 +300,13 @@ bool UPGMusicComponent::IsRetryCountdownLoad() const
 	const UWorld* World = GetWorld();
 	const FString StartFlowOption = World ? World->URL.GetOption(TEXT("StartFlow="), TEXT("")) : FString();
 	return StartFlowOption.Equals(TEXT("RetryCountdown"), ESearchCase::IgnoreCase);
+}
+
+EPGRuntimePreloadGroup UPGMusicComponent::GetRequiredPreloadGroup() const
+{
+	if (BoundGameMode && BoundGameMode->GetRunState() != EPGRunState::Home)
+	{
+		return EPGRuntimePreloadGroup::Run;
+	}
+	return EPGRuntimePreloadGroup::Home;
 }

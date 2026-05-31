@@ -21,6 +21,7 @@ class UPGSettingsScreenWidget;
 class UPGShopScreenWidget;
 class UPGTutorialScreenWidget;
 class UPGUserDataSubsystem;
+enum class EPGRuntimePreloadGroup : uint8;
 
 enum class EPGHomeFlowTransition : uint8
 {
@@ -54,7 +55,7 @@ private:
 	void HandleRunStarted();
 
 	UFUNCTION()
-	void HandleRuntimePreloadCompleted();
+	void HandleRuntimePreloadCompleted(EPGRuntimePreloadGroup Group);
 
 	UFUNCTION()
 	void HandleReceiptBalanceChanged(int32 NewBalance, FName Reason);
@@ -146,6 +147,9 @@ private:
 
 	// START를 눌렀지만 필수 리소스 예열이 끝나지 않은 경우 완료 후 자동 시작하기 위한 대기 플래그입니다.
 	bool bPendingStartDeliveryAfterPreload = false;
+	bool bPendingShopAfterPreload = false;
+	bool bPendingReceiptShopAfterPreload = false;
+	bool bPendingTutorialAfterPreload = false;
 
 	// Retry URL 옵션으로 들어온 경우 Home UI를 건너뛰고 카운트다운을 요청하는지 추적합니다.
 	bool bRetryCountdownRequested = false;

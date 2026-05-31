@@ -30,7 +30,7 @@ public:
 
 	// 맵 탭 중앙 프리뷰와 카드에 표시할 썸네일입니다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Map")
-	TObjectPtr<UTexture2D> Thumbnail;
+	TSoftObjectPtr<UTexture2D> Thumbnail;
 
 	// 구매에 필요한 영수증 가격입니다. 기본 해금 맵은 0으로 둡니다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Map", meta = (ClampMin = "0", UIMin = "0"))

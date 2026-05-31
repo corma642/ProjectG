@@ -37,19 +37,19 @@ public:
 
 	// 상점 카드에 표시할 썸네일 이미지입니다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Skin")
-	TObjectPtr<UTexture2D> Thumbnail;
+	TSoftObjectPtr<UTexture2D> Thumbnail;
 
 	// 구매에 필요한 영수증 가격입니다. 기본 지급 캐릭터는 0으로 둡니다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Skin", meta = (ClampMin = "0", UIMin = "0"))
 	int32 PriceReceipts = 0;
 
-	// 러너 MeshComponent에 적용할 Skeletal Mesh입니다.
+	// 프리뷰 또는 장착 시 비동기로 준비해 러너 MeshComponent에 적용할 Skeletal Mesh입니다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Skin | Mesh")
-	TObjectPtr<USkeletalMesh> SkeletalMesh;
+	TSoftObjectPtr<USkeletalMesh> SkeletalMesh;
 
-	// 러너 MeshComponent에 적용할 AnimInstance 클래스입니다.
+	// Skeletal Mesh와 함께 비동기로 준비해 러너 MeshComponent에 적용할 AnimInstance 클래스입니다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Skin | Mesh")
-	TSubclassOf<UAnimInstance> AnimClass;
+	TSoftClassPtr<UAnimInstance> AnimClass;
 
 	// 점프 사운드 선택에 사용할 캐릭터 성별입니다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Skin")

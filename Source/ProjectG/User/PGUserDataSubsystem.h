@@ -12,6 +12,7 @@ class UPGCharacterSkinDefinition;
 class UPGMapDefinition;
 class UPGMapShopCatalog;
 class UPGUserSaveGame;
+struct FStreamableHandle;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPGUserReceiptBalanceChangedSignature, int32, NewBalance, FName, Reason);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPGUserBestRunScoreChangedSignature, int32, NewBestScore, FName, Reason);
@@ -110,18 +111,24 @@ public:
 	FPGUserCharacterSkinChangedSignature OnPreviewCharacterChanged;
 
 private:
-	UFUNCTION()
-	void HandleRuntimePreloadCompleted();
-
 	void LoadUserData();
-	bool SaveUserData() const;
+	bool SaveUserData();
+	bool TryLoadUserDataSlot(const TCHAR* SlotName, UPGUserSaveGame*& OutUserData, uint64& OutGeneration, bool& bOutSlotExists) const;
+	bool WriteUserDataSlot(const TCHAR* SlotName, uint64 Generation) const;
+	const TCHAR* GetNextUserSaveSlotName() const;
 	UPGUserSaveGame* EnsureUserData();
 	void RefreshCatalogCache();
 	void EnsureDefaultOwnership();
-	bool ApplySkinToRunner(const UPGCharacterSkinDefinition* SkinDefinition) const;
+	void HandlePreLoadMap(const FString& MapName);
+	void CancelPendingSkinLoad();
+	bool RequestApplySkinToRunner(const UPGCharacterSkinDefinition* SkinDefinition, bool bBroadcastPreview);
+	void HandleSkinResourcesLoaded(FName SkinId, int32 RequestSerial, bool bBroadcastPreview);
+	bool ApplyLoadedSkinToRunner(const UPGCharacterSkinDefinition* SkinDefinition) const;
 	APGRunnerCharacter* GetRunnerCharacter() const;
 
-	static const TCHAR* UserSaveSlotName;
+	static const TCHAR* UserSaveSlotAName;
+	static const TCHAR* UserSaveSlotBName;
+	static const TCHAR* LegacyUserSaveSlotName;
 	static constexpr int32 UserSaveIndex = 0;
 
 	UPROPERTY(Transient)
@@ -140,6 +147,10 @@ private:
 	TArray<TObjectPtr<UPGMapDefinition>> CachedMaps;
 
 	TWeakObjectPtr<APGRunnerCharacter> PreviewRunnerCharacter;
+	TSharedPtr<FStreamableHandle> PendingSkinLoadHandle;
+	FString ActiveUserSaveSlotName;
+	uint64 CurrentUserSaveGeneration = 0;
+	int32 SkinLoadRequestSerial = 0;
 	FName LastSelectedCharacterSkinId;
 	FName LastSelectedMapId;
 };

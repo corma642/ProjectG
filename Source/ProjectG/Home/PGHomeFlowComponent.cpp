@@ -71,9 +71,13 @@ void UPGHomeFlowComponent::BeginPlay()
 
 		// 일반 앱 진입은 HomeCamera를 먼저 잡고, UI는 예열 완료 후 표시해 첫 진입 리소스 누락을 피한다.
 		SetHomeCameraViewTarget();
-		if (!RuntimePreloadSubsystem || RuntimePreloadSubsystem->IsReady())
+		if (!RuntimePreloadSubsystem || RuntimePreloadSubsystem->IsGroupReady(EPGRuntimePreloadGroup::Home))
 		{
 			ShowHomeScreen();
+			if (RuntimePreloadSubsystem)
+			{
+				RuntimePreloadSubsystem->RequestPreload(EPGRuntimePreloadGroup::Run);
+			}
 		}
 		ApplyHomeInputMode();
 	}
@@ -148,7 +152,7 @@ void UPGHomeFlowComponent::BindRuntimePreloadSubsystem()
 	}
 
 	RuntimePreloadSubsystem->OnPreloadCompleted.AddDynamic(this, &UPGHomeFlowComponent::HandleRuntimePreloadCompleted);
-	RuntimePreloadSubsystem->StartPreload();
+	RuntimePreloadSubsystem->RequestPreload(EPGRuntimePreloadGroup::Home);
 }
 
 void UPGHomeFlowComponent::BindUserDataSubsystem()
@@ -195,7 +199,7 @@ void UPGHomeFlowComponent::RequestStartDeliveryAfterPreload()
 		return;
 	}
 
-	if (RuntimePreloadSubsystem && RuntimePreloadSubsystem->IsReady() && !RuntimePreloadSubsystem->IsReadyForRun())
+	if (RuntimePreloadSubsystem && RuntimePreloadSubsystem->IsGroupReady(EPGRuntimePreloadGroup::Run) && !RuntimePreloadSubsystem->IsReadyForRun())
 	{
 		// 예열은 끝났지만 필수 런 리소스가 누락된 경우 자동 재시도로 복구할 수 없다.
 		// Home 입력을 되돌려 설정 오류를 수정한 뒤 다시 시도할 수 있게 한다.
@@ -233,7 +237,7 @@ void UPGHomeFlowComponent::RequestStartDeliveryAfterPreload()
 
 	// 예열 중 START를 누르면 입력만 잠그고, OnPreloadCompleted에서 동일 요청을 다시 처리한다.
 	bPendingStartDeliveryAfterPreload = true;
-	RuntimePreloadSubsystem->StartPreload();
+	RuntimePreloadSubsystem->RequestPreload(EPGRuntimePreloadGroup::Run);
 	if (HomeScreenWidget)
 	{
 		HomeScreenWidget->SetHomeButtonsEnabled(false);
@@ -679,7 +683,23 @@ void UPGHomeFlowComponent::HandleShopRequested()
 		return;
 	}
 
-	if (!OwnerPlayerController || !UserDataSubsystem || !AreShopScreenResourcesReady())
+	if (!OwnerPlayerController || !UserDataSubsystem)
+	{
+		return;
+	}
+
+	if (RuntimePreloadSubsystem && !RuntimePreloadSubsystem->IsGroupReady(EPGRuntimePreloadGroup::Shop))
+	{
+		bPendingShopAfterPreload = true;
+		RuntimePreloadSubsystem->RequestPreload(EPGRuntimePreloadGroup::Shop);
+		if (HomeScreenWidget)
+		{
+			HomeScreenWidget->SetHomeButtonsEnabled(false);
+		}
+		return;
+	}
+
+	if (!AreShopScreenResourcesReady())
 	{
 		return;
 	}
@@ -757,6 +777,21 @@ void UPGHomeFlowComponent::HandleReceiptShopRequested()
 		return;
 	}
 
+	if (RuntimePreloadSubsystem && !RuntimePreloadSubsystem->IsGroupReady(EPGRuntimePreloadGroup::Shop))
+	{
+		bPendingReceiptShopAfterPreload = true;
+		RuntimePreloadSubsystem->RequestPreload(EPGRuntimePreloadGroup::Shop);
+		if (ShopScreenWidget)
+		{
+			ShopScreenWidget->SetShopInteractionEnabled(false);
+		}
+		else if (HomeScreenWidget)
+		{
+			HomeScreenWidget->SetHomeButtonsEnabled(false);
+		}
+		return;
+	}
+
 	ShowReceiptShopScreen();
 }
 
@@ -801,6 +836,17 @@ void UPGHomeFlowComponent::HandleHelpRequested()
 {
 	if (SettingsScreenWidget || ShopScreenWidget || ReceiptShopWidget || bIsScreenTransitionActive)
 	{
+		return;
+	}
+
+	if (RuntimePreloadSubsystem && !RuntimePreloadSubsystem->IsGroupReady(EPGRuntimePreloadGroup::Tutorial))
+	{
+		bPendingTutorialAfterPreload = true;
+		RuntimePreloadSubsystem->RequestPreload(EPGRuntimePreloadGroup::Tutorial);
+		if (HomeScreenWidget)
+		{
+			HomeScreenWidget->SetHomeButtonsEnabled(false);
+		}
 		return;
 	}
 
@@ -1007,20 +1053,49 @@ void UPGHomeFlowComponent::HandleRunStarted()
 	ApplyGameInputMode();
 }
 
-void UPGHomeFlowComponent::HandleRuntimePreloadCompleted()
+void UPGHomeFlowComponent::HandleRuntimePreloadCompleted(EPGRuntimePreloadGroup Group)
 {
 	if (!BoundGameMode || BoundGameMode->GetRunState() != EPGRunState::Home)
 	{
 		return;
 	}
 
-	if (bPendingStartDeliveryAfterPreload || (bRetryCountdownRequested && bRetryCountdownInitializationReady))
+	if (Group == EPGRuntimePreloadGroup::Home)
+	{
+		ShowHomeScreen();
+		if (RuntimePreloadSubsystem)
+		{
+			RuntimePreloadSubsystem->RequestPreload(EPGRuntimePreloadGroup::Run);
+		}
+	}
+
+	if (Group == EPGRuntimePreloadGroup::Run && (bPendingStartDeliveryAfterPreload || (bRetryCountdownRequested && bRetryCountdownInitializationReady)))
 	{
 		RequestStartDeliveryAfterPreload();
 		return;
 	}
 
-	ShowHomeScreen();
+	if (Group == EPGRuntimePreloadGroup::Shop)
+	{
+		if (bPendingReceiptShopAfterPreload)
+		{
+			bPendingReceiptShopAfterPreload = false;
+			ShowReceiptShopScreen();
+			return;
+		}
+		if (bPendingShopAfterPreload)
+		{
+			bPendingShopAfterPreload = false;
+			HandleShopRequested();
+			return;
+		}
+	}
+
+	if (Group == EPGRuntimePreloadGroup::Tutorial && bPendingTutorialAfterPreload)
+	{
+		bPendingTutorialAfterPreload = false;
+		ShowTutorialScreen();
+	}
 }
 
 void UPGHomeFlowComponent::HandleReceiptBalanceChanged(int32 NewBalance, FName Reason)

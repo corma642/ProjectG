@@ -30,12 +30,23 @@ void UPGGameUserSettings::SetToDefaults()
 	const UPGGameSettings* ProjectSettings = GetDefault<UPGGameSettings>();
 	const EPGMobileQualityPreset DefaultPreset = ProjectSettings ? ProjectSettings->MobileQuality.DefaultPreset : EPGMobileQualityPreset::High;
 	CopyPresetToSavedSettings(DefaultPreset);
+	bHasUserSelectedMobileQuality = false;
 }
 
 void UPGGameUserSettings::ApplySavedMobileQualitySettings(bool bSaveAfterApply)
 {
 	NormalizeSavedMobileQualitySettings();
-	ApplySavedMobileQualityToEngine();
+	if (bHasUserSelectedMobileQuality)
+	{
+		ApplySavedMobileQualityToEngine();
+	}
+	else
+	{
+		// 첫 실행에는 기기 프로필이 고른 Scalability를 덮지 않습니다.
+		// 프레임 제한은 그래픽 품질과 독립된 사용자 설정이므로 그대로 적용합니다.
+		SetFrameRateLimit(static_cast<float>(SavedMobileFrameRateLimit));
+		SetFrameRateLimitCVar(GetEffectiveFrameRateLimit());
+	}
 	if (bSaveAfterApply)
 	{
 		SaveSettings();
@@ -44,12 +55,14 @@ void UPGGameUserSettings::ApplySavedMobileQualitySettings(bool bSaveAfterApply)
 
 void UPGGameUserSettings::ApplyMobileQualityPreset(EPGMobileQualityPreset Preset, bool bSaveAfterApply)
 {
+	bHasUserSelectedMobileQuality = true;
 	CopyPresetToSavedSettings(Preset);
 	ApplySavedMobileQualitySettings(bSaveAfterApply);
 }
 
 void UPGGameUserSettings::SetMobileResolutionScalePercent(float NewResolutionScalePercent, bool bSaveAfterApply)
 {
+	bHasUserSelectedMobileQuality = true;
 	ResolutionScalePercent = FMath::Clamp(NewResolutionScalePercent, MinMobileResolutionScale, MaxMobileResolutionScale);
 	ApplySavedMobileQualitySettings(bSaveAfterApply);
 }

@@ -3,56 +3,129 @@
 #include "User/PGUserDataSubsystem.h"
 
 #include "Character/PGRunnerCharacter.h"
+#include "Engine/AssetManager.h"
+#include "Engine/StreamableManager.h"
 #include "GameModes/PGGameModeBase.h"
 #include "Kismet/GameplayStatics.h"
-#include "Loading/PGRuntimePreloadSubsystem.h"
+#include "Misc/Crc.h"
+#include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryWriter.h"
 #include "Settings/PGGameSettings.h"
 #include "Shop/PGCharacterShopCatalog.h"
 #include "Shop/PGCharacterSkinDefinition.h"
 #include "Shop/PGMapDefinition.h"
 #include "Shop/PGMapShopCatalog.h"
+#include "UObject/UObjectGlobals.h"
 #include "User/PGUserSaveGame.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGUserData, Log, All);
 
-const TCHAR* UPGUserDataSubsystem::UserSaveSlotName = TEXT("PGUserData");
+namespace
+{
+constexpr uint32 UserSaveEnvelopeMagic = 0x50475553; // PGUS
+constexpr uint32 UserSaveEnvelopeVersion = 1;
+constexpr int32 UserSaveEnvelopeSize = sizeof(uint32) * 4 + sizeof(uint64);
+
+struct FPGUserSaveEnvelope
+{
+	uint32 Magic = UserSaveEnvelopeMagic;
+	uint32 Version = UserSaveEnvelopeVersion;
+	uint64 Generation = 0;
+	uint32 PayloadSize = 0;
+	uint32 PayloadCrc = 0;
+
+	friend FArchive& operator<<(FArchive& Archive, FPGUserSaveEnvelope& Envelope)
+	{
+		Archive << Envelope.Magic;
+		Archive << Envelope.Version;
+		Archive << Envelope.Generation;
+		Archive << Envelope.PayloadSize;
+		Archive << Envelope.PayloadCrc;
+		return Archive;
+	}
+};
+
+int32 AddReceiptBalanceClamped(int32 CurrentBalance, int32 Amount)
+{
+	const int64 NewBalance = static_cast<int64>(FMath::Max(0, CurrentBalance)) + static_cast<int64>(FMath::Max(0, Amount));
+	return static_cast<int32>(FMath::Clamp<int64>(NewBalance, 0, MAX_int32));
+}
+
+bool BuildUserSaveEnvelope(UPGUserSaveGame* UserData, uint64 Generation, TArray<uint8>& OutSaveData)
+{
+	TArray<uint8> Payload;
+	if (!UGameplayStatics::SaveGameToMemory(UserData, Payload) || Payload.IsEmpty())
+	{
+		return false;
+	}
+
+	FPGUserSaveEnvelope Envelope;
+	Envelope.Generation = Generation;
+	Envelope.PayloadSize = Payload.Num();
+	Envelope.PayloadCrc = FCrc::MemCrc32(Payload.GetData(), Payload.Num());
+
+	FMemoryWriter Writer(OutSaveData, true);
+	Writer << Envelope;
+	Writer.Serialize(Payload.GetData(), Payload.Num());
+	return !Writer.IsError();
+}
+
+bool ReadUserSaveEnvelope(const TArray<uint8>& SaveData, TArray<uint8>& OutPayload, uint64& OutGeneration)
+{
+	if (SaveData.Num() < UserSaveEnvelopeSize)
+	{
+		return false;
+	}
+
+	FMemoryReader Reader(SaveData, true);
+	FPGUserSaveEnvelope Envelope;
+	Reader << Envelope;
+	if (Reader.IsError()
+		|| Envelope.Magic != UserSaveEnvelopeMagic
+		|| Envelope.Version != UserSaveEnvelopeVersion
+		|| Envelope.PayloadSize == 0
+		|| Envelope.PayloadSize != static_cast<uint32>(SaveData.Num() - UserSaveEnvelopeSize))
+	{
+		return false;
+	}
+
+	OutPayload.SetNumUninitialized(Envelope.PayloadSize);
+	Reader.Serialize(OutPayload.GetData(), Envelope.PayloadSize);
+	if (Reader.IsError() || FCrc::MemCrc32(OutPayload.GetData(), OutPayload.Num()) != Envelope.PayloadCrc)
+	{
+		OutPayload.Reset();
+		return false;
+	}
+
+	OutGeneration = Envelope.Generation;
+	return true;
+}
+}
+
+const TCHAR* UPGUserDataSubsystem::UserSaveSlotAName = TEXT("PGUserData_A");
+const TCHAR* UPGUserDataSubsystem::UserSaveSlotBName = TEXT("PGUserData_B");
+const TCHAR* UPGUserDataSubsystem::LegacyUserSaveSlotName = TEXT("PGUserData");
 
 void UPGUserDataSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+	FCoreUObjectDelegates::PreLoadMap.AddUObject(this, &UPGUserDataSubsystem::HandlePreLoadMap);
 	LoadUserData();
 
-	// 카탈로그는 Soft Reference 예열 이후에만 읽는다. HomeFlow가 우연히 먼저 열려
-	// 캐시를 복구하는 초기화 순서 의존성을 만들지 않는다.
-	if (UPGRuntimePreloadSubsystem* PreloadSubsystem = GetGameInstance()->GetSubsystem<UPGRuntimePreloadSubsystem>())
-	{
-		PreloadSubsystem->OnPreloadCompleted.AddDynamic(this, &UPGUserDataSubsystem::HandleRuntimePreloadCompleted);
-		if (PreloadSubsystem->IsReady())
-		{
-			HandleRuntimePreloadCompleted();
-		}
-	}
+	// 카탈로그 캐시는 RuntimePreloadSubsystem의 Home primary 단계에서 갱신합니다.
+	// 저장 데이터 로드는 먼저 끝내 두어 장착 스킨 하나만 Home nested 단계에서 예열할 수 있게 합니다.
 }
 
 void UPGUserDataSubsystem::Deinitialize()
 {
-	if (UPGRuntimePreloadSubsystem* PreloadSubsystem = GetGameInstance()->GetSubsystem<UPGRuntimePreloadSubsystem>())
-	{
-		PreloadSubsystem->OnPreloadCompleted.RemoveDynamic(this, &UPGUserDataSubsystem::HandleRuntimePreloadCompleted);
-	}
-	SaveUserData();
+	FCoreUObjectDelegates::PreLoadMap.RemoveAll(this);
+	CancelPendingSkinLoad();
 	UserSaveGame = nullptr;
 	CachedCatalog = nullptr;
 	CachedMapCatalog = nullptr;
 	CachedCharacterSkins.Reset();
 	CachedMaps.Reset();
 	Super::Deinitialize();
-}
-
-void UPGUserDataSubsystem::HandleRuntimePreloadCompleted()
-{
-	RefreshCatalogCache();
-	EnsureDefaultOwnership();
 }
 
 int32 UPGUserDataSubsystem::GetReceiptBalance() const
@@ -79,7 +152,7 @@ bool UPGUserDataSubsystem::TryAddReceipts(int32 Amount, FName Reason)
 	}
 
 	const int32 PreviousBalance = UserData->ReceiptBalance;
-	UserData->ReceiptBalance = FMath::Max(0, UserData->ReceiptBalance) + Amount;
+	UserData->ReceiptBalance = AddReceiptBalanceClamped(UserData->ReceiptBalance, Amount);
 	if (SaveUserData())
 	{
 		OnReceiptBalanceChanged.Broadcast(UserData->ReceiptBalance, Reason);
@@ -164,7 +237,7 @@ bool UPGUserDataSubsystem::TrySettleRunRewards(int32 Receipts, int32 Score, FNam
 	const int32 PreviousBalance = UserData->ReceiptBalance;
 	const int32 PreviousBestScore = UserData->BestRunScore;
 
-	UserData->ReceiptBalance = FMath::Max(0, UserData->ReceiptBalance) + ReceiptDelta;
+	UserData->ReceiptBalance = AddReceiptBalanceClamped(UserData->ReceiptBalance, ReceiptDelta);
 	UserData->BestRunScore = FMath::Max(UserData->BestRunScore, SanitizedScore);
 
 	// 런 보상은 영수증과 최고 점수가 함께 확정되어야 한다. 저장 실패 시 메모리 상태도
@@ -444,7 +517,7 @@ bool UPGUserDataSubsystem::EquipCharacter(FName SkinId)
 		return false;
 	}
 
-	ApplySkinToRunner(FindCharacterSkin(SkinId));
+	RequestApplySkinToRunner(FindCharacterSkin(SkinId), false);
 	OnEquippedCharacterChanged.Broadcast(SkinId);
 	return true;
 }
@@ -528,28 +601,49 @@ bool UPGUserDataSubsystem::PreviewCharacter(FName SkinId)
 		return false;
 	}
 
-	const bool bApplied = ApplySkinToRunner(SkinDefinition);
-	if (bApplied)
-	{
-		OnPreviewCharacterChanged.Broadcast(SkinId);
-	}
-	return bApplied;
+	return RequestApplySkinToRunner(SkinDefinition, true);
 }
 
 void UPGUserDataSubsystem::RestoreEquippedCharacter()
 {
-	ApplySkinToRunner(GetEquippedCharacterSkin());
+	RequestApplySkinToRunner(GetEquippedCharacterSkin(), false);
 }
 
 void UPGUserDataSubsystem::LoadUserData()
 {
-	if (USaveGame* LoadedSave = UGameplayStatics::LoadGameFromSlot(UserSaveSlotName, UserSaveIndex))
+	UPGUserSaveGame* SlotAData = nullptr;
+	UPGUserSaveGame* SlotBData = nullptr;
+	uint64 SlotAGeneration = 0;
+	uint64 SlotBGeneration = 0;
+	bool bSlotAExists = false;
+	bool bSlotBExists = false;
+	const bool bSlotAValid = TryLoadUserDataSlot(UserSaveSlotAName, SlotAData, SlotAGeneration, bSlotAExists);
+	const bool bSlotBValid = TryLoadUserDataSlot(UserSaveSlotBName, SlotBData, SlotBGeneration, bSlotBExists);
+
+	if (bSlotAValid && (!bSlotBValid || SlotAGeneration >= SlotBGeneration))
 	{
-		UserSaveGame = Cast<UPGUserSaveGame>(LoadedSave);
+		UserSaveGame = SlotAData;
+		ActiveUserSaveSlotName = UserSaveSlotAName;
+		CurrentUserSaveGeneration = SlotAGeneration;
+	}
+	else if (bSlotBValid)
+	{
+		UserSaveGame = SlotBData;
+		ActiveUserSaveSlotName = UserSaveSlotBName;
+		CurrentUserSaveGeneration = SlotBGeneration;
+	}
+
+	if (UserSaveGame && ((bSlotAExists && !bSlotAValid) || (bSlotBExists && !bSlotBValid)))
+	{
+		UE_LOG(LogPGUserData, Warning, TEXT("Recovered user data from the last valid snapshot after ignoring a damaged save slot."));
 	}
 
 	if (!UserSaveGame)
 	{
+		if (bSlotAExists || bSlotBExists)
+		{
+			UE_LOG(LogPGUserData, Warning, TEXT("All user data snapshots are damaged. Starting with new user data."));
+		}
 		UserSaveGame = Cast<UPGUserSaveGame>(UGameplayStatics::CreateSaveGameObject(UPGUserSaveGame::StaticClass()));
 		SaveUserData();
 	}
@@ -561,19 +655,73 @@ void UPGUserDataSubsystem::LoadUserData()
 	}
 }
 
-bool UPGUserDataSubsystem::SaveUserData() const
+bool UPGUserDataSubsystem::SaveUserData()
 {
 	if (!UserSaveGame)
 	{
 		return false;
 	}
 
-	const bool bSaved = UGameplayStatics::SaveGameToSlot(UserSaveGame, UserSaveSlotName, UserSaveIndex);
-	if (!bSaved)
+	const TCHAR* TargetSlotName = GetNextUserSaveSlotName();
+	const uint64 NextGeneration = CurrentUserSaveGeneration + 1;
+	if (!WriteUserDataSlot(TargetSlotName, NextGeneration))
 	{
-		UE_LOG(LogPGUserData, Warning, TEXT("Failed to save user data to slot '%s'."), UserSaveSlotName);
+		UE_LOG(LogPGUserData, Warning, TEXT("Failed to write or verify user data snapshot '%s'."), TargetSlotName);
+		return false;
 	}
-	return bSaved;
+
+	ActiveUserSaveSlotName = TargetSlotName;
+	CurrentUserSaveGeneration = NextGeneration;
+
+	if (UGameplayStatics::DoesSaveGameExist(LegacyUserSaveSlotName, UserSaveIndex))
+	{
+		UGameplayStatics::DeleteGameInSlot(LegacyUserSaveSlotName, UserSaveIndex);
+	}
+	return true;
+}
+
+bool UPGUserDataSubsystem::TryLoadUserDataSlot(const TCHAR* SlotName, UPGUserSaveGame*& OutUserData, uint64& OutGeneration, bool& bOutSlotExists) const
+{
+	OutUserData = nullptr;
+	OutGeneration = 0;
+	bOutSlotExists = UGameplayStatics::DoesSaveGameExist(SlotName, UserSaveIndex);
+	if (!bOutSlotExists)
+	{
+		return false;
+	}
+
+	TArray<uint8> SaveData;
+	TArray<uint8> Payload;
+	if (!UGameplayStatics::LoadDataFromSlot(SaveData, SlotName, UserSaveIndex)
+		|| !ReadUserSaveEnvelope(SaveData, Payload, OutGeneration))
+	{
+		return false;
+	}
+
+	OutUserData = Cast<UPGUserSaveGame>(UGameplayStatics::LoadGameFromMemory(Payload));
+	return OutUserData != nullptr;
+}
+
+bool UPGUserDataSubsystem::WriteUserDataSlot(const TCHAR* SlotName, uint64 Generation) const
+{
+	TArray<uint8> SaveData;
+	if (!BuildUserSaveEnvelope(UserSaveGame, Generation, SaveData)
+		|| !UGameplayStatics::SaveDataToSlot(SaveData, SlotName, UserSaveIndex))
+	{
+		return false;
+	}
+
+	// 저장 직후 다시 읽어 CRC와 SaveGame 역직렬화까지 확인한 뒤에만 최신 스냅샷으로 확정한다.
+	UPGUserSaveGame* VerifiedUserData = nullptr;
+	uint64 VerifiedGeneration = 0;
+	bool bSlotExists = false;
+	return TryLoadUserDataSlot(SlotName, VerifiedUserData, VerifiedGeneration, bSlotExists)
+		&& VerifiedGeneration == Generation;
+}
+
+const TCHAR* UPGUserDataSubsystem::GetNextUserSaveSlotName() const
+{
+	return ActiveUserSaveSlotName == UserSaveSlotAName ? UserSaveSlotBName : UserSaveSlotAName;
 }
 
 UPGUserSaveGame* UPGUserDataSubsystem::EnsureUserData()
@@ -619,7 +767,7 @@ void UPGUserDataSubsystem::RefreshCatalogCache()
 				UE_LOG(LogPGUserData, Warning, TEXT("Duplicate character SkinId '%s' in shop catalog."), *SkinDefinition->SkinId.ToString());
 				continue;
 			}
-			if (!SkinDefinition->SkeletalMesh)
+			if (SkinDefinition->SkeletalMesh.IsNull())
 			{
 				UE_LOG(LogPGUserData, Warning, TEXT("Character skin '%s' has no SkeletalMesh."), *SkinDefinition->SkinId.ToString());
 			}
@@ -745,10 +893,95 @@ void UPGUserDataSubsystem::EnsureDefaultOwnership()
 	}
 }
 
-bool UPGUserDataSubsystem::ApplySkinToRunner(const UPGCharacterSkinDefinition* SkinDefinition) const
+void UPGUserDataSubsystem::HandlePreLoadMap(const FString& MapName)
 {
+	// 맵 전환 중 이전 월드 러너와 프리뷰 로드가 새 월드 로드까지 유지되면 저사양 기기의 메모리 피크가 커진다.
+	CancelPendingSkinLoad();
+	PreviewRunnerCharacter.Reset();
+}
+
+void UPGUserDataSubsystem::CancelPendingSkinLoad()
+{
+	++SkinLoadRequestSerial;
+	if (PendingSkinLoadHandle.IsValid())
+	{
+		PendingSkinLoadHandle->CancelHandle();
+		PendingSkinLoadHandle.Reset();
+	}
+}
+
+bool UPGUserDataSubsystem::RequestApplySkinToRunner(const UPGCharacterSkinDefinition* SkinDefinition, bool bBroadcastPreview)
+{
+	if (!SkinDefinition || SkinDefinition->SkeletalMesh.IsNull() || !GetRunnerCharacter())
+	{
+		return false;
+	}
+
+	CancelPendingSkinLoad();
+	const int32 RequestSerial = SkinLoadRequestSerial;
+
+	TArray<FSoftObjectPath> ResourcePaths;
+	ResourcePaths.AddUnique(SkinDefinition->SkeletalMesh.ToSoftObjectPath());
+	if (!SkinDefinition->AnimClass.IsNull())
+	{
+		ResourcePaths.AddUnique(SkinDefinition->AnimClass.ToSoftObjectPath());
+	}
+
+	// Home 장착 스킨처럼 이미 준비된 리소스는 즉시 적용합니다.
+	// Shop에서 처음 선택한 스킨은 비동기 로드가 끝날 때까지 기존 프리뷰 메시를 유지합니다.
+	if (SkinDefinition->SkeletalMesh.Get() && (SkinDefinition->AnimClass.IsNull() || SkinDefinition->AnimClass.Get()))
+	{
+		HandleSkinResourcesLoaded(SkinDefinition->SkinId, RequestSerial, bBroadcastPreview);
+		return true;
+	}
+
+	PendingSkinLoadHandle = UAssetManager::GetStreamableManager().RequestAsyncLoad(
+		ResourcePaths,
+		FStreamableDelegate::CreateUObject(this, &UPGUserDataSubsystem::HandleSkinResourcesLoaded, SkinDefinition->SkinId, RequestSerial, bBroadcastPreview),
+		FStreamableManager::DefaultAsyncLoadPriority,
+		false,
+		false,
+		TEXT("PGCharacterSkinPreview"));
+	return PendingSkinLoadHandle.IsValid();
+}
+
+void UPGUserDataSubsystem::HandleSkinResourcesLoaded(FName SkinId, int32 RequestSerial, bool bBroadcastPreview)
+{
+	// 카드를 빠르게 넘긴 경우 마지막 요청만 반영합니다. 이전 로드 완료가 최신 프리뷰를 덮어쓰면 안 됩니다.
+	if (RequestSerial != SkinLoadRequestSerial)
+	{
+		return;
+	}
+
+	// 메시 컴포넌트와 AnimInstance가 적용된 리소스를 직접 참조하므로 완료된 로드 핸들은 더 이상 보관하지 않습니다.
+	if (PendingSkinLoadHandle.IsValid())
+	{
+		PendingSkinLoadHandle->ReleaseHandle();
+		PendingSkinLoadHandle.Reset();
+	}
+
+	const UPGCharacterSkinDefinition* SkinDefinition = FindCharacterSkin(SkinId);
+	if (!ApplyLoadedSkinToRunner(SkinDefinition))
+	{
+		UE_LOG(LogPGUserData, Warning, TEXT("Character skin '%s' could not be applied after async load."), *SkinId.ToString());
+		return;
+	}
+
+	if (bBroadcastPreview)
+	{
+		OnPreviewCharacterChanged.Broadcast(SkinId);
+	}
+}
+
+bool UPGUserDataSubsystem::ApplyLoadedSkinToRunner(const UPGCharacterSkinDefinition* SkinDefinition) const
+{
+	if (!SkinDefinition || !SkinDefinition->SkeletalMesh.Get() || (!SkinDefinition->AnimClass.IsNull() && !SkinDefinition->AnimClass.Get()))
+	{
+		return false;
+	}
+
 	APGRunnerCharacter* RunnerCharacter = GetRunnerCharacter();
-	return RunnerCharacter && SkinDefinition && RunnerCharacter->ApplyCharacterSkin(SkinDefinition);
+	return RunnerCharacter && RunnerCharacter->ApplyCharacterSkin(SkinDefinition);
 }
 
 APGRunnerCharacter* UPGUserDataSubsystem::GetRunnerCharacter() const

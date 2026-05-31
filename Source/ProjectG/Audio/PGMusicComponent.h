@@ -10,6 +10,7 @@
 class APGGameModeBase;
 class UAudioComponent;
 class USoundBase;
+enum class EPGRuntimePreloadGroup : uint8;
 
 /**
  * 홈/러닝 배경음을 로컬 플레이어 기준으로 재생하고 상태 전환에 맞춰 페이드 처리하는 컴포넌트입니다.
@@ -40,7 +41,7 @@ private:
 	void HandleRunFailed(FName FailureReason);
 
 	UFUNCTION()
-	void HandleRuntimePreloadCompleted();
+	void HandleRuntimePreloadCompleted(EPGRuntimePreloadGroup Group);
 
 	void HandleMusicVolumeChanged(float MusicVolumeScale);
 	void LoadSettings();
@@ -60,6 +61,7 @@ private:
 	float GetBaseMusicVolume() const;
 	float GetRunMusicTargetVolume() const;
 	bool IsRetryCountdownLoad() const;
+	EPGRuntimePreloadGroup GetRequiredPreloadGroup() const;
 
 	UPROPERTY(Transient)
 	TObjectPtr<APGGameModeBase> BoundGameMode;

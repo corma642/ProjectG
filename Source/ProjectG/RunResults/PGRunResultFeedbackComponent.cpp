@@ -108,7 +108,7 @@ bool UPGRunResultFeedbackComponent::AreRuntimeResourcesReady() const
 {
 	const UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
 	const UPGRuntimePreloadSubsystem* PreloadSubsystem = GameInstance ? GameInstance->GetSubsystem<UPGRuntimePreloadSubsystem>() : nullptr;
-	return !PreloadSubsystem || PreloadSubsystem->IsReady();
+	return !PreloadSubsystem || PreloadSubsystem->IsGroupReady(EPGRuntimePreloadGroup::Run);
 }
 
 void UPGRunResultFeedbackComponent::BindGameMode()

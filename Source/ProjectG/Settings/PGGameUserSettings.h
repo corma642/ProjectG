@@ -66,6 +66,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Quality")
 	int32 GetMobileFrameRateLimit() const { return SavedMobileFrameRateLimit; }
 
+	/** 사용자가 품질 프리셋 또는 해상도를 직접 선택했는지 반환합니다. false이면 Android DeviceProfile 품질을 유지합니다. */
+	UFUNCTION(BlueprintPure, Category = "Quality")
+	bool HasUserSelectedMobileQuality() const { return bHasUserSelectedMobileQuality; }
+
 	UFUNCTION(BlueprintPure, Category = "UI")
 	bool GetShowFPSDisplay() const { return bShowFPSDisplay; }
 
@@ -125,6 +129,10 @@ private:
 
 	UPROPERTY(Config)
 	int32 MaxAnisotropy = 8;
+
+	// 신규 설치에서는 DeviceProfile 품질을 우선합니다. Settings에서 품질을 직접 바꾼 뒤에만 저장 프리셋을 적용합니다.
+	UPROPERTY(Config)
+	bool bHasUserSelectedMobileQuality = false;
 
 	// Android 프레임 테스트용 FPS 오버레이 표시 여부입니다.
 	UPROPERTY(Config)

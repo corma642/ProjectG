@@ -9,6 +9,7 @@
 class APGPlayerController;
 class UPGFPSDisplayWidget;
 class UPGRuntimePreloadSubsystem;
+enum class EPGRuntimePreloadGroup : uint8;
 
 /**
  * 로컬 플레이어의 FPS 표시 위젯을 Settings 저장값에 맞춰 생성/제거하는 독립 컴포넌트입니다.
@@ -27,7 +28,7 @@ public:
 
 private:
 	UFUNCTION()
-	void HandleRuntimePreloadCompleted();
+	void HandleRuntimePreloadCompleted(EPGRuntimePreloadGroup Group);
 
 	void HandleShowFPSDisplayChanged(bool bShow);
 	void RefreshDisplay();
