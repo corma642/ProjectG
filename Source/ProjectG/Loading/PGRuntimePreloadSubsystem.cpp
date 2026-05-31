@@ -116,8 +116,6 @@ void UPGRuntimePreloadSubsystem::CollectPrimaryResourcePaths(TArray<FSoftObjectP
 	AddUniquePath(OutPaths, Settings->RunEvent.DefaultRunEventSet.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->RunEvent.DefaultPresentationSet.ToSoftObjectPath());
 	AddUniquePath(OutPaths, Settings->MovingHazard.HazardActorClass.ToSoftObjectPath());
-
-	AddUniquePath(OutPaths, Settings->CargoDelivery.DefaultCargoDropSet.ToSoftObjectPath());
 }
 
 void UPGRuntimePreloadSubsystem::CollectNestedResourcePaths(TArray<FSoftObjectPath>& OutPaths) const
@@ -193,8 +191,83 @@ void UPGRuntimePreloadSubsystem::CollectNestedResourcePaths(TArray<FSoftObjectPa
 			{
 				AddUniquePath(OutPaths, FSoftObjectPath(MapDefinition->Thumbnail.Get()));
 			}
+			AddUniquePath(OutPaths, MapDefinition->CargoDropSet.ToSoftObjectPath());
 		}
 	}
+}
+
+bool UPGRuntimePreloadSubsystem::IsReadyForRun() const
+{
+	return bIsReady && bAreRequiredRunResourcesReady && IsCurrentMapCargoDropSetReady(false);
+}
+
+void UPGRuntimePreloadSubsystem::LogRunReadinessIssues() const
+{
+	if (!bAreRequiredRunResourcesReady)
+	{
+		UE_LOG(LogPGRuntimePreload, Warning, TEXT("Run start blocked: check Countdown, RunHUD, Pause, RunResult, and RunEventSet settings."));
+	}
+
+	IsCurrentMapCargoDropSetReady(true);
+}
+
+bool UPGRuntimePreloadSubsystem::IsCurrentMapCargoDropSetReady(bool bLogIssues) const
+{
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		// GameInstance 예열은 첫 월드 생성보다 먼저 끝날 수 있습니다. START 시점에는 월드가 있으므로
+		// 여기서는 설정 오류처럼 경고하지 않고 준비되지 않은 상태로만 처리합니다.
+		return false;
+	}
+
+	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
+	const UPGMapShopCatalog* MapCatalog = Settings ? Settings->Shop.MapShopCatalog.Get() : nullptr;
+	if (!MapCatalog)
+	{
+		if (bLogIssues)
+		{
+			UE_LOG(LogPGRuntimePreload, Warning, TEXT("Run start blocked: MapShopCatalog is not assigned or loaded."));
+		}
+		return false;
+	}
+
+	bool bHasDuplicateLevel = false;
+	const UPGMapDefinition* CurrentMap = MapCatalog->FindMapForWorld(World, bHasDuplicateLevel);
+	if (bHasDuplicateLevel)
+	{
+		if (bLogIssues)
+		{
+			UE_LOG(LogPGRuntimePreload, Warning, TEXT("Run start blocked: the current level is registered more than once in MapShopCatalog."));
+		}
+		return false;
+	}
+	if (!CurrentMap)
+	{
+		if (bLogIssues)
+		{
+			UE_LOG(LogPGRuntimePreload, Warning, TEXT("Run start blocked: current level '%s' is not registered in MapShopCatalog."), *UPGMapShopCatalog::GetNormalizedWorldPackageName(World));
+		}
+		return false;
+	}
+	if (CurrentMap->CargoDropSet.IsNull())
+	{
+		if (bLogIssues)
+		{
+			UE_LOG(LogPGRuntimePreload, Warning, TEXT("Run start blocked: map '%s' has no CargoDropSet."), *CurrentMap->MapId.ToString());
+		}
+		return false;
+	}
+	if (!CurrentMap->CargoDropSet.Get())
+	{
+		if (bLogIssues)
+		{
+			UE_LOG(LogPGRuntimePreload, Warning, TEXT("Run start blocked: map '%s' CargoDropSet '%s' is not loaded."), *CurrentMap->MapId.ToString(), *CurrentMap->CargoDropSet.ToSoftObjectPath().ToString());
+		}
+		return false;
+	}
+
+	return true;
 }
 
 void UPGRuntimePreloadSubsystem::AddUniquePath(TArray<FSoftObjectPath>& OutPaths, const FSoftObjectPath& Path) const
@@ -266,13 +339,15 @@ void UPGRuntimePreloadSubsystem::ValidateLoadedResources()
 		&& Settings->RunHUD.RunHUDWidgetClass.Get()
 		&& Settings->RunHUD.RunPauseWidgetClass.Get()
 		&& Settings->RunResult.GameOverWidgetClass.Get()
-		&& Settings->CargoDelivery.DefaultCargoDropSet.Get()
 		&& Settings->RunEvent.DefaultRunEventSet.Get();
 
 	if (!bAreRequiredRunResourcesReady)
 	{
-		UE_LOG(LogPGRuntimePreload, Warning, TEXT("Runtime preload completed, but one or more required run resources are missing. Check Countdown, RunHUD, Pause, RunResult, CargoDropSet, and RunEventSet settings."));
+		UE_LOG(LogPGRuntimePreload, Warning, TEXT("Runtime preload completed, but one or more required run resources are missing. Check Countdown, RunHUD, Pause, RunResult, and RunEventSet settings."));
 	}
+
+	// 맵 전용 CargoDropSet은 월드가 열린 뒤에만 판별할 수 있으므로 정적 필수 리소스와 분리해 검증합니다.
+	IsCurrentMapCargoDropSetReady(true);
 }
 
 void UPGRuntimePreloadSubsystem::ReleaseHandles()

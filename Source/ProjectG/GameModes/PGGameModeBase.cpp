@@ -62,6 +62,10 @@ void APGGameModeBase::RequestStartDelivery()
 		if (PreloadSubsystem)
 		{
 			PreloadSubsystem->StartPreload();
+			if (PreloadSubsystem->IsReady())
+			{
+				PreloadSubsystem->LogRunReadinessIssues();
+			}
 		}
 		return;
 	}

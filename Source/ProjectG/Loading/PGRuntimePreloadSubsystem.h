@@ -33,7 +33,10 @@ public:
 
 	// 카운트다운 이후 즉시 필요한 리소스가 모두 준비되었는지 반환합니다.
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runtime Preload")
-	bool IsReadyForRun() const { return bIsReady && bAreRequiredRunResourcesReady; }
+	bool IsReadyForRun() const;
+
+	// START가 차단된 원인을 조치 가능한 설정 경고로 출력합니다.
+	void LogRunReadinessIssues() const;
 
 	// 현재 비동기 예열이 진행 중인지 반환합니다.
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runtime Preload")
@@ -52,6 +55,7 @@ private:
 	void CompletePreload();
 	void ReleaseHandles();
 	void ValidateLoadedResources();
+	bool IsCurrentMapCargoDropSetReady(bool bLogIssues) const;
 
 	TSharedPtr<FStreamableHandle> PrimaryLoadHandle;
 	TSharedPtr<FStreamableHandle> NestedLoadHandle;

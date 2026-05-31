@@ -42,6 +42,7 @@ private:
 	void HandleRunFailed(FName FailureReason);
 
 	void LoadSettings();
+	bool ResolveCurrentMapDropSet();
 	void BindGameMode();
 	void InitializeRunnerReferences();
 	void ProcessCargoDeliveryTick(float DeltaSeconds);
@@ -70,6 +71,7 @@ private:
 	bool bIsRunActive = false;
 	bool bIsBoundToGameMode = false;
 	bool bWarnedMissingCargoStack = false;
+	bool bWarnedMissingDropSet = false;
 	bool bWarnedMissingCargoType = false;
 	bool bWarnedInvalidCargoMesh = false;
 };

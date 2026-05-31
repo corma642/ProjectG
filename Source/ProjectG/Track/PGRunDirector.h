@@ -72,7 +72,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Run Director | Track")
 	TObjectPtr<UPGTrackSegmentSet> SegmentSet;
 
-	// 레벨에 직접 배치한 시작 세그먼트입니다. 비어 있으면 첫 발견 세그먼트를 사용합니다.
+	// 레벨에 직접 배치한 필수 시작 세그먼트입니다. 누락되면 맵 계약 검증에서 START를 차단합니다.
 	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Run Director | Track")
 	TObjectPtr<APGTrackSegment> InitialSegment;
 

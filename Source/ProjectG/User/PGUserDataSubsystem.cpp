@@ -641,6 +641,7 @@ void UPGUserDataSubsystem::RefreshCatalogCache()
 	}
 
 	TSet<FName> SeenMapIds;
+	TSet<FString> SeenMapLevelPackages;
 	for (UPGMapDefinition* MapDefinition : CachedMapCatalog->Maps)
 	{
 		if (!MapDefinition)
@@ -661,6 +662,19 @@ void UPGUserDataSubsystem::RefreshCatalogCache()
 		if (MapDefinition->Level.IsNull())
 		{
 			UE_LOG(LogPGUserData, Warning, TEXT("Map '%s' has no Level asset."), *MapDefinition->MapId.ToString());
+		}
+		else
+		{
+			const FString LevelPackageName = UPGMapShopCatalog::GetNormalizedLevelPackageName(MapDefinition);
+			if (SeenMapLevelPackages.Contains(LevelPackageName))
+			{
+				UE_LOG(LogPGUserData, Warning, TEXT("Map level '%s' is registered more than once in map shop catalog."), *LevelPackageName);
+			}
+			SeenMapLevelPackages.Add(LevelPackageName);
+		}
+		if (MapDefinition->CargoDropSet.IsNull())
+		{
+			UE_LOG(LogPGUserData, Warning, TEXT("Map '%s' has no CargoDropSet."), *MapDefinition->MapId.ToString());
 		}
 
 		SeenMapIds.Add(MapDefinition->MapId);

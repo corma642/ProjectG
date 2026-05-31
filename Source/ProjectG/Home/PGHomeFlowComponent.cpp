@@ -200,6 +200,7 @@ void UPGHomeFlowComponent::RequestStartDeliveryAfterPreload()
 		// 예열은 끝났지만 필수 런 리소스가 누락된 경우 자동 재시도로 복구할 수 없다.
 		// Home 입력을 되돌려 설정 오류를 수정한 뒤 다시 시도할 수 있게 한다.
 		bPendingStartDeliveryAfterPreload = false;
+		RuntimePreloadSubsystem->LogRunReadinessIssues();
 		if (HomeScreenWidget)
 		{
 			HomeScreenWidget->SetHomeButtonsEnabled(true);

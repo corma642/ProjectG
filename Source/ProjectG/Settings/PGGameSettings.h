@@ -7,7 +7,6 @@
 #include "PGGameSettings.generated.h"
 
 class APGMovingRunEventHazardActor;
-class UPGCargoDropSet;
 class UPGCharacterShopCatalog;
 class UPGCharacterShopItemWidget;
 class UPGMapShopCatalog;
@@ -638,10 +637,6 @@ USTRUCT(BlueprintType)
 struct FPGCargoDeliverySettings
 {
 	GENERATED_BODY()
-
-	// 러닝 중 랜덤으로 드롭할 적재물 후보 목록
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Delivery")
-	TSoftObjectPtr<UPGCargoDropSet> DefaultCargoDropSet;
 
 	// Running 진입 후 첫 적재물 드롭까지 기다리는 시간. 0이면 즉시 드롭을 시도한다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Delivery", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "30.0"))

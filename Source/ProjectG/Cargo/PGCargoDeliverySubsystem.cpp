@@ -7,6 +7,8 @@
 #include "Cargo/PGCargoTypeDefinition.h"
 #include "Character/PGRunnerCharacter.h"
 #include "GameModes/PGGameModeBase.h"
+#include "Shop/PGMapDefinition.h"
+#include "Shop/PGMapShopCatalog.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGCargoDeliverySubsystem, Log, All);
 
@@ -97,8 +99,10 @@ void UPGCargoDeliverySubsystem::HandleRunStarted()
 	RunElapsedTime = 0.0f;
 	TickAccumulator = 0.0f;
 	bWarnedMissingCargoStack = false;
+	bWarnedMissingDropSet = false;
 	bWarnedMissingCargoType = false;
 	bWarnedInvalidCargoMesh = false;
+	ResolveCurrentMapDropSet();
 	InitializeRunnerReferences();
 
 	if (CachedDeliverySettings.FirstDropDelay <= KINDA_SMALL_NUMBER)
@@ -128,8 +132,31 @@ void UPGCargoDeliverySubsystem::LoadSettings()
 	if (const UPGGameSettings* Settings = GetDefault<UPGGameSettings>())
 	{
 		CachedDeliverySettings = Settings->CargoDelivery;
-		LoadedDropSet = CachedDeliverySettings.DefaultCargoDropSet.Get();
 	}
+}
+
+bool UPGCargoDeliverySubsystem::ResolveCurrentMapDropSet()
+{
+	LoadedDropSet = nullptr;
+
+	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
+	const UPGMapShopCatalog* MapCatalog = Settings ? Settings->Shop.MapShopCatalog.Get() : nullptr;
+	if (!MapCatalog)
+	{
+		return false;
+	}
+
+	bool bHasDuplicateLevel = false;
+	const UPGMapDefinition* MapDefinition = MapCatalog->FindMapForWorld(GetWorld(), bHasDuplicateLevel);
+	if (!MapDefinition || MapDefinition->CargoDropSet.IsNull())
+	{
+		return false;
+	}
+
+	// 적재물 종류는 장착 맵 저장값이 아니라 실제로 플레이 중인 레벨을 기준으로 선택합니다.
+	// 이 기준을 사용해야 PIE 직접 실행과 Retry에서도 현재 맵 전용 적재물이 유지됩니다.
+	LoadedDropSet = MapDefinition->CargoDropSet.Get();
+	return LoadedDropSet != nullptr;
 }
 
 void UPGCargoDeliverySubsystem::BindGameMode()
@@ -209,9 +236,9 @@ bool UPGCargoDeliverySubsystem::TryStartCargoDrop()
 	UPGCargoTypeDefinition* CargoType = SelectCargoType();
 	if (!CargoType)
 	{
-		if (!bWarnedMissingCargoType)
+		if (LoadedDropSet && !bWarnedMissingCargoType)
 		{
-			UE_LOG(LogPGCargoDeliverySubsystem, Warning, TEXT("Cargo drop failed: no eligible CargoType was selected from DefaultCargoDropSet."));
+			UE_LOG(LogPGCargoDeliverySubsystem, Warning, TEXT("Cargo drop failed: the current map CargoDropSet has no eligible CargoType for elapsed run time %.2f."), RunElapsedTime);
 			bWarnedMissingCargoType = true;
 		}
 		return false;
@@ -234,7 +261,11 @@ UPGCargoTypeDefinition* UPGCargoDeliverySubsystem::SelectCargoType()
 {
 	if (!LoadedDropSet)
 	{
-		LoadedDropSet = CachedDeliverySettings.DefaultCargoDropSet.Get();
+		if (!ResolveCurrentMapDropSet() && !bWarnedMissingDropSet)
+		{
+			UE_LOG(LogPGCargoDeliverySubsystem, Warning, TEXT("Cargo drop failed: the current level has no loaded map-specific CargoDropSet."));
+			bWarnedMissingDropSet = true;
+		}
 	}
 
 	if (LoadedDropSet && !LoadedDropSet->Entries.IsEmpty())
