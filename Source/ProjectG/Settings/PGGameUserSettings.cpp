@@ -9,7 +9,7 @@ namespace
 {
 constexpr float MinMobileResolutionScale = 50.0f;
 constexpr float MaxMobileResolutionScale = 100.0f;
-constexpr int32 MaxMobileFrameRateLimit = 60;
+constexpr float FixedMobileFrameRateLimit = 60.0f;
 constexpr float MinUserVolumePercent = 0.0f;
 constexpr float MaxUserVolumePercent = 150.0f;
 }
@@ -19,6 +19,7 @@ UPGGameUserSettings::UPGGameUserSettings()
 	const UPGGameSettings* ProjectSettings = GetDefault<UPGGameSettings>();
 	const EPGMobileQualityPreset DefaultPreset = ProjectSettings ? ProjectSettings->MobileQuality.DefaultPreset : EPGMobileQualityPreset::High;
 	CopyPresetToSavedSettings(DefaultPreset);
+	SetFrameRateLimit(FixedMobileFrameRateLimit);
 	MusicVolumePercent = 100.0f;
 	SFXVolumePercent = 100.0f;
 }
@@ -30,6 +31,7 @@ void UPGGameUserSettings::SetToDefaults()
 	const UPGGameSettings* ProjectSettings = GetDefault<UPGGameSettings>();
 	const EPGMobileQualityPreset DefaultPreset = ProjectSettings ? ProjectSettings->MobileQuality.DefaultPreset : EPGMobileQualityPreset::High;
 	CopyPresetToSavedSettings(DefaultPreset);
+	SetFrameRateLimit(FixedMobileFrameRateLimit);
 	bHasUserSelectedMobileQuality = false;
 }
 
@@ -43,8 +45,8 @@ void UPGGameUserSettings::ApplySavedMobileQualitySettings(bool bSaveAfterApply)
 	else
 	{
 		// 첫 실행에는 기기 프로필이 고른 Scalability를 덮지 않습니다.
-		// 프레임 제한은 그래픽 품질과 독립된 사용자 설정이므로 그대로 적용합니다.
-		SetFrameRateLimit(static_cast<float>(SavedMobileFrameRateLimit));
+		// 프레임 제한은 그래픽 품질과 분리하여 모든 기기에서 60FPS 상한을 유지합니다.
+		SetFrameRateLimit(FixedMobileFrameRateLimit);
 		SetFrameRateLimitCVar(GetEffectiveFrameRateLimit());
 	}
 	if (bSaveAfterApply)
@@ -64,12 +66,6 @@ void UPGGameUserSettings::SetMobileResolutionScalePercent(float NewResolutionSca
 {
 	bHasUserSelectedMobileQuality = true;
 	ResolutionScalePercent = FMath::Clamp(NewResolutionScalePercent, MinMobileResolutionScale, MaxMobileResolutionScale);
-	ApplySavedMobileQualitySettings(bSaveAfterApply);
-}
-
-void UPGGameUserSettings::SetMobileFrameRateLimit(int32 NewFrameRateLimit, bool bSaveAfterApply)
-{
-	SavedMobileFrameRateLimit = FMath::Clamp(NewFrameRateLimit, 0, MaxMobileFrameRateLimit);
 	ApplySavedMobileQualitySettings(bSaveAfterApply);
 }
 
@@ -146,7 +142,6 @@ void UPGGameUserSettings::CopyPresetToSavedSettings(EPGMobileQualityPreset Prese
 
 	SelectedMobileQualityPreset = Preset;
 	ResolutionScalePercent = FMath::Clamp(PresetSettings.ResolutionScalePercent, MinMobileResolutionScale, MaxMobileResolutionScale);
-	SavedMobileFrameRateLimit = FMath::Clamp(PresetSettings.FrameRateLimit, 0, MaxMobileFrameRateLimit);
 	AntiAliasingQuality = ClampScalabilityQuality(PresetSettings.AntiAliasingQuality);
 	TextureQuality = ClampScalabilityQuality(PresetSettings.TextureQuality);
 	ShadowQuality = ClampScalabilityQuality(PresetSettings.ShadowQuality);
@@ -163,7 +158,6 @@ void UPGGameUserSettings::NormalizeSavedMobileQualitySettings()
 		SelectedMobileQualityPreset = EPGMobileQualityPreset::High;
 	}
 
-	SavedMobileFrameRateLimit = FMath::Clamp(SavedMobileFrameRateLimit, 0, MaxMobileFrameRateLimit);
 	AntiAliasingQuality = ClampScalabilityQuality(AntiAliasingQuality);
 	TextureQuality = ClampScalabilityQuality(TextureQuality);
 	ShadowQuality = ClampScalabilityQuality(ShadowQuality);
@@ -178,11 +172,10 @@ void UPGGameUserSettings::ApplySavedMobileQualityToEngine()
 	ResolutionScalePercent = FMath::Clamp(ResolutionScalePercent, MinMobileResolutionScale, MaxMobileResolutionScale);
 	MusicVolumePercent = FMath::Clamp(MusicVolumePercent, MinUserVolumePercent, MaxUserVolumePercent);
 	SFXVolumePercent = FMath::Clamp(SFXVolumePercent, MinUserVolumePercent, MaxUserVolumePercent);
-	SavedMobileFrameRateLimit = FMath::Clamp(SavedMobileFrameRateLimit, 0, MaxMobileFrameRateLimit);
 	MaxAnisotropy = FMath::Clamp(MaxAnisotropy, 1, 8);
 
 	SetResolutionScaleValueEx(ResolutionScalePercent);
-	SetFrameRateLimit(static_cast<float>(SavedMobileFrameRateLimit));
+	SetFrameRateLimit(FixedMobileFrameRateLimit);
 
 	ScalabilityQuality = Scalability::GetQualityLevels();
 	ScalabilityQuality.ResolutionQuality = ResolutionScalePercent;

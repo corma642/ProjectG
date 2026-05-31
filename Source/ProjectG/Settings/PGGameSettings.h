@@ -496,10 +496,6 @@ struct FPGMobileQualityPresetSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Quality | Mobile Rendering", meta = (ClampMin = "50.0", ClampMax = "100.0", UIMin = "50.0", UIMax = "100.0"))
 	float ResolutionScalePercent = 90.0f;
 
-	// 모바일 프레임 제한. 0이면 엔진 기본값을 사용한다.
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Quality | Mobile Performance", meta = (ClampMin = "0", UIMin = "0", UIMax = "60"))
-	int32 FrameRateLimit = 60;
-
 	// Scalability AntiAliasing 품질 단계
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Quality | Mobile Scalability", meta = (ClampMin = "0", ClampMax = "3", UIMin = "0", UIMax = "3"))
 	int32 AntiAliasingQuality = 2;

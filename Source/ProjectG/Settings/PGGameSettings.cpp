@@ -9,7 +9,6 @@ UPGGameSettings::UPGGameSettings()
 	SectionName = TEXT("GoDeliver");
 
 	MobileQuality.Low.ResolutionScalePercent = 70.0f;
-	MobileQuality.Low.FrameRateLimit = 30;
 	MobileQuality.Low.AntiAliasingQuality = 0;
 	MobileQuality.Low.TextureQuality = 0;
 	MobileQuality.Low.ShadowQuality = 0;
@@ -19,7 +18,6 @@ UPGGameSettings::UPGGameSettings()
 	MobileQuality.Low.MaxAnisotropy = 1;
 
 	MobileQuality.Balanced.ResolutionScalePercent = 90.0f;
-	MobileQuality.Balanced.FrameRateLimit = 60;
 	MobileQuality.Balanced.AntiAliasingQuality = 2;
 	MobileQuality.Balanced.TextureQuality = 2;
 	MobileQuality.Balanced.ShadowQuality = 1;
@@ -29,7 +27,6 @@ UPGGameSettings::UPGGameSettings()
 	MobileQuality.Balanced.MaxAnisotropy = 4;
 
 	MobileQuality.High.ResolutionScalePercent = 100.0f;
-	MobileQuality.High.FrameRateLimit = 60;
 	MobileQuality.High.AntiAliasingQuality = 3;
 	MobileQuality.High.TextureQuality = 3;
 	MobileQuality.High.ShadowQuality = 3;

@@ -18,7 +18,7 @@ DECLARE_MULTICAST_DELEGATE(FPGSettingsScreenClosedSignature);
 
 /**
  * Home과 Pause에서 공용으로 사용하는 Settings 화면 로직 위젯입니다.
- * BP는 패널 배치와 스타일을 담당하고, C++은 품질/볼륨/FPS 설정 반영과 열림/닫힘 애니메이션만 처리합니다.
+ * BP는 패널 배치와 스타일을 담당하고, C++은 품질/볼륨/FPS 표시 설정 반영과 열림/닫힘 애니메이션만 처리합니다.
  */
 UCLASS()
 class PROJECTG_API UPGSettingsScreenWidget : public UUserWidget
@@ -71,12 +71,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
 	TObjectPtr<UTextBlock> ResolutionScaleValueText;
 
-	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
-	TObjectPtr<UButton> FrameRate30Button;
-
-	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
-	TObjectPtr<UButton> FrameRate60Button;
-
 	// Android 실기기 성능 확인용 FPS 오버레이 표시 토글입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
 	TObjectPtr<UCheckBox> ShowFPSCheckBox;
@@ -113,12 +107,6 @@ private:
 	void HandleResolutionScaleCommit();
 
 	UFUNCTION()
-	void HandleFrameRate30Clicked();
-
-	UFUNCTION()
-	void HandleFrameRate60Clicked();
-
-	UFUNCTION()
 	void HandleShowFPSCheckStateChanged(bool bIsChecked);
 
 	UFUNCTION()
@@ -135,11 +123,9 @@ private:
 
 	void RefreshControlsFromSettings();
 	void ApplyPreset(EPGMobileQualityPreset Preset);
-	void ApplyFrameRate(int32 FrameRateLimit);
 	void ApplyAnimationState(float Alpha);
 	void SetAllButtonsEnabled(bool bEnabled) const;
 	void SetPresetSelectionState(EPGMobileQualityPreset Preset) const;
-	void SetFrameRateSelectionState(int32 FrameRateLimit) const;
 	void SetShowFPSCheckState(bool bShowFPS) const;
 	void UpdateResolutionScaleText(float Value) const;
 	void UpdateMusicVolumeText(float Value) const;

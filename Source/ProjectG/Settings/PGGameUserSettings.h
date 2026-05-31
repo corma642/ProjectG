@@ -14,6 +14,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPGSFXVolumeChangedSignature, float);
 /**
  * 모바일 품질 프리셋, FPS 표시, 오디오 볼륨처럼 사용자별로 저장되는 런타임 설정입니다.
  * 프로젝트 기본값은 UPGGameSettings/DeviceProfile이 담당하고, 사용자가 Settings UI에서 고른 값만 저장합니다.
+ * 프레임 제한은 그래픽 품질과 분리하여 항상 60FPS로 유지합니다.
  */
 UCLASS(Config = GameUserSettings)
 class PROJECTG_API UPGGameUserSettings : public UGameUserSettings
@@ -41,10 +42,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Quality")
 	void SetMobileResolutionScalePercent(float NewResolutionScalePercent, bool bSaveAfterApply = true);
 
-	// 현재 선택된 품질 프리셋은 유지하고 프레임 제한만 조정합니다.
-	UFUNCTION(BlueprintCallable, Category = "Quality")
-	void SetMobileFrameRateLimit(int32 NewFrameRateLimit, bool bSaveAfterApply = true);
-
 	// Android 실기기 프레임 확인용 FPS 표시 여부를 저장하고 즉시 반영합니다.
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void SetShowFPSDisplay(bool bShow, bool bSaveAfterApply = true);
@@ -62,9 +59,6 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Quality")
 	float GetMobileResolutionScalePercent() const { return ResolutionScalePercent; }
-
-	UFUNCTION(BlueprintPure, Category = "Quality")
-	int32 GetMobileFrameRateLimit() const { return SavedMobileFrameRateLimit; }
 
 	/** 사용자가 품질 프리셋 또는 해상도를 직접 선택했는지 반환합니다. false이면 Android DeviceProfile 품질을 유지합니다. */
 	UFUNCTION(BlueprintPure, Category = "Quality")
@@ -103,10 +97,6 @@ private:
 	// 내부 렌더 해상도 비율입니다.
 	UPROPERTY(Config)
 	float ResolutionScalePercent = 100.0f;
-
-	// 모바일 프레임 제한입니다.
-	UPROPERTY(Config)
-	int32 SavedMobileFrameRateLimit = 60;
 
 	// 모바일 안티앨리어싱 방식 CVar 값입니다.
 	UPROPERTY(Config)

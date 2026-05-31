@@ -59,14 +59,6 @@ void UPGSettingsScreenWidget::NativeConstruct()
 		ResolutionScaleSlider->OnMouseCaptureEnd.AddDynamic(this, &UPGSettingsScreenWidget::HandleResolutionScaleCommit);
 		ResolutionScaleSlider->OnControllerCaptureEnd.AddDynamic(this, &UPGSettingsScreenWidget::HandleResolutionScaleCommit);
 	}
-	if (FrameRate30Button)
-	{
-		FrameRate30Button->OnClicked.AddDynamic(this, &UPGSettingsScreenWidget::HandleFrameRate30Clicked);
-	}
-	if (FrameRate60Button)
-	{
-		FrameRate60Button->OnClicked.AddDynamic(this, &UPGSettingsScreenWidget::HandleFrameRate60Clicked);
-	}
 	if (ShowFPSCheckBox)
 	{
 		ShowFPSCheckBox->OnCheckStateChanged.AddDynamic(this, &UPGSettingsScreenWidget::HandleShowFPSCheckStateChanged);
@@ -115,14 +107,6 @@ void UPGSettingsScreenWidget::NativeDestruct()
 		ResolutionScaleSlider->OnValueChanged.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleResolutionScaleChanged);
 		ResolutionScaleSlider->OnMouseCaptureEnd.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleResolutionScaleCommit);
 		ResolutionScaleSlider->OnControllerCaptureEnd.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleResolutionScaleCommit);
-	}
-	if (FrameRate30Button)
-	{
-		FrameRate30Button->OnClicked.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleFrameRate30Clicked);
-	}
-	if (FrameRate60Button)
-	{
-		FrameRate60Button->OnClicked.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleFrameRate60Clicked);
 	}
 	if (ShowFPSCheckBox)
 	{
@@ -250,18 +234,6 @@ void UPGSettingsScreenWidget::HandleResolutionScaleCommit()
 	}
 }
 
-void UPGSettingsScreenWidget::HandleFrameRate30Clicked()
-{
-	UPGAudioStatics::PlayCommonButtonClick(this);
-	ApplyFrameRate(30);
-}
-
-void UPGSettingsScreenWidget::HandleFrameRate60Clicked()
-{
-	UPGAudioStatics::PlayCommonButtonClick(this);
-	ApplyFrameRate(60);
-}
-
 void UPGSettingsScreenWidget::HandleShowFPSCheckStateChanged(bool bIsChecked)
 {
 	if (bIsUpdatingControls)
@@ -356,25 +328,15 @@ void UPGSettingsScreenWidget::RefreshControlsFromSettings()
 	bIsUpdatingControls = false;
 
 	SetPresetSelectionState(UserSettings->GetSelectedMobileQualityPreset());
-	SetFrameRateSelectionState(UserSettings->GetMobileFrameRateLimit());
 }
 
 void UPGSettingsScreenWidget::ApplyPreset(EPGMobileQualityPreset Preset)
 {
 	if (UPGGameUserSettings* UserSettings = Cast<UPGGameUserSettings>(UGameUserSettings::GetGameUserSettings()))
 	{
-		// 프리셋은 해상도/FPS/스케일러블리티 값을 한 번에 바꾸므로, 적용 후 전체 컨트롤을 다시 읽어 UI 불일치를 막는다.
+		// 프리셋은 해상도와 스케일러블리티 값을 한 번에 바꾸므로, 적용 후 전체 컨트롤을 다시 읽어 UI 불일치를 막는다.
 		UserSettings->ApplyMobileQualityPreset(Preset, true);
 		RefreshControlsFromSettings();
-	}
-}
-
-void UPGSettingsScreenWidget::ApplyFrameRate(int32 FrameRateLimit)
-{
-	if (UPGGameUserSettings* UserSettings = Cast<UPGGameUserSettings>(UGameUserSettings::GetGameUserSettings()))
-	{
-		UserSettings->SetMobileFrameRateLimit(FrameRateLimit, true);
-		SetFrameRateSelectionState(UserSettings->GetMobileFrameRateLimit());
 	}
 }
 
@@ -428,14 +390,6 @@ void UPGSettingsScreenWidget::SetAllButtonsEnabled(bool bEnabled) const
 	{
 		HighPresetButton->SetIsEnabled(bEnabled);
 	}
-	if (FrameRate30Button)
-	{
-		FrameRate30Button->SetIsEnabled(bEnabled);
-	}
-	if (FrameRate60Button)
-	{
-		FrameRate60Button->SetIsEnabled(bEnabled);
-	}
 	if (ResolutionScaleSlider)
 	{
 		ResolutionScaleSlider->SetIsEnabled(bEnabled);
@@ -467,18 +421,6 @@ void UPGSettingsScreenWidget::SetPresetSelectionState(EPGMobileQualityPreset Pre
 	if (HighPresetButton)
 	{
 		HighPresetButton->SetIsEnabled(Preset != EPGMobileQualityPreset::High);
-	}
-}
-
-void UPGSettingsScreenWidget::SetFrameRateSelectionState(int32 InFrameRateLimit) const
-{
-	if (FrameRate30Button)
-	{
-		FrameRate30Button->SetIsEnabled(InFrameRateLimit != 30);
-	}
-	if (FrameRate60Button)
-	{
-		FrameRate60Button->SetIsEnabled(InFrameRateLimit != 60);
 	}
 }
 
