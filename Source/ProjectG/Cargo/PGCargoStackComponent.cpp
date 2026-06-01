@@ -75,8 +75,11 @@ void UPGCargoStackComponent::InitializeCargoStack(const FPGCargoSettings& InCarg
 	PreviousAnchorLocation = GetComponentLocation();
 	AnchorVelocity = FVector::ZeroVector;
 	AirborneCargoAssistRemainingTime = 0.0f;
+	CargoLossWorldZ = 0.0f;
 	bWasAirborneLastFrame = false;
 	bHasPreviousAnchorLocation = true;
+	bHasCargoLossWorldZ = false;
+	bWarnedMissingCargoLossWorldZ = false;
 	NextCargoInstanceId = 1;
 	DeliveredCargoCount = 0;
 
@@ -88,6 +91,13 @@ void UPGCargoStackComponent::InitializeCargoStack(const FPGCargoSettings& InCarg
 	}
 
 	OnCargoListChanged.Broadcast();
+}
+
+void UPGCargoStackComponent::SetCargoLossWorldZ(float InCargoLossWorldZ)
+{
+	CargoLossWorldZ = InCargoLossWorldZ;
+	bHasCargoLossWorldZ = true;
+	bWarnedMissingCargoLossWorldZ = false;
 }
 
 void UPGCargoStackComponent::UpdateCargoReaction(float DeltaSeconds, float BalanceInput, bool bIsAirborne)
@@ -413,10 +423,14 @@ void UPGCargoStackComponent::ApplyAirborneCargoAssist()
 void UPGCargoStackComponent::CheckCargoLoss()
 {
 	const FVector LossOriginLocation = GetLossOriginLocation();
-	const float LossZ = LossOriginLocation.Z - CachedCargoSettings.CargoLossZOffset;
 	const float LossDistanceSquared = FMath::Square(CachedCargoSettings.CargoLossHorizontalDistance);
+	if (!bHasCargoLossWorldZ && !bWarnedMissingCargoLossWorldZ)
+	{
+		UE_LOG(LogPGCargoStack, Warning, TEXT("Cargo vertical loss check is disabled: the current map CargoLossWorldZ was not applied."));
+		bWarnedMissingCargoLossWorldZ = true;
+	}
 
-	// 손실 기준은 CargoStack 위치가 아니라 플레이어 Actor 위치다. CargoStack을 높게 배치해도 즉시 실패하지 않게 하기 위함이다.
+	// 수평 손실은 러너 기준 거리를 유지하되, 수직 손실은 맵 DataAsset의 고정 월드 Z로 분리합니다.
 	for (int32 CargoIndex = CargoInstances.Num() - 1; CargoIndex >= 0; --CargoIndex)
 	{
 		APGPhysicsCargoActor* CargoActor = CargoInstances[CargoIndex].CargoActor;
@@ -430,7 +444,8 @@ void UPGCargoStackComponent::CheckCargoLoss()
 		const FVector CargoLocation = CargoActor->GetActorLocation();
 		const FVector CargoDelta = CargoLocation - LossOriginLocation;
 		const float HorizontalDistanceSquared = FVector(CargoDelta.X, CargoDelta.Y, 0.0f).SizeSquared();
-		if (CargoLocation.Z < LossZ || HorizontalDistanceSquared > LossDistanceSquared)
+		const bool bBelowLossWorldZ = bHasCargoLossWorldZ && CargoLocation.Z < CargoLossWorldZ;
+		if (bBelowLossWorldZ || HorizontalDistanceSquared > LossDistanceSquared)
 		{
 			LoseCargoAt(CargoIndex);
 		}

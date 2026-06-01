@@ -87,6 +87,9 @@ public:
 	// Project Settings의 적재물 물리/배달 튜닝값을 적용하고 새 런 기준 상태로 초기화합니다.
 	void InitializeCargoStack(const FPGCargoSettings& InCargoSettings);
 
+	// 현재 열린 맵에서 사용할 고정 수직 손실선을 적용합니다.
+	void SetCargoLossWorldZ(float InCargoLossWorldZ);
+
 	// 중심 입력, Hold 타이머, 물리 보정, 배달 완료, 손실 판정을 한 프레임 갱신합니다.
 	void UpdateCargoReaction(float DeltaSeconds, float BalanceInput, bool bIsAirborne);
 
@@ -151,8 +154,11 @@ private:
 	FVector PreviousAnchorLocation = FVector::ZeroVector;
 	FVector AnchorVelocity = FVector::ZeroVector;
 	float AirborneCargoAssistRemainingTime = 0.0f;
+	float CargoLossWorldZ = 0.0f;
 	bool bWasAirborneLastFrame = false;
 	bool bHasPreviousAnchorLocation = false;
+	bool bHasCargoLossWorldZ = false;
+	bool bWarnedMissingCargoLossWorldZ = false;
 	int32 NextCargoInstanceId = 1;
 	int32 DeliveredCargoCount = 0;
 };

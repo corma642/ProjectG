@@ -138,6 +138,7 @@ void UPGCargoDeliverySubsystem::LoadSettings()
 bool UPGCargoDeliverySubsystem::ResolveCurrentMapDropSet()
 {
 	LoadedDropSet = nullptr;
+	bHasCurrentMapCargoLossWorldZ = false;
 
 	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
 	const UPGMapShopCatalog* MapCatalog = Settings ? Settings->Shop.MapShopCatalog.Get() : nullptr;
@@ -156,6 +157,8 @@ bool UPGCargoDeliverySubsystem::ResolveCurrentMapDropSet()
 	// 적재물 종류는 장착 맵 저장값이 아니라 실제로 플레이 중인 레벨을 기준으로 선택합니다.
 	// 이 기준을 사용해야 PIE 직접 실행과 Retry에서도 현재 맵 전용 적재물이 유지됩니다.
 	LoadedDropSet = MapDefinition->CargoDropSet.Get();
+	CurrentMapCargoLossWorldZ = MapDefinition->CargoLossWorldZ;
+	bHasCurrentMapCargoLossWorldZ = true;
 	return LoadedDropSet != nullptr;
 }
 
@@ -186,6 +189,11 @@ void UPGCargoDeliverySubsystem::InitializeRunnerReferences()
 {
 	RunnerCharacter = BoundGameMode ? BoundGameMode->GetPlayableRunnerCharacter() : nullptr;
 	CargoStackComponent = RunnerCharacter ? RunnerCharacter->FindComponentByClass<UPGCargoStackComponent>() : nullptr;
+	if (CargoStackComponent && bHasCurrentMapCargoLossWorldZ)
+	{
+		// Runner 참조가 늦게 준비되는 Retry 흐름에서도 현재 열린 맵의 고정 손실선을 다시 적용합니다.
+		CargoStackComponent->SetCargoLossWorldZ(CurrentMapCargoLossWorldZ);
+	}
 }
 
 void UPGCargoDeliverySubsystem::ProcessCargoDeliveryTick(float DeltaSeconds)

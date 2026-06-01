@@ -44,6 +44,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Map")
 	TSoftObjectPtr<UPGCargoDropSet> CargoDropSet;
 
+	// 이 월드 Z 아래로 떨어진 배달 적재물은 손실로 처리합니다. 트랙 바닥보다 충분히 낮게 지정합니다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Map")
+	float CargoLossWorldZ = 0.0f;
+
 	// 첫 실행부터 보유 상태로 보정할 기본 맵인지 여부입니다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Map")
 	bool bUnlockedByDefault = false;

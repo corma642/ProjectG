@@ -616,10 +616,6 @@ struct FPGCargoSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Physics", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "500.0"))
 	float AirborneCargoMaxUpwardRelativeSpeed = 60.0f;
 
-	// 플레이어 Actor 위치 기준 이 높이보다 아래로 적재물이 떨어지면 손실로 처리한다.
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Loss", meta = (ClampMin = "10.0", UIMin = "50.0", UIMax = "500.0"))
-	float CargoLossZOffset = 140.0f;
-
 	// 플레이어 Actor 위치 기준 이 수평 거리보다 멀어지면 적재물 손실로 처리한다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Loss", meta = (ClampMin = "10.0", UIMin = "50.0", UIMax = "500.0"))
 	float CargoLossHorizontalDistance = 180.0f;

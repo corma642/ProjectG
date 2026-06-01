@@ -68,8 +68,10 @@ private:
 	float RunElapsedTime = 0.0f;
 	float NextDropTime = 0.0f;
 	float TickAccumulator = 0.0f;
+	float CurrentMapCargoLossWorldZ = 0.0f;
 	bool bIsRunActive = false;
 	bool bIsBoundToGameMode = false;
+	bool bHasCurrentMapCargoLossWorldZ = false;
 	bool bWarnedMissingCargoStack = false;
 	bool bWarnedMissingDropSet = false;
 	bool bWarnedMissingCargoType = false;
