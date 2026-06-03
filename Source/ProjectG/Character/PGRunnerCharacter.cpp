@@ -83,7 +83,7 @@ void APGRunnerCharacter::BeginPlay()
 	if (RunnerMovementComponent)
 	{
 		// 시작 위치와 방향을 러너 기준 트랙 좌표계로 고정해 월드 X/Y축 의존성을 제거한다.
-		RunnerMovementComponent->InitializeRunnerMovement(CachedJumpSettings, CachedGyroSettings, CachedBalanceSettings, GetActorLocation(), GetActorForwardVector(), GetActorRightVector());
+		RunnerMovementComponent->InitializeRunnerMovement(CachedJumpSettings, CachedTouchControlSettings, CachedBalanceSettings, GetActorLocation(), GetActorForwardVector(), GetActorRightVector());
 	}
 
 	if (CargoStackComponent)
@@ -146,6 +146,8 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 		// 카운트다운은 화면 연출 중에도 러너가 앞으로 나아가게 하되, 중심 입력과 적재물 흔들림은 시작 전까지 잠근다.
 		BaseInstabilityInput = 0.0f;
 		BalanceInput = 0.0f;
+		FlickBalanceInput = 0.0f;
+		FlickBalanceInputRemainingTime = 0.0f;
 		if (RunnerMovementComponent)
 		{
 			RunnerMovementComponent->SetBalanceMovementInput(0.0f, 0.0f);
@@ -168,6 +170,16 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 	}
 
 	UpdateBaseInstability(DeltaSeconds);
+	if (FlickBalanceInputRemainingTime > 0.0f)
+	{
+		FlickBalanceInputRemainingTime = FMath::Max(0.0f, FlickBalanceInputRemainingTime - DeltaSeconds);
+		if (FlickBalanceInputRemainingTime <= KINDA_SMALL_NUMBER)
+		{
+			FlickBalanceInputRemainingTime = 0.0f;
+			FlickBalanceInput = 0.0f;
+		}
+	}
+
 	if (RunnerEnvironmentComponent)
 	{
 		RunnerEnvironmentComponent->UpdateEnvironment(DeltaSeconds, BalanceInput);
@@ -175,7 +187,7 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 	if (RunnerMovementComponent)
 	{
 		// 환경 효과는 플레이어 보정 입력만 가공한다. 기본 불안정성은 별도 축으로 유지해 눈바람이 자동 실패를 만들지 않게 한다.
-		const float PlayerCorrectionInput = RunnerEnvironmentComponent ? RunnerEnvironmentComponent->GetProcessedBalanceInput() : BalanceInput;
+		const float PlayerCorrectionInput = (RunnerEnvironmentComponent ? RunnerEnvironmentComponent->GetProcessedBalanceInput() : BalanceInput) + FlickBalanceInput;
 		RunnerMovementComponent->SetBalanceMovementInput(BaseInstabilityInput, PlayerCorrectionInput);
 	}
 
@@ -188,17 +200,43 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 	UpdateBodyLean(DeltaSeconds);
 }
 
-void APGRunnerCharacter::RequestJump()
+bool APGRunnerCharacter::RequestJump()
 {
 	if (!bIsRunActive || bIsGameplayInputLocked)
 	{
-		return;
+		return false;
 	}
 
 	if (RunnerMovementComponent && RunnerMovementComponent->RequestJump())
 	{
 		// 사운드는 입력 요청이 아니라 실제 점프가 실행된 경우에만 재생한다.
 		PlayJumpSound();
+		return true;
+	}
+
+	return false;
+}
+
+void APGRunnerCharacter::RequestFlickJump(float DirectionSign)
+{
+	if (!RequestJump())
+	{
+		return;
+	}
+
+	const float ClampedDirection = FMath::Clamp(DirectionSign, -1.0f, 1.0f);
+	if (FMath::IsNearlyZero(ClampedDirection))
+	{
+		return;
+	}
+
+	// 좌우 플릭은 점프가 실제로 시작된 경우에만 기존 Balance 이동 위에 짧은 보정으로 얹는다.
+	// 시각적 몸 기울기도 같은 시간 동안 유지해 순간이동처럼 보이지 않게 한다.
+	FlickBalanceInput = ClampedDirection;
+	FlickBalanceInputRemainingTime = FMath::Max(0.0f, CachedTouchControlSettings.FlickLateralMoveDuration);
+	if (RunnerMovementComponent)
+	{
+		RunnerMovementComponent->ApplyFlickLateralStep(ClampedDirection);
 	}
 }
 
@@ -210,7 +248,8 @@ void APGRunnerCharacter::SetBalanceInput(float InBalanceInput)
 		return;
 	}
 
-	const float ClampedInput = FMath::Clamp(InBalanceInput, -CachedGyroSettings.MaxTiltInput, CachedGyroSettings.MaxTiltInput);
+	const float MaxBalanceInput = FMath::Max(0.0f, CachedTouchControlSettings.MaxBalanceInput);
+	const float ClampedInput = FMath::Clamp(InBalanceInput, -MaxBalanceInput, MaxBalanceInput);
 
 	// 착지 직후에만 조작 영향력을 잠깐 줄여 급격한 흔들림을 완화한다.
 	const bool bIsLandingStabilizing = RunnerMovementComponent && RunnerMovementComponent->GetLandingStabilizeRemainingTime() > 0.0f;
@@ -304,6 +343,8 @@ void APGRunnerCharacter::PrepareTransformForRunStart()
 
 	BalanceInput = 0.0f;
 	BaseInstabilityInput = 0.0f;
+	FlickBalanceInput = 0.0f;
+	FlickBalanceInputRemainingTime = 0.0f;
 	BalanceElapsedTime = 0.0f;
 	CurrentBodyRoll = 0.0f;
 	StartLocationZ = CurrentLocation.Z;
@@ -319,7 +360,7 @@ void APGRunnerCharacter::PrepareTransformForRunStart()
 	if (RunnerMovementComponent)
 	{
 		// 회전이 바뀐 직후 이동 컴포넌트의 전방/우측 기준도 다시 잡아야 자동 전진과 Balance 이동이 같은 축을 쓴다.
-		RunnerMovementComponent->InitializeRunnerMovement(CachedJumpSettings, CachedGyroSettings, CachedBalanceSettings, CurrentLocation, GetActorForwardVector(), GetActorRightVector());
+		RunnerMovementComponent->InitializeRunnerMovement(CachedJumpSettings, CachedTouchControlSettings, CachedBalanceSettings, CurrentLocation, GetActorForwardVector(), GetActorRightVector());
 		RunnerMovementComponent->SetBalanceMovementInput(0.0f, 0.0f);
 		RunnerMovementComponent->StopMovementImmediately();
 	}
@@ -341,6 +382,8 @@ void APGRunnerCharacter::RestoreHomePreviewTransform()
 
 	BalanceInput = 0.0f;
 	BaseInstabilityInput = 0.0f;
+	FlickBalanceInput = 0.0f;
+	FlickBalanceInputRemainingTime = 0.0f;
 	BalanceElapsedTime = 0.0f;
 	CurrentBodyRoll = 0.0f;
 
@@ -426,6 +469,8 @@ void APGRunnerCharacter::HandleRunCountdownStarted(float Duration)
 	bIsGameplayInputLocked = true;
 	BalanceInput = 0.0f;
 	BaseInstabilityInput = 0.0f;
+	FlickBalanceInput = 0.0f;
+	FlickBalanceInputRemainingTime = 0.0f;
 	BalanceElapsedTime = 0.0f;
 	CurrentBodyRoll = 0.0f;
 	StartLocationZ = GetActorLocation().Z;
@@ -462,6 +507,8 @@ void APGRunnerCharacter::HandleRunStarted()
 	bIsGameplayInputLocked = false;
 	BalanceInput = 0.0f;
 	BaseInstabilityInput = 0.0f;
+	FlickBalanceInput = 0.0f;
+	FlickBalanceInputRemainingTime = 0.0f;
 	BalanceElapsedTime = 0.0f;
 	StartLocationZ = GetActorLocation().Z;
 	RunStartLocation = GetActorLocation();
@@ -501,6 +548,8 @@ void APGRunnerCharacter::HandleRunFailed(FName FailureReason)
 	bIsGameplayInputLocked = true;
 	BalanceInput = 0.0f;
 	BaseInstabilityInput = 0.0f;
+	FlickBalanceInput = 0.0f;
+	FlickBalanceInputRemainingTime = 0.0f;
 	BalanceElapsedTime = 0.0f;
 	CurrentBodyRoll = 0.0f;
 
@@ -539,7 +588,7 @@ void APGRunnerCharacter::ApplyGameSettings()
 	CachedRunnerSettings = Settings->Runner;
 	CachedBalanceSettings = Settings->Balance;
 	CachedJumpSettings = Settings->Jump;
-	CachedGyroSettings = Settings->Gyro;
+	CachedTouchControlSettings = Settings->TouchControl;
 	CachedCameraSettings = Settings->Camera;
 	CachedCargoSettings = Settings->Cargo;
 	CachedEnvironmentSettings = Settings->Environment;
@@ -649,10 +698,10 @@ void APGRunnerCharacter::UpdateBaseInstability(float DeltaSeconds)
 float APGRunnerCharacter::GetEffectiveBalanceInput() const
 {
 	const float EnvironmentBalanceInput = RunnerEnvironmentComponent ? RunnerEnvironmentComponent->GetProcessedBalanceInput() : BalanceInput;
-	const float FinalBalanceInput = BaseInstabilityInput + EnvironmentBalanceInput;
+	const float FinalBalanceInput = BaseInstabilityInput + EnvironmentBalanceInput + FlickBalanceInput;
 
-	// 환경 효과와 기본 불안정성을 모두 합산한 뒤 자이로 최대 입력 설정으로 최종 제한한다.
-	return FMath::Clamp(FinalBalanceInput, -CachedGyroSettings.MaxTiltInput, CachedGyroSettings.MaxTiltInput);
+	const float MaxBalanceInput = FMath::Max(0.0f, CachedTouchControlSettings.MaxBalanceInput);
+	return FMath::Clamp(FinalBalanceInput, -MaxBalanceInput, MaxBalanceInput);
 }
 
 float APGRunnerCharacter::GetCargoBalanceInputForPhysics() const

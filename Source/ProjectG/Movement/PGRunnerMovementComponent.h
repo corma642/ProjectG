@@ -21,8 +21,8 @@ class PROJECTG_API UPGRunnerMovementComponent : public UCharacterMovementCompone
 public:
 	UPGRunnerMovementComponent();
 
-	// 런 시작 기준 위치/축과 Project Settings의 점프, 자이로, Balance 설정값을 적용합니다.
-	void InitializeRunnerMovement(const FPGJumpSettings& InJumpSettings, const FPGGyroSettings& InGyroSettings, const FPGBalanceSettings& InBalanceSettings, const FVector& InOriginLocation, const FVector& InRunnerForwardVector, const FVector& InRunnerRightVector);
+	// 런 시작 기준 위치/축과 Project Settings의 점프, 터치, Balance 설정값을 적용합니다.
+	void InitializeRunnerMovement(const FPGJumpSettings& InJumpSettings, const FPGTouchControlSettings& InTouchControlSettings, const FPGBalanceSettings& InBalanceSettings, const FVector& InOriginLocation, const FVector& InRunnerForwardVector, const FVector& InRunnerRightVector);
 
 	// 지면 상태와 쿨타임을 만족하면 수직 점프를 실행합니다. 실제 점프가 시작된 경우에만 true를 반환합니다.
 	bool RequestJump();
@@ -30,7 +30,10 @@ public:
 	// 까마귀 무리 같은 이동형 위험 Actor가 Balance 속도에 순간 충격을 더할 때 사용합니다.
 	void ApplyExternalBalanceImpulse(float ImpulseVelocity, float MaxAbsVelocity);
 
-	// 착지 직후 자이로 입력 안정화가 남은 시간입니다.
+	// 좌우 플릭 점프가 성공했을 때 기존 Balance 이동 위에 짧은 측면 이동 보정을 더합니다.
+	void ApplyFlickLateralStep(float DirectionSign);
+
+	// 착지 직후 입력 완화가 남은 시간입니다.
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner Movement")
 	float GetLandingStabilizeRemainingTime() const { return LandingStabilizeRemainingTime; }
 
@@ -64,7 +67,7 @@ private:
 	float CalculateJumpVelocity() const;
 
 	FPGJumpSettings CachedJumpSettings;
-	FPGGyroSettings CachedGyroSettings;
+	FPGTouchControlSettings CachedTouchControlSettings;
 	FPGBalanceSettings CachedBalanceSettings;
 
 	FVector OriginLocation = FVector::ZeroVector;
@@ -75,6 +78,8 @@ private:
 	float BalanceVelocity = 0.0f;
 	float BaseInstabilityInput = 0.0f;
 	float PlayerCorrectionInput = 0.0f;
+	float FlickLateralRemainingTime = 0.0f;
+	float FlickLateralVelocity = 0.0f;
 	float JumpCooldownRemainingTime = 0.0f;
 	float LandingStabilizeRemainingTime = 0.0f;
 	bool bWasAirborneLastFrame = false;

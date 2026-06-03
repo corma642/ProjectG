@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "InputCoreTypes.h"
 #include "Settings/PGGameSettings.h"
 #include "PGPlayerController.generated.h"
 
@@ -19,7 +20,7 @@ class UPGRunResultFeedbackComponent;
 struct FInputActionValue;
 
 /**
- * 모바일 터치/기울임 입력과 에디터 테스트 입력을 러너 캐릭터에 전달하는 컨트롤러입니다.
+ * 모바일 터치 드래그/플릭 입력과 에디터 테스트 입력을 러너 캐릭터에 전달하는 컨트롤러입니다.
  */
 UCLASS()
 class PROJECTG_API APGPlayerController : public APlayerController
@@ -41,17 +42,20 @@ public:
 	// 소유 해제 시 러너 캐릭터 참조와 피드백 바인딩을 정리합니다.
 	virtual void OnUnPossess() override;
 
-	// 매 프레임 기울임 입력을 계산해 러너 캐릭터에 전달합니다.
+	// 매 프레임 플랫폼별 테스트 입력을 러너 캐릭터에 전달합니다.
 	virtual void PlayerTick(float DeltaTime) override;
 
 	// Enhanced Input 액션을 바인딩합니다.
 	virtual void SetupInputComponent() override;
 
+	// 모바일 터치 드래그/플릭 제스처를 러너 Balance 입력과 점프로 변환합니다.
+	virtual bool InputTouch(const FInputDeviceId DeviceId, uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, float Force, uint32 TouchpadIndex, const uint64 Timestamp) override;
+
 private:
 	UFUNCTION()
 	void HandleRunCountdownStarted(float Duration);
 
-	// Project Settings의 자이로 입력 설정을 캐시합니다.
+	// Project Settings의 터치 조작 설정을 캐시합니다.
 	void ApplyGameSettings();
 
 	// 현재 Pawn이 러너 캐릭터라면 약한 참조로 캐시합니다.
@@ -62,9 +66,6 @@ private:
 
 	// 화면 터치/Space 입력으로 점프를 요청합니다.
 	void HandleJumpStarted(const FInputActionValue& ActionValue);
-
-	// 현재 기기 기울기를 새로운 자이로 기준값으로 보정합니다.
-	void HandleGyroCalibrationStarted(const FInputActionValue& ActionValue);
 
 	// Q를 누르는 동안 왼쪽 중심 보정 입력을 유지합니다.
 	void HandleBalanceLeftStarted(const FInputActionValue& ActionValue);
@@ -81,23 +82,26 @@ private:
 	// 현재 Pawn이 러너 캐릭터라면 점프 요청을 전달합니다.
 	void SendJumpRequest();
 
-	// 자이로 값을 중심 입력으로 변환해 전달합니다.
-	void UpdateGyroInput(float DeltaTime);
+	// 터치 시작 위치와 시간을 기록해 드래그/플릭 분류 기준으로 사용합니다.
+	void BeginTouchGesture(uint32 Handle, const FVector2D& TouchLocation);
 
-	// 현재 자세를 기준점으로 삼기 위해 짧은 시간 동안 Raw 기울기 값을 평균냅니다.
-	void StartGyroCalibrationSample(bool bBlendToSample);
+	// 터치 이동량을 -1~1 중심 보정값으로 변환합니다.
+	void UpdateTouchGesture(uint32 Handle, const FVector2D& TouchLocation);
 
-	// 샘플링된 평균 기울기를 즉시 또는 보간 목표로 적용합니다.
-	void FinishGyroCalibrationSample();
+	// 터치 종료 시 짧고 빠른 플릭이면 방향별 점프를 실행하고, 아니면 입력만 해제합니다.
+	void EndTouchGesture(uint32 Handle, const FVector2D& TouchLocation);
 
-	// Raw 기울임 값을 -1~1 범위의 중심 입력으로 변환합니다.
-	float NormalizeTiltInput(float RawTilt) const;
+	// 현재 터치 제스처 상태와 러너 입력을 중립으로 되돌립니다.
+	void ResetTouchGesture();
+
+	// 종료된 터치 궤적이 왼쪽/오른쪽/위쪽 플릭인지 판정하고 처리합니다.
+	bool TryHandleFlickGesture(const FVector2D& EndLocation, float GestureDurationSeconds);
+
+	// 데스크탑에서는 키보드 테스트 입력을 전달하고, Android는 InputTouch 제스처 입력만 사용합니다.
+	void UpdateControlInput(float DeltaTime);
 
 	// 데스크탑 테스트용 Q/E 중심 보정 입력을 -1~1 범위로 반환합니다.
 	float GetKeyboardBalanceInput() const;
-
-	// 데스크탑에서는 Q/E, 모바일에서는 자이로 값을 최종 중심 입력으로 사용합니다.
-	float ResolveFinalBalanceInput(float MotionBalanceInput) const;
 
 	// 기본으로 등록할 입력 매핑 컨텍스트. 에디터에서 반드시 지정합니다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
@@ -106,10 +110,6 @@ private:
 	// 화면 터치/Space 점프 액션
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> JumpAction;
-
-	// 자이로 캘리브레이션 액션
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UInputAction> GyroCalibrationAction;
 
 	// 데스크탑 테스트용 왼쪽 중심 보정 액션
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
@@ -147,45 +147,30 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPGFPSDisplayComponent> FPSDisplayComponent;
 
-	// 마지막으로 읽은 Raw 좌우 기울임 값
-	float LastRawTilt = 0.0f;
-
-	// 현재 적용 중인 기울임 기준값
-	float CalibrationTilt = 0.0f;
-
-	// 보간 캘리브레이션이 도달해야 할 목표 기준값
-	float TargetCalibrationTilt = 0.0f;
-
-	// BeginPlay에서 캐시한 자이로 중심 제어 설정
-	FPGGyroSettings CachedGyroSettings;
+	// BeginPlay에서 캐시한 터치 드래그/플릭 조작 설정
+	FPGTouchControlSettings CachedTouchControlSettings;
 
 	// 매 프레임 Pawn Cast를 반복하지 않기 위한 러너 캐릭터 참조
 	TWeakObjectPtr<APGRunnerCharacter> CachedRunnerCharacter;
-
-	// 최초 자이로 기준값이 설정됐는지 여부
-	bool bHasCalibration = false;
-
-	// 캘리브레이션 기준값을 부드럽게 보간 중인지 여부
-	bool bIsCalibrating = false;
-
-	// 런 시작/수동 보정 시 센서 안정화 프레임을 평균내는 중인지 여부
-	bool bIsSamplingCalibration = false;
-
-	// 샘플 완료 후 기존 기준값에서 새 기준값으로 보간할지 여부
-	bool bBlendCalibrationSample = false;
-
-	// 현재 샘플링에 누적된 Raw 기울기 값
-	float CalibrationSampleSum = 0.0f;
-
-	// 현재 샘플링에 사용한 Raw 기울기 샘플 개수
-	int32 CalibrationSampleCount = 0;
-
-	// 현재 샘플링이 진행된 시간
-	float CalibrationSampleElapsedTime = 0.0f;
 
 	// Q를 누르고 있는 동안 true가 되어 왼쪽 중심 보정을 적용합니다.
 	bool bIsBalanceLeftHeld = false;
 
 	// E를 누르고 있는 동안 true가 되어 오른쪽 중심 보정을 적용합니다.
 	bool bIsBalanceRightHeld = false;
+
+	// 현재 추적 중인 터치가 있는지 여부
+	bool bHasActiveTouchGesture = false;
+
+	// 여러 손가락이 들어와도 첫 터치 하나만 조작 입력으로 사용합니다.
+	uint32 ActiveTouchHandle = 0;
+
+	// 터치 시작 화면 위치
+	FVector2D TouchStartLocation = FVector2D::ZeroVector;
+
+	// 마지막으로 처리한 터치 화면 위치
+	FVector2D TouchLastLocation = FVector2D::ZeroVector;
+
+	// 터치 시작 월드 시간
+	float TouchStartTimeSeconds = 0.0f;
 };

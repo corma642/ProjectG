@@ -36,10 +36,13 @@ public:
 	// 런 중 생성한 Bowl Actor가 레벨 전환/재시작 때 남지 않도록 정리한다.
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	// 화면 터치/Space 입력으로 수직 점프를 요청한다.
-	void RequestJump();
+	// 화면 입력/Space로 수직 점프를 요청하고, 실제 점프가 시작됐는지 반환한다.
+	bool RequestJump();
 
-	// 자이로/키보드에서 계산한 플레이어 중심 보정 입력을 캐릭터에 반영한다.
+	// 좌우 플릭 입력으로 점프와 짧은 측면 이동 보정을 함께 요청한다.
+	void RequestFlickJump(float DirectionSign);
+
+	// 터치 드래그/키보드에서 계산한 플레이어 중심 보정 입력을 캐릭터에 반영한다.
 	void SetBalanceInput(float InBalanceInput);
 
 	// 현재 플레이어가 입력 중인 좌우 중심 보정값
@@ -174,8 +177,8 @@ private:
 	// BeginPlay에서 캐시한 점프 설정
 	FPGJumpSettings CachedJumpSettings;
 
-	// BeginPlay에서 캐시한 자이로 중심 제어 설정
-	FPGGyroSettings CachedGyroSettings;
+	// BeginPlay에서 캐시한 터치 드래그/플릭 조작 설정
+	FPGTouchControlSettings CachedTouchControlSettings;
 
 	// BeginPlay에서 캐시한 카메라 설정
 	FPGCameraSettings CachedCameraSettings;
@@ -191,6 +194,12 @@ private:
 
 	// 직선 주행 중 자동으로 발생하는 기본 좌우 중심 흔들림 입력값
 	float BaseInstabilityInput = 0.0f;
+
+	// 좌우 플릭 직후 몸 기울기 연출을 유지하기 위한 짧은 보조 입력값
+	float FlickBalanceInput = 0.0f;
+
+	// 좌우 플릭 보조 입력이 남아 있는 시간
+	float FlickBalanceInputRemainingTime = 0.0f;
 
 	// 기본 흔들림 위상 계산에 사용하는 런 진행 시간
 	float BalanceElapsedTime = 0.0f;

@@ -99,54 +99,55 @@ struct FPGJumpSettings
 	// 공중 상태에서 플레이어 좌우 보정 반응을 강화하는 배율
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Jump", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
 	float AirborneBalanceControlScale = 2.5f;
+
+	// 착지 직후 조작 영향을 잠깐 줄여 급격한 좌우 흔들림을 완화하는 시간입니다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Jump", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "0.5"))
+	float LandingInputDampingDuration = 0.3f;
 };
 
 /**
- * 모바일 기울임 입력에서 중심 보정에 사용할 센서 축
- */
-UENUM(BlueprintType)
-enum class EPGTiltInputAxis : uint8
-{
-	X UMETA(DisplayName = "X"),
-	Y UMETA(DisplayName = "Y"),
-	Z UMETA(DisplayName = "Z")
-};
-
-/**
- * 모바일 자이로 중심 제어 설정
+ * 모바일 터치 드래그와 3방향 플릭 조작 설정
  */
 USTRUCT(BlueprintType)
-struct FPGGyroSettings
+struct FPGTouchControlSettings
 {
 	GENERATED_BODY()
 
-	// 중심 보정 입력으로 사용할 모바일 기울임 센서 축
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Gyro")
-	EPGTiltInputAxis TiltInputAxis = EPGTiltInputAxis::X;
+	// 좌우 드래그 픽셀 이동량을 중심 보정 입력으로 바꾸는 민감도입니다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Touch", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "0.05"))
+	float TouchDragSensitivity = 0.006f;
 
-	// 자이로 좌우 기울기 입력 민감도
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Gyro", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
-	float TiltSensitivity = 4.0f;
+	// 드래그, 플릭, 데스크톱 테스트 입력이 만들 수 있는 중심 보정 입력의 최대 절댓값입니다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Touch", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float MaxBalanceInput = 1.0f;
 
-	// 정규화된 자이로 입력의 최대 절댓값
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Gyro", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-	float MaxTiltInput = 1.0f;
+	// 이 픽셀 거리보다 작은 좌우 드래그는 손 떨림으로 보고 무시합니다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Touch", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "80.0"))
+	float TouchDragDeadZone = 8.0f;
 
-	// 캘리브레이션 기준값으로 보간되는 속도
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Gyro", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "20.0"))
-	float CalibrationBlendSpeed = 8.0f;
+	// 플릭으로 인정할 최소 이동 거리입니다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Touch", meta = (ClampMin = "0.0", UIMin = "20.0", UIMax = "240.0"))
+	float FlickMinDistance = 80.0f;
 
-	// 런 시작 또는 수동 보정 시 기울기 기준점을 잡기 위해 센서 값을 평균낼 시간
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Gyro", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0"))
-	float AutoCalibrationSampleDuration = 0.25f;
+	// 플릭으로 인정할 최대 입력 시간입니다. 이보다 느리면 일반 드래그로 처리합니다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Touch", meta = (ClampMin = "0.01", UIMin = "0.05", UIMax = "0.5"))
+	float FlickMaxDuration = 0.25f;
 
-	// 착지 직후 조작 안정화를 보조하는 시간
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Gyro", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "0.5"))
-	float LandingStabilizeTime = 0.15f;
+	// 플릭으로 인정할 최소 속도입니다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Touch", meta = (ClampMin = "0.0", UIMin = "100.0", UIMax = "2000.0"))
+	float FlickMinSpeed = 600.0f;
 
-	// 기기별 센서 축이 반대로 들어오는 경우 좌우 기울기 입력을 반전한다.
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Gyro")
-	bool bInvertTiltInput = false;
+	// 좌우/상향 플릭 방향을 판정할 때 주축 이동량이 보조축보다 커야 하는 비율입니다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Touch", meta = (ClampMin = "1.0", UIMin = "1.0", UIMax = "3.0"))
+	float FlickDirectionDominance = 1.35f;
+
+	// 좌우 플릭 점프가 기존 Balance 이동 위에 더할 목표 측면 이동 거리입니다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Touch", meta = (ClampMin = "0.0", UIMin = "30.0", UIMax = "400.0"))
+	float FlickLateralStepDistance = 180.0f;
+
+	// 좌우 플릭 보정 이동이 유지되는 시간입니다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Touch", meta = (ClampMin = "0.01", UIMin = "0.05", UIMax = "0.8"))
+	float FlickLateralMoveDuration = 0.28f;
 };
 
 /**
@@ -788,9 +789,9 @@ public:
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player")
 	FPGJumpSettings Jump;
 
-	// 모바일 자이로 중심 제어 설정
+	// 모바일 터치 드래그/플릭 조작 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player")
-	FPGGyroSettings Gyro;
+	FPGTouchControlSettings TouchControl;
 
 	// 추적 카메라 기본 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player")

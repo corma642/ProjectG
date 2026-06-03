@@ -7,10 +7,10 @@ UPGRunnerMovementComponent::UPGRunnerMovementComponent()
 	PrimaryComponentTick.bCanEverTick = true;
 }
 
-void UPGRunnerMovementComponent::InitializeRunnerMovement(const FPGJumpSettings& InJumpSettings, const FPGGyroSettings& InGyroSettings, const FPGBalanceSettings& InBalanceSettings, const FVector& InOriginLocation, const FVector& InRunnerForwardVector, const FVector& InRunnerRightVector)
+void UPGRunnerMovementComponent::InitializeRunnerMovement(const FPGJumpSettings& InJumpSettings, const FPGTouchControlSettings& InTouchControlSettings, const FPGBalanceSettings& InBalanceSettings, const FVector& InOriginLocation, const FVector& InRunnerForwardVector, const FVector& InRunnerRightVector)
 {
 	CachedJumpSettings = InJumpSettings;
-	CachedGyroSettings = InGyroSettings;
+	CachedTouchControlSettings = InTouchControlSettings;
 	CachedBalanceSettings = InBalanceSettings;
 	OriginLocation = InOriginLocation;
 
@@ -27,6 +27,8 @@ void UPGRunnerMovementComponent::InitializeRunnerMovement(const FPGJumpSettings&
 	BalanceVelocity = 0.0f;
 	BaseInstabilityInput = 0.0f;
 	PlayerCorrectionInput = 0.0f;
+	FlickLateralRemainingTime = 0.0f;
+	FlickLateralVelocity = 0.0f;
 	JumpCooldownRemainingTime = 0.0f;
 	LandingStabilizeRemainingTime = 0.0f;
 	bWasAirborneLastFrame = IsFalling();
@@ -71,6 +73,27 @@ void UPGRunnerMovementComponent::ApplyExternalBalanceImpulse(float ImpulseVeloci
 	}
 }
 
+void UPGRunnerMovementComponent::ApplyFlickLateralStep(float DirectionSign)
+{
+	if (MovementMode == MOVE_None)
+	{
+		return;
+	}
+
+	const float ClampedDirection = FMath::Clamp(DirectionSign, -1.0f, 1.0f);
+	const float Duration = FMath::Max(0.01f, CachedTouchControlSettings.FlickLateralMoveDuration);
+	const float Distance = FMath::Max(0.0f, CachedTouchControlSettings.FlickLateralStepDistance);
+	if (FMath::IsNearlyZero(ClampedDirection) || Distance <= KINDA_SMALL_NUMBER)
+	{
+		return;
+	}
+
+	// 플릭은 라인 텔레포트가 아니라 기존 Balance 이동 위에 잠깐 속도를 더하는 보정입니다.
+	// 그래서 캐릭터는 몸 기울기와 관성 이동을 유지하면서 지정 거리만큼 자연스럽게 이동합니다.
+	FlickLateralRemainingTime = Duration;
+	FlickLateralVelocity = ClampedDirection * (Distance / Duration);
+}
+
 void UPGRunnerMovementComponent::SetBalanceMovementInput(float InBaseInstabilityInput, float InPlayerCorrectionInput)
 {
 	BaseInstabilityInput = FMath::Clamp(InBaseInstabilityInput, -1.0f, 1.0f);
@@ -85,6 +108,8 @@ void UPGRunnerMovementComponent::StopRunnerMovementForFailure()
 	BalanceVelocity = 0.0f;
 	BaseInstabilityInput = 0.0f;
 	PlayerCorrectionInput = 0.0f;
+	FlickLateralRemainingTime = 0.0f;
+	FlickLateralVelocity = 0.0f;
 	JumpCooldownRemainingTime = 0.0f;
 	LandingStabilizeRemainingTime = 0.0f;
 	bWasAirborneLastFrame = false;
@@ -166,6 +191,18 @@ void UPGRunnerMovementComponent::UpdateBalanceMovement(float DeltaSeconds)
 	BalanceVelocity = FMath::Clamp(BalanceVelocity, -MaxSpeed, MaxSpeed);
 
 	BalanceOffset += BalanceVelocity * DeltaSeconds;
+
+	if (FlickLateralRemainingTime > 0.0f)
+	{
+		const float StepDeltaTime = FMath::Min(DeltaSeconds, FlickLateralRemainingTime);
+		BalanceOffset += FlickLateralVelocity * StepDeltaTime;
+		FlickLateralRemainingTime = FMath::Max(0.0f, FlickLateralRemainingTime - DeltaSeconds);
+		if (FlickLateralRemainingTime <= KINDA_SMALL_NUMBER)
+		{
+			FlickLateralRemainingTime = 0.0f;
+			FlickLateralVelocity = 0.0f;
+		}
+	}
 }
 
 void UPGRunnerMovementComponent::UpdateAirborneState()
@@ -174,7 +211,7 @@ void UPGRunnerMovementComponent::UpdateAirborneState()
 	if (bWasAirborneLastFrame && !bIsAirborne)
 	{
 		// 착지 직후에는 센서/키 입력이 튀기 쉬우므로 짧게 안정화 시간을 둡니다.
-		LandingStabilizeRemainingTime = CachedGyroSettings.LandingStabilizeTime;
+		LandingStabilizeRemainingTime = CachedJumpSettings.LandingInputDampingDuration;
 	}
 
 	bWasAirborneLastFrame = bIsAirborne;

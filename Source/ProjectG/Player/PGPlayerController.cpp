@@ -17,25 +17,6 @@
 #include "Settings/PGGameUserSettings.h"
 #include "RunResults/PGRunResultFeedbackComponent.h"
 
-namespace
-{
-float SelectTiltAxisValue(const FVector& Tilt, EPGTiltInputAxis Axis)
-{
-	switch (Axis)
-	{
-	case EPGTiltInputAxis::X:
-		return Tilt.X;
-	case EPGTiltInputAxis::Y:
-		return Tilt.Y;
-	case EPGTiltInputAxis::Z:
-		return Tilt.Z;
-	default:
-		return Tilt.X;
-	}
-}
-
-}
-
 APGPlayerController::APGPlayerController()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -136,7 +117,7 @@ void APGPlayerController::PlayerTick(float DeltaTime)
 {
 	Super::PlayerTick(DeltaTime);
 
-	UpdateGyroInput(DeltaTime);
+	UpdateControlInput(DeltaTime);
 }
 
 void APGPlayerController::SetupInputComponent()
@@ -150,15 +131,12 @@ void APGPlayerController::SetupInputComponent()
 		return;
 	}
 
+#if !PLATFORM_ANDROID
 	if (JumpAction)
 	{
 		EnhancedInputComponent->BindAction(JumpAction.Get(), ETriggerEvent::Started, this, &APGPlayerController::HandleJumpStarted);
 	}
-
-	if (GyroCalibrationAction)
-	{
-		EnhancedInputComponent->BindAction(GyroCalibrationAction.Get(), ETriggerEvent::Started, this, &APGPlayerController::HandleGyroCalibrationStarted);
-	}
+#endif
 
 	if (BalanceLeftAction)
 	{
@@ -178,7 +156,7 @@ void APGPlayerController::SetupInputComponent()
 void APGPlayerController::ApplyGameSettings()
 {
 	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
-	CachedGyroSettings = Settings->Gyro;
+	CachedTouchControlSettings = Settings->TouchControl;
 }
 
 void APGPlayerController::CacheRunnerPawn(APawn* InPawn)
@@ -199,24 +177,12 @@ void APGPlayerController::HandleRunCountdownStarted(float Duration)
 {
 	bIsBalanceLeftHeld = false;
 	bIsBalanceRightHeld = false;
-
-	// Android 첫 실행 직후 MotionState는 몇 프레임 동안 불안정할 수 있다.
-	// 실제 런 시작 전 카운트다운 구간에서 현재 자세를 다시 평균내 첫 판 기준점 틀어짐을 막는다.
-	bHasCalibration = false;
-	bIsCalibrating = false;
-	StartGyroCalibrationSample(false);
+	ResetTouchGesture();
 }
 
 void APGPlayerController::HandleJumpStarted(const FInputActionValue& ActionValue)
 {
 	SendJumpRequest();
-}
-
-void APGPlayerController::HandleGyroCalibrationStarted(const FInputActionValue& ActionValue)
-{
-	// 수동 보정도 단일 프레임 값이 아니라 짧은 평균값을 사용한다.
-	// 이미 기준값이 있는 경우에는 샘플 완료 후 새 기준까지 부드럽게 보간한다.
-	StartGyroCalibrationSample(bHasCalibration);
 }
 
 void APGPlayerController::HandleBalanceLeftStarted(const FInputActionValue& ActionValue)
@@ -247,148 +213,163 @@ void APGPlayerController::SendJumpRequest()
 	}
 }
 
-void APGPlayerController::UpdateGyroInput(float DeltaTime)
+bool APGPlayerController::InputTouch(const FInputDeviceId DeviceId, uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, float Force, uint32 TouchpadIndex, const uint64 Timestamp)
+{
+	const bool bHandledBySuper = Super::InputTouch(DeviceId, Handle, Type, TouchLocation, Force, TouchpadIndex, Timestamp);
+
+	switch (Type)
+	{
+	case ETouchType::Began:
+		BeginTouchGesture(Handle, TouchLocation);
+		break;
+	case ETouchType::Moved:
+	case ETouchType::FirstMove:
+	case ETouchType::Stationary:
+		UpdateTouchGesture(Handle, TouchLocation);
+		break;
+	case ETouchType::Ended:
+		EndTouchGesture(Handle, TouchLocation);
+		break;
+	default:
+		break;
+	}
+
+	return bHandledBySuper || bHasActiveTouchGesture;
+}
+
+void APGPlayerController::BeginTouchGesture(uint32 Handle, const FVector2D& TouchLocation)
+{
+	if (bHasActiveTouchGesture)
+	{
+		return;
+	}
+
+	bHasActiveTouchGesture = true;
+	ActiveTouchHandle = Handle;
+	TouchStartLocation = TouchLocation;
+	TouchLastLocation = TouchLocation;
+	TouchStartTimeSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+
+	if (APGRunnerCharacter* RunnerCharacter = CachedRunnerCharacter.Get())
+	{
+		RunnerCharacter->SetBalanceInput(0.0f);
+	}
+}
+
+void APGPlayerController::UpdateTouchGesture(uint32 Handle, const FVector2D& TouchLocation)
+{
+	if (!bHasActiveTouchGesture || Handle != ActiveTouchHandle)
+	{
+		return;
+	}
+
+	TouchLastLocation = TouchLocation;
+
+	const float DragDeltaX = TouchLocation.X - TouchStartLocation.X;
+	const float DeadZone = FMath::Max(0.0f, CachedTouchControlSettings.TouchDragDeadZone);
+	float DragInput = 0.0f;
+	if (FMath::Abs(DragDeltaX) > DeadZone)
+	{
+		DragInput = (DragDeltaX - FMath::Sign(DragDeltaX) * DeadZone) * CachedTouchControlSettings.TouchDragSensitivity;
+	}
+
+	if (APGRunnerCharacter* RunnerCharacter = CachedRunnerCharacter.Get())
+	{
+		// 터치 드래그는 직접 위치를 옮기지 않고 기존 Balance 가속도 경로에 넣습니다.
+		const float MaxBalanceInput = FMath::Max(0.0f, CachedTouchControlSettings.MaxBalanceInput);
+		RunnerCharacter->SetBalanceInput(FMath::Clamp(DragInput, -MaxBalanceInput, MaxBalanceInput));
+	}
+}
+
+void APGPlayerController::EndTouchGesture(uint32 Handle, const FVector2D& TouchLocation)
+{
+	if (!bHasActiveTouchGesture || Handle != ActiveTouchHandle)
+	{
+		return;
+	}
+
+	const float CurrentTimeSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : TouchStartTimeSeconds;
+	const float GestureDurationSeconds = FMath::Max(0.0f, CurrentTimeSeconds - TouchStartTimeSeconds);
+	TryHandleFlickGesture(TouchLocation, GestureDurationSeconds);
+	ResetTouchGesture();
+}
+
+void APGPlayerController::ResetTouchGesture()
+{
+	bHasActiveTouchGesture = false;
+	ActiveTouchHandle = 0;
+	TouchStartLocation = FVector2D::ZeroVector;
+	TouchLastLocation = FVector2D::ZeroVector;
+	TouchStartTimeSeconds = 0.0f;
+
+	if (APGRunnerCharacter* RunnerCharacter = CachedRunnerCharacter.Get())
+	{
+		RunnerCharacter->SetBalanceInput(0.0f);
+	}
+}
+
+bool APGPlayerController::TryHandleFlickGesture(const FVector2D& EndLocation, float GestureDurationSeconds)
+{
+	const FVector2D GestureDelta = EndLocation - TouchStartLocation;
+	const float Distance = GestureDelta.Size();
+	const float Duration = FMath::Max(GestureDurationSeconds, KINDA_SMALL_NUMBER);
+	const float Speed = Distance / Duration;
+
+	if (GestureDurationSeconds > CachedTouchControlSettings.FlickMaxDuration
+		|| Distance < CachedTouchControlSettings.FlickMinDistance
+		|| Speed < CachedTouchControlSettings.FlickMinSpeed)
+	{
+		return false;
+	}
+
+	APGRunnerCharacter* RunnerCharacter = CachedRunnerCharacter.Get();
+	if (!RunnerCharacter)
+	{
+		return false;
+	}
+
+	const float AbsX = FMath::Abs(GestureDelta.X);
+	const float AbsY = FMath::Abs(GestureDelta.Y);
+	const float DirectionDominance = FMath::Max(1.0f, CachedTouchControlSettings.FlickDirectionDominance);
+
+	if (AbsX >= AbsY * DirectionDominance)
+	{
+		RunnerCharacter->RequestFlickJump(GestureDelta.X > 0.0f ? 1.0f : -1.0f);
+		return true;
+	}
+
+	// UE 화면 좌표는 Y가 아래로 증가하므로 위쪽 플릭은 음수 Y 이동입니다.
+	if (GestureDelta.Y < 0.0f && AbsY >= AbsX * DirectionDominance)
+	{
+		RunnerCharacter->RequestJump();
+		return true;
+	}
+
+	return false;
+}
+
+void APGPlayerController::UpdateControlInput(float DeltaTime)
 {
 #if !PLATFORM_ANDROID
 	// 데스크탑 Q/E 테스트 입력은 모바일 센서 보정 상태와 무관해야 한다.
-	// Retry 직후 MotionState 샘플링이 아직 시작되지 않았더라도 키보드 입력을 즉시 전달한다.
 	if (APGRunnerCharacter* RunnerCharacter = CachedRunnerCharacter.Get())
 	{
 		RunnerCharacter->SetBalanceInput(GetKeyboardBalanceInput());
 	}
 	return;
 #else
-
-	FVector Tilt = FVector::ZeroVector;
-	FVector RotationRate = FVector::ZeroVector;
-	FVector Gravity = FVector::ZeroVector;
-	FVector Acceleration = FVector::ZeroVector;
-	GetInputMotionState(Tilt, RotationRate, Gravity, Acceleration);
-
-	// 프로젝트 설정에서 선택한 센서 축을 중심 제어 입력으로 사용한다.
-	LastRawTilt = SelectTiltAxisValue(Tilt, CachedGyroSettings.TiltInputAxis);
-
-	if (bIsSamplingCalibration)
-	{
-		CalibrationSampleElapsedTime += DeltaTime;
-		CalibrationSampleSum += LastRawTilt;
-		++CalibrationSampleCount;
-
-		if (CalibrationSampleElapsedTime >= CachedGyroSettings.AutoCalibrationSampleDuration)
-		{
-			FinishGyroCalibrationSample();
-		}
-		else
-		{
-			// 기준점 샘플링 중에는 입력을 중립으로 고정한다. 카운트다운 중에는 조작이 잠겨 있고,
-			// 수동 보정 중에는 잠깐의 중립 유지가 단일 프레임 튐보다 낫다.
-			if (APGRunnerCharacter* RunnerCharacter = CachedRunnerCharacter.Get())
-			{
-				RunnerCharacter->SetBalanceInput(0.0f);
-			}
-			return;
-		}
-	}
-
-	if (!bHasCalibration)
-	{
-		if (CachedGyroSettings.AutoCalibrationSampleDuration <= KINDA_SMALL_NUMBER)
-		{
-			StartGyroCalibrationSample(false);
-		}
-		else
-		{
-			// 첫 앱 실행 직후의 단일 MotionState 값은 기준점으로 쓰지 않는다.
-			// START/Countdown 또는 수동 보정에서 샘플링이 시작될 때까지 중립 입력만 전달한다.
-			if (APGRunnerCharacter* RunnerCharacter = CachedRunnerCharacter.Get())
-			{
-				RunnerCharacter->SetBalanceInput(0.0f);
-			}
-			return;
-		}
-	}
-
-	if (bIsCalibrating)
-	{
-		// 플레이 중 재보정 시 입력이 갑자기 튀지 않도록 설정값 기반 보간을 사용한다.
-		CalibrationTilt = FMath::FInterpTo(CalibrationTilt, TargetCalibrationTilt, DeltaTime, CachedGyroSettings.CalibrationBlendSpeed);
-		if (FMath::IsNearlyEqual(CalibrationTilt, TargetCalibrationTilt, 0.001f))
-		{
-			CalibrationTilt = TargetCalibrationTilt;
-			bIsCalibrating = false;
-		}
-	}
-
-	const float MotionBalanceInput = NormalizeTiltInput(LastRawTilt);
-	const float FinalBalanceInput = ResolveFinalBalanceInput(MotionBalanceInput);
-
-	if (APGRunnerCharacter* RunnerCharacter = CachedRunnerCharacter.Get())
-	{
-		RunnerCharacter->SetBalanceInput(FinalBalanceInput);
-	}
+	// Android 조작은 MotionState 센서 입력을 사용하지 않는다.
+	// Balance 입력은 InputTouch()에서 드래그 제스처를 기존 중심 보정값으로 변환해 전달한다.
+	return;
 
 #endif
-}
-
-void APGPlayerController::StartGyroCalibrationSample(bool bBlendToSample)
-{
-	bIsSamplingCalibration = true;
-	bBlendCalibrationSample = bBlendToSample;
-	CalibrationSampleSum = 0.0f;
-	CalibrationSampleCount = 0;
-	CalibrationSampleElapsedTime = 0.0f;
-	bIsCalibrating = false;
-
-	if (CachedGyroSettings.AutoCalibrationSampleDuration <= KINDA_SMALL_NUMBER)
-	{
-		CalibrationSampleSum = LastRawTilt;
-		CalibrationSampleCount = 1;
-		FinishGyroCalibrationSample();
-	}
-}
-
-void APGPlayerController::FinishGyroCalibrationSample()
-{
-	const float SampledTilt = CalibrationSampleCount > 0 ? CalibrationSampleSum / static_cast<float>(CalibrationSampleCount) : LastRawTilt;
-	bIsSamplingCalibration = false;
-	CalibrationSampleElapsedTime = 0.0f;
-	CalibrationSampleSum = 0.0f;
-	CalibrationSampleCount = 0;
-
-	if (bBlendCalibrationSample && bHasCalibration)
-	{
-		TargetCalibrationTilt = SampledTilt;
-		bIsCalibrating = true;
-		return;
-	}
-
-	CalibrationTilt = SampledTilt;
-	TargetCalibrationTilt = SampledTilt;
-	bHasCalibration = true;
-	bIsCalibrating = false;
-}
-
-float APGPlayerController::NormalizeTiltInput(float RawTilt) const
-{
-	const float DirectionScale = CachedGyroSettings.bInvertTiltInput ? -1.0f : 1.0f;
-	const float CenteredTilt = (RawTilt - CalibrationTilt) * DirectionScale;
-
-	// 민감도 적용 후 설정된 최대 입력 범위 안으로 제한한다.
-	return FMath::Clamp(CenteredTilt * CachedGyroSettings.TiltSensitivity, -CachedGyroSettings.MaxTiltInput, CachedGyroSettings.MaxTiltInput);
 }
 
 float APGPlayerController::GetKeyboardBalanceInput() const
 {
 	const float LeftInput = bIsBalanceLeftHeld ? -1.0f : 0.0f;
 	const float RightInput = bIsBalanceRightHeld ? 1.0f : 0.0f;
-	return FMath::Clamp(LeftInput + RightInput, -CachedGyroSettings.MaxTiltInput, CachedGyroSettings.MaxTiltInput);
+	const float MaxBalanceInput = FMath::Max(0.0f, CachedTouchControlSettings.MaxBalanceInput);
+	return FMath::Clamp(LeftInput + RightInput, -MaxBalanceInput, MaxBalanceInput);
 }
 
-float APGPlayerController::ResolveFinalBalanceInput(float MotionBalanceInput) const
-{
-#if PLATFORM_ANDROID
-	return MotionBalanceInput;
-#else
-	return GetKeyboardBalanceInput();
-#endif
-}
