@@ -13,6 +13,7 @@
 #include "Misc/PackageName.h"
 #include "Player/PGPlayerController.h"
 #include "Shop/PGMapDefinition.h"
+#include "Shop/PGMapShopCatalog.h"
 #include "UI/PGHomeScreenWidget.h"
 #include "UI/PGReceiptShopPackItemWidget.h"
 #include "UI/PGReceiptShopWidget.h"
@@ -70,9 +71,14 @@ void UPGHomeFlowComponent::BeginPlay()
 		}
 
 		// 일반 앱 진입은 HomeCamera를 먼저 잡고, UI는 예열 완료 후 표시해 첫 진입 리소스 누락을 피한다.
-		SetHomeCameraViewTarget();
 		if (!RuntimePreloadSubsystem || RuntimePreloadSubsystem->IsGroupReady(EPGRuntimePreloadGroup::Home))
 		{
+			if (TryRedirectToEquippedStartupMap())
+			{
+				return;
+			}
+
+			SetHomeCameraViewTarget();
 			ShowHomeScreen();
 			if (RuntimePreloadSubsystem)
 			{
@@ -242,6 +248,44 @@ void UPGHomeFlowComponent::RequestStartDeliveryAfterPreload()
 	{
 		HomeScreenWidget->SetHomeButtonsEnabled(false);
 	}
+}
+
+bool UPGHomeFlowComponent::TryRedirectToEquippedStartupMap()
+{
+	if (bRetryCountdownRequested || bIsScreenTransitionActive || !GetWorld() || !UserDataSubsystem)
+	{
+		return false;
+	}
+
+	const UPGMapDefinition* EquippedMap = UserDataSubsystem->GetEquippedMap();
+	if (!EquippedMap)
+	{
+		return false;
+	}
+
+	const FString EquippedLevelPackageName = UPGMapShopCatalog::GetNormalizedLevelPackageName(EquippedMap);
+	if (EquippedLevelPackageName.IsEmpty())
+	{
+		UE_LOG(LogPGHomeFlow, Warning, TEXT("Equipped map '%s' has no valid level. Startup will stay on the current default map."), *EquippedMap->MapId.ToString());
+		return false;
+	}
+
+	const FString CurrentLevelPackageName = UPGMapShopCatalog::GetNormalizedWorldPackageName(GetWorld());
+	if (CurrentLevelPackageName.Equals(EquippedLevelPackageName, ESearchCase::CaseSensitive))
+	{
+		return false;
+	}
+
+	// GameDefaultMap is only a bootstrap/fallback map. Once user data and the map catalog are ready,
+	// normal app startup should continue from the saved equipped map before Home UI becomes interactive.
+	PendingMapTravelLevelName = FName(*EquippedLevelPackageName);
+	if (!StartScreenTransition(EPGHomeFlowTransition::StartupMapRedirect))
+	{
+		PendingMapTravelLevelName = NAME_None;
+		return false;
+	}
+
+	return true;
 }
 
 void UPGHomeFlowComponent::ShowHomeScreen()
@@ -538,6 +582,12 @@ void UPGHomeFlowComponent::ApplyPendingScreenTransition()
 {
 	switch (PendingScreenTransition)
 	{
+	case EPGHomeFlowTransition::StartupMapRedirect:
+		if (!PendingMapTravelLevelName.IsNone())
+		{
+			UGameplayStatics::OpenLevel(this, PendingMapTravelLevelName);
+		}
+		break;
 	case EPGHomeFlowTransition::HomeToShop:
 		ShowShopScreen();
 		break;
@@ -1062,6 +1112,12 @@ void UPGHomeFlowComponent::HandleRuntimePreloadCompleted(EPGRuntimePreloadGroup 
 
 	if (Group == EPGRuntimePreloadGroup::Home)
 	{
+		if (TryRedirectToEquippedStartupMap())
+		{
+			return;
+		}
+
+		SetHomeCameraViewTarget();
 		ShowHomeScreen();
 		if (RuntimePreloadSubsystem)
 		{

@@ -26,6 +26,7 @@ enum class EPGRuntimePreloadGroup : uint8;
 enum class EPGHomeFlowTransition : uint8
 {
 	None,
+	StartupMapRedirect,
 	HomeToShop,
 	ShopToHome,
 	HomeToCountdown,
@@ -70,6 +71,7 @@ private:
 	void UnbindUserDataSubsystem();
 	void HandleRetryCountdownInitializationReady();
 	void RequestStartDeliveryAfterPreload();
+	bool TryRedirectToEquippedStartupMap();
 	void ShowHomeScreen();
 	void SetHomeCameraViewTarget();
 	void SetShopCameraViewTarget();
