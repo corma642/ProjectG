@@ -7,6 +7,7 @@
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
+#include "Settings/PGGameSettings.h"
 
 namespace
 {
@@ -91,6 +92,7 @@ void UPGHomeScreenWidget::NativeDestruct()
 void UPGHomeScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+	ApplyReceiptShopUnavailableFeedback(InDeltaTime);
 
 	if (bIsEntryAnimating)
 	{
@@ -209,8 +211,50 @@ void UPGHomeScreenWidget::HandleHelpClicked()
 
 void UPGHomeScreenWidget::HandleReceiptAddClicked()
 {
-	UPGAudioStatics::PlayCommonButtonClick(this);
-	OnReceiptShopRequested.Broadcast();
+	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
+	if (Settings && Settings->Shop.IsReceiptShopTestGrantEnabled())
+	{
+		UPGAudioStatics::PlayCommonButtonClick(this);
+		OnReceiptShopRequested.Broadcast();
+		return;
+	}
+
+	// 공개 빌드에서는 가격 화면을 열지 않고 기존 구매 실패와 같은 피드백만 제공한다.
+	if (Settings)
+	{
+		UPGAudioStatics::PlayUIButtonSound(this, Settings->SFX.ShopPurchaseFailSound.Get());
+	}
+	else
+	{
+		UPGAudioStatics::PlayCommonButtonClick(this);
+	}
+
+	bReceiptShopUnavailableFeedbackActive = true;
+	ReceiptShopUnavailableFeedbackElapsed = 0.0f;
+	ApplyReceiptShopUnavailableFeedback(0.0f);
+}
+
+void UPGHomeScreenWidget::ApplyReceiptShopUnavailableFeedback(float DeltaSeconds)
+{
+	if (!bReceiptShopUnavailableFeedbackActive || !ReceiptAddButton)
+	{
+		return;
+	}
+
+	ReceiptShopUnavailableFeedbackElapsed += DeltaSeconds;
+	const float Alpha = FMath::Clamp(
+		ReceiptShopUnavailableFeedbackElapsed / FMath::Max(KINDA_SMALL_NUMBER, ReceiptShopUnavailableFeedbackDuration),
+		0.0f,
+		1.0f);
+	const float Shake = FMath::Sin(Alpha * UE_PI * 6.0f) * 12.0f * (1.0f - Alpha);
+	ReceiptAddButton->SetRenderTranslation(FVector2D(Shake, 0.0f));
+
+	if (Alpha >= 1.0f)
+	{
+		bReceiptShopUnavailableFeedbackActive = false;
+		ReceiptAddButton->SetRenderTranslation(FVector2D::ZeroVector);
+		ReceiptAddButton->SetRenderScale(FVector2D(1.0f, 1.0f));
+	}
 }
 
 void UPGHomeScreenWidget::StartEntryAnimation()

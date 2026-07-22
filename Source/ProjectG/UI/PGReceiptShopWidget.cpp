@@ -152,9 +152,15 @@ void UPGReceiptShopWidget::HandlePackSelected(int32 PackIndex)
 {
 	UPGUserDataSubsystem* UserData = UserDataSubsystem.Get();
 	const bool bValidPack = ReceiptPacks.IsValidIndex(PackIndex) && ReceiptPacks[PackIndex].ReceiptAmount > 0;
-	const bool bSuccess = UserData && bValidPack && UserData->TryAddReceipts(ReceiptPacks[PackIndex].ReceiptAmount, TEXT("ReceiptShopPurchase"));
+	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
+	const bool bTestGrantEnabled = Settings && Settings->Shop.IsReceiptShopTestGrantEnabled();
+	// Shipping은 설정값과 관계없이 false이므로 위젯이 우회 생성돼도 테스트 재화를 지급하지 않는다.
+	const bool bSuccess = bTestGrantEnabled
+		&& UserData
+		&& bValidPack
+		&& UserData->TryAddReceipts(ReceiptPacks[PackIndex].ReceiptAmount, TEXT("ReceiptShopTestGrant"));
 
-	if (const UPGGameSettings* Settings = GetDefault<UPGGameSettings>())
+	if (Settings)
 	{
 		UPGAudioStatics::PlayUIButtonSound(this, bSuccess ? Settings->SFX.ShopPurchaseSuccessSound.Get() : Settings->SFX.ShopPurchaseFailSound.Get());
 	}

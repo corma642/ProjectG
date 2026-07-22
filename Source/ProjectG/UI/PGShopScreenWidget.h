@@ -186,6 +186,7 @@ private:
 	void SetShopButtonsEnabled(bool bEnabled) const;
 	void ApplyEntryAnimation(float Alpha);
 	void ApplyWidgetAnimationState(UWidget* Widget, const FVector2D& StartOffset, float Alpha, float Delay, float Duration, float StartScale = 1.0f, float EndScale = 1.0f) const;
+	void StartActionFeedback(UWidget* TargetWidget, bool bSuccess);
 	void ApplyActionFeedback(float DeltaSeconds);
 
 	TWeakObjectPtr<UPGUserDataSubsystem> UserDataSubsystem;
@@ -206,6 +207,7 @@ private:
 	float ActionFeedbackElapsed = 0.0f;
 	float ActionFeedbackDuration = 0.22f;
 	bool bActionFeedbackSuccess = true;
+	TWeakObjectPtr<UWidget> ActionFeedbackTarget;
 	bool bExternalInteractionEnabled = true;
 	bool bCharactersTabAvailable = false;
 	bool bMapsTabAvailable = false;

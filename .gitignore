@@ -57,6 +57,7 @@ Build/*
 !Build/*/
 Build/*/**
 !Build/*/PakBlacklist*.txt
+!Build/Android/aar-imports.txt
 
 # Don't ignore icon files in Build
 !Build/**/*.ico

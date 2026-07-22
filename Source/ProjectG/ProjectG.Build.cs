@@ -1,5 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
 using UnrealBuildTool;
 
 public class ProjectG : ModuleRules
@@ -25,6 +26,12 @@ public class ProjectG : ModuleRules
         });
 
         PrivateDependencyModuleNames.AddRange(new string[] { });
+
+        if (Target.Platform == UnrealTargetPlatform.Android)
+        {
+            // UE 5.6 기본 Android 템플릿이 추가하는 미사용 Play Games/OBB 선언을 프로젝트 범위에서 제거합니다.
+            AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(ModuleDirectory, "ProjectG_UPL.xml"));
+        }
 
         // Uncomment if you are using Slate UI
         // PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });

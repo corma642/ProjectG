@@ -10,6 +10,8 @@
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "GameFramework/GameUserSettings.h"
+#include "HAL/PlatformProcess.h"
+#include "Settings/PGGameSettings.h"
 #include "Settings/PGGameUserSettings.h"
 
 namespace
@@ -79,6 +81,10 @@ void UPGSettingsScreenWidget::NativeConstruct()
 		SFXVolumeSlider->OnMouseCaptureEnd.AddDynamic(this, &UPGSettingsScreenWidget::HandleSFXVolumeCommit);
 		SFXVolumeSlider->OnControllerCaptureEnd.AddDynamic(this, &UPGSettingsScreenWidget::HandleSFXVolumeCommit);
 	}
+	if (PrivacyPolicyButton)
+	{
+		PrivacyPolicyButton->OnClicked.AddDynamic(this, &UPGSettingsScreenWidget::HandlePrivacyPolicyClicked);
+	}
 
 	RefreshControlsFromSettings();
 	ApplyAnimationState(0.0f);
@@ -123,6 +129,10 @@ void UPGSettingsScreenWidget::NativeDestruct()
 		SFXVolumeSlider->OnValueChanged.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleSFXVolumeChanged);
 		SFXVolumeSlider->OnMouseCaptureEnd.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleSFXVolumeCommit);
 		SFXVolumeSlider->OnControllerCaptureEnd.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleSFXVolumeCommit);
+	}
+	if (PrivacyPolicyButton)
+	{
+		PrivacyPolicyButton->OnClicked.RemoveDynamic(this, &UPGSettingsScreenWidget::HandlePrivacyPolicyClicked);
 	}
 
 	Super::NativeDestruct();
@@ -299,6 +309,18 @@ void UPGSettingsScreenWidget::HandleSFXVolumeCommit()
 	}
 }
 
+void UPGSettingsScreenWidget::HandlePrivacyPolicyClicked()
+{
+	if (!HasValidPrivacyPolicyURL())
+	{
+		return;
+	}
+
+	UPGAudioStatics::PlayCommonButtonClick(this);
+	const FString PrivacyPolicyURL = GetDefault<UPGGameSettings>()->HomeFlow.PrivacyPolicyURL.TrimStartAndEnd();
+	FPlatformProcess::LaunchURL(*PrivacyPolicyURL, nullptr, nullptr);
+}
+
 void UPGSettingsScreenWidget::RefreshControlsFromSettings()
 {
 	UPGGameUserSettings* UserSettings = Cast<UPGGameUserSettings>(UGameUserSettings::GetGameUserSettings());
@@ -406,6 +428,10 @@ void UPGSettingsScreenWidget::SetAllButtonsEnabled(bool bEnabled) const
 	{
 		SFXVolumeSlider->SetIsEnabled(bEnabled);
 	}
+	if (PrivacyPolicyButton)
+	{
+		PrivacyPolicyButton->SetIsEnabled(bEnabled && HasValidPrivacyPolicyURL());
+	}
 }
 
 void UPGSettingsScreenWidget::SetPresetSelectionState(EPGMobileQualityPreset Preset) const
@@ -460,4 +486,16 @@ void UPGSettingsScreenWidget::UpdateSFXVolumeText(float Value) const
 			NSLOCTEXT("PGSettingsScreen", "SFXVolumeFormat", "{0}%"),
 			FText::AsNumber(FMath::RoundToInt(Value))));
 	}
+}
+
+bool UPGSettingsScreenWidget::HasValidPrivacyPolicyURL() const
+{
+	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
+	if (!Settings)
+	{
+		return false;
+	}
+
+	const FString URL = Settings->HomeFlow.PrivacyPolicyURL.TrimStartAndEnd();
+	return URL.StartsWith(TEXT("https://"), ESearchCase::IgnoreCase);
 }

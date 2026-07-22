@@ -153,6 +153,8 @@ void UPGRuntimePreloadSubsystem::CollectPrimaryResourcePaths(EPGRuntimePreloadGr
 		AddUniquePath(OutPaths, Settings->Shop.MapShopCatalog.ToSoftObjectPath());
 		AddUniquePath(OutPaths, Settings->Music.HomeMusic.ToSoftObjectPath());
 		AddUniquePath(OutPaths, Settings->SFX.CommonButtonClickSound.ToSoftObjectPath());
+		// Receipt Shop이 닫혀 있어도 + 버튼의 구매 불가 피드백음은 Home에서 즉시 필요하다.
+		AddUniquePath(OutPaths, Settings->SFX.ShopPurchaseFailSound.ToSoftObjectPath());
 		break;
 
 	case EPGRuntimePreloadGroup::Run:
@@ -190,14 +192,17 @@ void UPGRuntimePreloadSubsystem::CollectPrimaryResourcePaths(EPGRuntimePreloadGr
 		AddUniquePath(OutPaths, Settings->Shop.CharacterShopCatalog.ToSoftObjectPath());
 		AddUniquePath(OutPaths, Settings->Shop.MapShopItemWidgetClass.ToSoftObjectPath());
 		AddUniquePath(OutPaths, Settings->Shop.MapShopCatalog.ToSoftObjectPath());
-		AddUniquePath(OutPaths, Settings->Shop.ReceiptShopWidgetClass.ToSoftObjectPath());
-		AddUniquePath(OutPaths, Settings->Shop.ReceiptShopPackItemWidgetClass.ToSoftObjectPath());
+		if (Settings->Shop.IsReceiptShopTestGrantEnabled())
+		{
+			AddUniquePath(OutPaths, Settings->Shop.ReceiptShopWidgetClass.ToSoftObjectPath());
+			AddUniquePath(OutPaths, Settings->Shop.ReceiptShopPackItemWidgetClass.ToSoftObjectPath());
+			for (const FPGReceiptShopPack& ReceiptPack : Settings->Shop.ReceiptPacks)
+			{
+				AddUniquePath(OutPaths, ReceiptPack.Thumbnail.ToSoftObjectPath());
+			}
+		}
 		AddUniquePath(OutPaths, Settings->SFX.ShopPurchaseSuccessSound.ToSoftObjectPath());
 		AddUniquePath(OutPaths, Settings->SFX.ShopPurchaseFailSound.ToSoftObjectPath());
-		for (const FPGReceiptShopPack& ReceiptPack : Settings->Shop.ReceiptPacks)
-		{
-			AddUniquePath(OutPaths, ReceiptPack.Thumbnail.ToSoftObjectPath());
-		}
 		break;
 
 	case EPGRuntimePreloadGroup::Tutorial:

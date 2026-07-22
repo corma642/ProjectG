@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root xmlns:android="http://schemas.android.com/apk/res/android">
+	<androidManifestUpdates>
+		<!-- UE 5.6은 OBB를 사용하지 않아도 downloader 선언을 생성하므로 공개 AAB에서 명시적으로 제거합니다. -->
+		<loopElements tag="application">
+			<removeAttribute tag="$" name="android:requestLegacyExternalStorage" />
+		</loopElements>
+
+		<loopElements tag="activity">
+			<setStringFromAttribute result="nodeName" tag="$" name="android:name" />
+			<setBoolIsEqual result="removeNode" arg1="$S(nodeName)" arg2=".DownloaderActivity" />
+			<if condition="removeNode"><true><removeElement tag="$" /></true></if>
+		</loopElements>
+
+		<loopElements tag="service">
+			<setStringFromAttribute result="nodeName" tag="$" name="android:name" />
+			<setBoolIsEqual result="removeNode" arg1="$S(nodeName)" arg2="OBBDownloaderService" />
+			<if condition="removeNode"><true><removeElement tag="$" /></true></if>
+		</loopElements>
+
+		<loopElements tag="receiver">
+			<setStringFromAttribute result="nodeName" tag="$" name="android:name" />
+			<setBoolIsEqual result="removeNode" arg1="$S(nodeName)" arg2="AlarmReceiver" />
+			<if condition="removeNode"><true><removeElement tag="$" /></true></if>
+		</loopElements>
+
+		<loopElements tag="meta-data">
+			<setStringFromAttribute result="nodeName" tag="$" name="android:name" />
+			<setBoolIsEqual result="removeGamesAppId" arg1="$S(nodeName)" arg2="com.google.android.gms.games.APP_ID" />
+			<setBoolIsEqual result="removePlayServicesVersion" arg1="$S(nodeName)" arg2="com.google.android.gms.version" />
+			<setBoolIsEqual result="removeStartupPermissions" arg1="$S(nodeName)" arg2="com.epicgames.unreal.GameActivity.StartupPermissions" />
+			<setBoolOr result="removeGoogleMetadata" arg1="$B(removeGamesAppId)" arg2="$B(removePlayServicesVersion)" />
+			<setBoolOr result="removeNode" arg1="$B(removeGoogleMetadata)" arg2="$B(removeStartupPermissions)" />
+			<if condition="removeNode"><true><removeElement tag="$" /></true></if>
+		</loopElements>
+
+		<loopElements tag="uses-permission">
+			<setStringFromAttribute result="nodeName" tag="$" name="android:name" />
+			<setBoolIsEqual result="removeBilling" arg1="$S(nodeName)" arg2="com.android.vending.BILLING" />
+			<setBoolIsEqual result="removeLicense" arg1="$S(nodeName)" arg2="com.android.vending.CHECK_LICENSE" />
+			<setBoolIsEqual result="removeLegacyStorage" arg1="$S(nodeName)" arg2="android.permission.WRITE_EXTERNAL_STORAGE" />
+			<setBoolOr result="removeStorePermission" arg1="$B(removeBilling)" arg2="$B(removeLicense)" />
+			<setBoolOr result="removeNode" arg1="$B(removeStorePermission)" arg2="$B(removeLegacyStorage)" />
+			<if condition="removeNode"><true><removeElement tag="$" /></true></if>
+		</loopElements>
+	</androidManifestUpdates>
+
+	<gradleCopies>
+		<!-- 엔진이 Google Play 지원 여부와 무관하게 생성하는 미사용 Games App ID 리소스를 제외합니다. -->
+		<deleteFiles filespec="gradle/app/src/main/res/values/GooglePlayAppID.xml" />
+	</gradleCopies>
+
+	<buildGradleAdditions>
+		<insert>
+			// UE 5.6의 GameActivity/PSO Java 템플릿에는 Google Play 지원을 꺼도 미사용 import가 남습니다.
+			// Gradle 컴파일 직전에 해당 import만 제거해 Play Services AAR 없이도 프로젝트를 패키징합니다.
+			tasks.configureEach { task -&gt;
+				if (task.name.startsWith("compile") &amp;&amp; task.name.endsWith("JavaWithJavac")) {
+					task.doFirst {
+						def sourceFiles = [
+							file("src/main/java/com/epicgames/unreal/GameActivity.java"),
+							file("src/main/java/com/epicgames/unreal/psoservices/PSOProgramServiceAccessor.java")
+						]
+						def unusedGoogleImports = [
+							"import com.google.android.gms.auth.GoogleAuthUtil;",
+							"import com.google.android.gms.common.api.GoogleApiClient;",
+							"import com.google.android.gms.common.GooglePlayServicesUtil;",
+							"import com.google.android.gms.common.ConnectionResult;",
+							"import com.google.android.gms.games.Games;",
+							"import com.google.android.gms.games.Game;"
+						]
+						sourceFiles.findAll { it.exists() }.each { sourceFile -&gt;
+							def source = sourceFile.getText("UTF-8")
+							unusedGoogleImports.each { source = source.replace(it, "") }
+							sourceFile.write(source, "UTF-8")
+						}
+					}
+				}
+			}
+		</insert>
+	</buildGradleAdditions>
+</root>

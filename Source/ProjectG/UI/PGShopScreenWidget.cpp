@@ -259,9 +259,7 @@ void UPGShopScreenWidget::HandleActionClicked()
 			bSuccess = true;
 		}
 
-		bActionFeedbackActive = true;
-		ActionFeedbackElapsed = 0.0f;
-		bActionFeedbackSuccess = bSuccess;
+		StartActionFeedback(ActionButton, bSuccess);
 		if (bWasPurchaseAction)
 		{
 			if (const UPGGameSettings* Settings = GetDefault<UPGGameSettings>())
@@ -306,9 +304,7 @@ void UPGShopScreenWidget::HandleActionClicked()
 		bSuccess = true;
 	}
 
-	bActionFeedbackActive = true;
-	ActionFeedbackElapsed = 0.0f;
-	bActionFeedbackSuccess = bSuccess;
+	StartActionFeedback(ActionButton, bSuccess);
 	if (bWasPurchaseAction)
 	{
 		// 구매 결과음이 지정되어 있으면 공통 버튼음을 겹쳐 재생하지 않는다.
@@ -343,8 +339,24 @@ void UPGShopScreenWidget::HandleMapsTabClicked()
 
 void UPGShopScreenWidget::HandleReceiptAddClicked()
 {
-	UPGAudioStatics::PlayCommonButtonClick(this);
-	OnReceiptShopRequested.Broadcast();
+	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
+	if (Settings && Settings->Shop.IsReceiptShopTestGrantEnabled())
+	{
+		UPGAudioStatics::PlayCommonButtonClick(this);
+		OnReceiptShopRequested.Broadcast();
+		return;
+	}
+
+	// 출시본에서는 Receipt Shop을 열지 않고 기존 구매 실패 피드백으로 접근 불가 상태를 알린다.
+	if (Settings)
+	{
+		UPGAudioStatics::PlayUIButtonSound(this, Settings->SFX.ShopPurchaseFailSound.Get());
+	}
+	else
+	{
+		UPGAudioStatics::PlayCommonButtonClick(this);
+	}
+	StartActionFeedback(ReceiptAddButton, false);
 }
 
 void UPGShopScreenWidget::HandleReceiptBalanceChanged(int32 NewBalance, FName Reason)
@@ -1059,9 +1071,24 @@ void UPGShopScreenWidget::ApplyWidgetAnimationState(UWidget* Widget, const FVect
 	Widget->SetRenderScale(FVector2D(Scale, Scale));
 }
 
+void UPGShopScreenWidget::StartActionFeedback(UWidget* TargetWidget, bool bSuccess)
+{
+	if (!TargetWidget)
+	{
+		return;
+	}
+
+	ActionFeedbackTarget = TargetWidget;
+	bActionFeedbackActive = true;
+	ActionFeedbackElapsed = 0.0f;
+	bActionFeedbackSuccess = bSuccess;
+	ApplyActionFeedback(0.0f);
+}
+
 void UPGShopScreenWidget::ApplyActionFeedback(float DeltaSeconds)
 {
-	if (!bActionFeedbackActive || !ActionButton)
+	UWidget* TargetWidget = ActionFeedbackTarget.Get();
+	if (!bActionFeedbackActive || !TargetWidget)
 	{
 		return;
 	}
@@ -1073,17 +1100,18 @@ void UPGShopScreenWidget::ApplyActionFeedback(float DeltaSeconds)
 	{
 		// 성공은 짧은 펄스로 확정감을 주고, 실패는 흔들림으로 재화 부족/저장 실패를 구분한다.
 		const float Scale = 1.0f + Pulse * 0.08f;
-		ActionButton->SetRenderScale(FVector2D(Scale, Scale));
+		TargetWidget->SetRenderScale(FVector2D(Scale, Scale));
 	}
 	else
 	{
-		ActionButton->SetRenderTranslation(FVector2D(FMath::Sin(Alpha * UE_PI * 6.0f) * 12.0f * (1.0f - Alpha), 0.0f));
+		TargetWidget->SetRenderTranslation(FVector2D(FMath::Sin(Alpha * UE_PI * 6.0f) * 12.0f * (1.0f - Alpha), 0.0f));
 	}
 
 	if (Alpha >= 1.0f)
 	{
 		bActionFeedbackActive = false;
-		ActionButton->SetRenderScale(FVector2D(1.0f, 1.0f));
-		ActionButton->SetRenderTranslation(FVector2D::ZeroVector);
+		TargetWidget->SetRenderScale(FVector2D(1.0f, 1.0f));
+		TargetWidget->SetRenderTranslation(FVector2D::ZeroVector);
+		ActionFeedbackTarget.Reset();
 	}
 }

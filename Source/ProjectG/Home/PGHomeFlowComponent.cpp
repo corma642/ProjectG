@@ -822,6 +822,13 @@ void UPGHomeFlowComponent::HandleShopMapTravelRequested(FName MapId)
 
 void UPGHomeFlowComponent::HandleReceiptShopRequested()
 {
+	// UI 진입점 외에도 흐름 소유자가 다시 확인해 직접 델리게이트 호출로 가격 화면이 열리는 것을 막는다.
+	if (!CachedShopSettings.IsReceiptShopTestGrantEnabled())
+	{
+		bPendingReceiptShopAfterPreload = false;
+		return;
+	}
+
 	if (SettingsScreenWidget || TutorialScreenWidget || ReceiptShopWidget || bIsScreenTransitionActive || !BoundGameMode || BoundGameMode->GetRunState() != EPGRunState::Home)
 	{
 		return;
@@ -991,6 +998,12 @@ void UPGHomeFlowComponent::ShowTutorialScreen()
 
 void UPGHomeFlowComponent::ShowReceiptShopScreen()
 {
+	if (!CachedShopSettings.IsReceiptShopTestGrantEnabled())
+	{
+		bPendingReceiptShopAfterPreload = false;
+		return;
+	}
+
 	if (!OwnerPlayerController || ReceiptShopWidget || !UserDataSubsystem)
 	{
 		return;

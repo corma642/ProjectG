@@ -283,6 +283,10 @@ struct FPGHomeFlowSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Home")
 	TSoftClassPtr<UUserWidget> TutorialScreenWidgetClass;
 
+	// Settings의 개인정보처리방침 버튼으로 열 공개 HTTPS 주소입니다. 비어 있거나 HTTPS가 아니면 버튼을 비활성화합니다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Legal")
+	FString PrivacyPolicyURL;
+
 	// Help 튜토리얼에서 책처럼 넘겨 볼 설명 이미지 목록
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Tutorial")
 	TSoftObjectPtr<UPGTutorialPageSet> TutorialPageSet;
@@ -354,6 +358,11 @@ struct FPGShopSettings
 {
 	GENERATED_BODY()
 
+	// 에디터와 Development 빌드에서만 영수증 테스트 지급 상점을 엽니다.
+	// Shipping 빌드는 설정값과 관계없이 항상 차단되어 실제 결제처럼 보이는 테스트 지급이 공개되지 않습니다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Receipt Shop")
+	bool bEnableReceiptShopTestGrant = false;
+
 	// Home Shop 버튼으로 표시할 상점 위젯 클래스
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Shop")
 	TSoftClassPtr<UUserWidget> ShopScreenWidgetClass;
@@ -397,6 +406,16 @@ struct FPGShopSettings
 	// ShopCamera에서 HomeCamera로 복귀하는 블렌드 시간
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Shop Camera", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3.0"))
 	float ShopToHomeCameraBlendTime = 0.35f;
+
+	/** 현재 빌드에서 테스트 지급용 영수증 상점 진입을 허용하는지 반환합니다. */
+	bool IsReceiptShopTestGrantEnabled() const
+	{
+#if UE_BUILD_SHIPPING
+		return false;
+#else
+		return bEnableReceiptShopTestGrant;
+#endif
+	}
 };
 
 /**

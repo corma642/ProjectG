@@ -1,0 +1,2 @@
+# Go Deliver! does not use the Google Play Games SDK or Google authentication.
+# This project file intentionally overrides UE 5.6's default Android AAR imports.

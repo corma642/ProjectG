@@ -87,6 +87,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
 	TObjectPtr<UTextBlock> SFXVolumeValueText;
 
+	// 공개 개인정보처리방침을 외부 브라우저로 여는 버튼입니다. BP에 추가하기 전에도 기존 Settings가 동작하도록 선택 바인딩합니다.
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidgetOptional), Category = "Settings")
+	TObjectPtr<UButton> PrivacyPolicyButton;
+
 private:
 	UFUNCTION()
 	void HandleCloseClicked();
@@ -121,6 +125,9 @@ private:
 	UFUNCTION()
 	void HandleSFXVolumeCommit();
 
+	UFUNCTION()
+	void HandlePrivacyPolicyClicked();
+
 	void RefreshControlsFromSettings();
 	void ApplyPreset(EPGMobileQualityPreset Preset);
 	void ApplyAnimationState(float Alpha);
@@ -130,6 +137,7 @@ private:
 	void UpdateResolutionScaleText(float Value) const;
 	void UpdateMusicVolumeText(float Value) const;
 	void UpdateSFXVolumeText(float Value) const;
+	bool HasValidPrivacyPolicyURL() const;
 
 	bool bIsOpening = false;
 	bool bIsClosing = false;
