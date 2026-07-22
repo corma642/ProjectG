@@ -59,6 +59,11 @@ Build/*/**
 !Build/*/PakBlacklist*.txt
 !Build/Android/aar-imports.txt
 
+# Android launcher icons generated from Resources/Branding/AndroidAppIcon.png
+!Build/Android/res/
+!Build/Android/res/**/
+!Build/Android/res/**/icon.png
+
 # Don't ignore icon files in Build
 !Build/**/*.ico
 

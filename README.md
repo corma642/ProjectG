@@ -191,6 +191,26 @@ APK 하나로 테스트하려면 다음 중 하나를 사용합니다.
 
 `Package game data inside .apk`가 활성화되어 있으므로 독립 APK에는 별도 OBB가 필요하지 않습니다. 대신 파일 크기가 커질 수 있습니다.
 
+## Android 앱 아이콘 교체
+
+UE 5.6의 Android Project Settings는 최고 해상도 이미지 한 장을 다른 밀도 슬롯으로 자동 변환하지 않습니다. 이 프로젝트는 추적 가능한 단일 원본과 생성 스크립트로 아이콘을 관리합니다.
+
+1. 정사각형 `512×512` 이상 PNG를 `Resources/Branding/AndroidAppIcon.png`에 배치합니다.
+2. 모서리는 둥글게 자르지 않고, 주요 피사체는 가장자리에서 약 10~15% 안쪽에 둡니다.
+3. 프로젝트 루트에서 스크립트를 실행합니다.
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Tools\GenerateAndroidIcons.ps1
+```
+
+스크립트가 생성하는 파일은 다음과 같습니다.
+
+- `Build/Android/res/drawable*/icon.png`: Android 밀도별 런처 아이콘
+- `ProjectG.png`: GitHub 및 Unreal 프로젝트 썸네일
+- `Resources/Branding/GooglePlayIcon512.png`: 향후 Play Console 업로드용 이미지
+
+아이콘을 변경한 뒤에는 `Intermediate/Android`만 삭제하고 Android를 Full Rebuild로 다시 패키징합니다. 실기기 확인 시 `AFS_*.apk`가 아닌 실제 게임 APK를 사용하고, 기존 앱을 제거한 뒤 재설치해 런처 아이콘 캐시 영향을 배제합니다.
+
 ## 최초 복구 확인 체크리스트
 
 - [ ] UE 5.6.1로 프로젝트가 열림
