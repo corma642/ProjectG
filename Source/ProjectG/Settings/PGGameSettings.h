@@ -283,10 +283,6 @@ struct FPGHomeFlowSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Home")
 	TSoftClassPtr<UUserWidget> TutorialScreenWidgetClass;
 
-	// Settings의 개인정보처리방침 버튼으로 열 공개 HTTPS 주소입니다. 비어 있거나 HTTPS가 아니면 버튼을 비활성화합니다.
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Legal")
-	FString PrivacyPolicyURL;
-
 	// Help 튜토리얼에서 책처럼 넘겨 볼 설명 이미지 목록
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Tutorial")
 	TSoftObjectPtr<UPGTutorialPageSet> TutorialPageSet;
