@@ -16,19 +16,8 @@
 
 ## 새 클론 복구 핵심
 
-> [!IMPORTANT]
-> **Project Settings, Blueprint, DataAsset, 레벨 설정은 Git에서 자동 복구됩니다.** 새 클론에서 같은 값을 다시 입력하지 않습니다. 값이 다르면 수동으로 고치기 전에 `Config`, `Content`, `ProjectG.uproject`가 정상적으로 내려왔는지 먼저 확인합니다.
-
 > [!NOTE]
 > **Editor Preferences와 Android SDK 경로는 PC별 로컬 설정입니다.** 아래 워크플로우에 따라 필요한 값만 직접 확인하거나 복구합니다.
-
-| 자동 복구되므로 건드리지 않음 | 새 환경에서 직접 확인 |
-|:---|:---|
-| 시작 맵, Input Mapping, DeviceProfile | UE 5.6.1 엔진 연결 |
-| Android 패키지명, Portrait, arm64, SDK 버전 | Android SDK·NDK·JDK 인식 |
-| Shipping, Full Rebuild, AAB, Universal APK | Editor Preferences와 Play 모드 |
-| Blueprint, DataAsset, 레벨 배치, MapsToCook | 패키징 출력 폴더 |
-| Android 밀도별 런처 아이콘 | 실기기 USB 디버깅 |
 
 새 환경에서는 다음 순서만 따르면 됩니다.
 
@@ -182,35 +171,7 @@ Input Mapping, DeviceProfile, Go Deliver! Settings, Blueprint, DataAsset와 레�
 > [!WARNING]
 > 기대값과 다르다면 Project Settings에서 바로 수정하지 않습니다. 먼저 `git status`와 `Config/Default*.ini` 누락 여부를 확인해야 다른 환경에서도 같은 설정을 유지할 수 있습니다.
 
-## 5. 빌드와 Blueprint 검증
-
-### Editor 빌드
-
-**위치:** 프로젝트 루트 PowerShell
-
-```powershell
-& "C:\Program Files\Epic Games\UE_5.6\Engine\Build\BatchFiles\Build.bat" `
-  ProjectGEditor Win64 Development `
-  "$PWD\ProjectG.uproject" `
-  -NoHotReloadFromIDE
-```
-
-**완료 기준:** 빌드 결과가 `Succeeded`여야 합니다.
-
-### Blueprint 전체 컴파일
-
-에디터의 `Tools > Compile All Blueprints`를 실행하거나 다음 명령을 사용합니다.
-
-```powershell
-& "C:\Program Files\Epic Games\UE_5.6\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" `
-  "$PWD\ProjectG.uproject" `
-  -run=CompileAllBlueprints `
-  -unattended -nop4 -nosplash
-```
-
-**완료 기준:** 오류, 경고, 로드 실패 Blueprint가 모두 0이어야 합니다.
-
-## 6. Android 패키징
+## 5. Android 패키징
 
 **위치**
 
