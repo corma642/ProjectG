@@ -340,7 +340,7 @@ struct FPGReceiptShopPack
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Receipt Shop", meta = (ClampMin = "1", UIMin = "1", UIMax = "5000"))
 	int32 ReceiptAmount = 50;
 
-	// 실제 결제 연동 전까지 UI에 표시할 가격 문자열입니다. 예: $0.99
+	// 영수증 상품 카드에 표시할 가격 문자열입니다. 예: $0.99
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Receipt Shop")
 	FString PriceText = TEXT("$0.99");
 
@@ -354,8 +354,8 @@ struct FPGShopSettings
 {
 	GENERATED_BODY()
 
-	// 실제 결제 없이 구매 절차를 시연하는 영수증 테스트 지급 상점을 엽니다.
-	// 미출시 포트폴리오 APK에서도 동일한 구매 흐름을 검증할 수 있도록 빌드 구성과 무관하게 적용합니다.
+	// 상품 선택 시 설정된 영수증을 즉시 지급하는 상점을 엽니다.
+	// 동일한 구매 UX를 검증할 수 있도록 빌드 구성과 무관하게 적용합니다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Receipt Shop")
 	bool bEnableReceiptShopTestGrant = false;
 
@@ -387,7 +387,7 @@ struct FPGShopSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Receipt Shop")
 	TSoftClassPtr<UUserWidget> ReceiptShopPackItemWidgetClass;
 
-	// 테스트 구매용 영수증 상품 목록입니다. 실제 IAP 연동 전까지 클릭 즉시 지급됩니다.
+	// 선택 시 설정된 수량을 즉시 지급하는 영수증 상품 목록입니다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Receipt Shop")
 	TArray<FPGReceiptShopPack> ReceiptPacks;
 

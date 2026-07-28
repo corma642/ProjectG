@@ -19,7 +19,7 @@ DECLARE_MULTICAST_DELEGATE(FPGReceiptShopClosedSignature);
 
 /**
  * Home에서 여는 영수증 구매 화면입니다.
- * 실제 결제 연동 전까지 상품 클릭은 즉시 영수증을 지급하며, 누적 재화 저장은 UPGUserDataSubsystem이 담당합니다.
+ * 상품 클릭은 설정된 영수증을 즉시 지급하며, 누적 재화 저장은 UPGUserDataSubsystem이 담당합니다.
  */
 UCLASS()
 class PROJECTG_API UPGReceiptShopWidget : public UUserWidget

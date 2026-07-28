@@ -51,7 +51,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Receipt Shop")
 	TObjectPtr<UTextBlock> ReceiptAmountText;
 
-	// 테스트 구매 가격 텍스트입니다. 실제 IAP 연동 전까지 표시용 문자열만 사용합니다.
+	// 영수증 상품의 가격 표시 텍스트입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Receipt Shop")
 	TObjectPtr<UTextBlock> PriceText;
 
