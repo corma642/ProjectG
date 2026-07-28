@@ -141,8 +141,7 @@ try {
         @{ RelativePath = 'Build\Android\res\drawable-xhdpi\icon.png'; Size = 96 },
         @{ RelativePath = 'Build\Android\res\drawable-xxhdpi\icon.png'; Size = 144 },
         @{ RelativePath = 'Build\Android\res\drawable-xxxhdpi\icon.png'; Size = 192 },
-        @{ RelativePath = 'ProjectG.png'; Size = 192 },
-        @{ RelativePath = 'Resources\Branding\GooglePlayIcon512.png'; Size = 512 }
+        @{ RelativePath = 'ProjectG.png'; Size = 192 }
     )
 
     foreach ($output in $outputs) {

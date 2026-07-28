@@ -154,7 +154,7 @@ void UPGReceiptShopWidget::HandlePackSelected(int32 PackIndex)
 	const bool bValidPack = ReceiptPacks.IsValidIndex(PackIndex) && ReceiptPacks[PackIndex].ReceiptAmount > 0;
 	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
 	const bool bTestGrantEnabled = Settings && Settings->Shop.IsReceiptShopTestGrantEnabled();
-	// Shipping은 설정값과 관계없이 false이므로 위젯이 우회 생성돼도 테스트 재화를 지급하지 않는다.
+	// 실제 결제 대신 설정된 상품 수량을 즉시 지급해 포트폴리오용 구매 절차를 완결한다.
 	const bool bSuccess = bTestGrantEnabled
 		&& UserData
 		&& bValidPack

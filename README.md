@@ -12,7 +12,11 @@
   <img src="https://img.shields.io/badge/Unreal_Engine-5.6.1-0E1128?logo=unrealengine" alt="Unreal Engine 5.6.1">
   <img src="https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white" alt="Android">
   <img src="https://img.shields.io/badge/Code-C%2B%2B_%2B_Blueprint-00599C?logo=cplusplus&logoColor=white" alt="C++ and Blueprint">
+  <img src="https://img.shields.io/badge/Project-AI_Native-7B61FF" alt="AI Native Project">
 </p>
+
+> [!IMPORTANT]
+> **Go Deliver!는 정식 출시를 목표로 하지 않는 AI Native 포트폴리오 프로젝트입니다.** Google Play 제출이나 실제 결제를 지원하지 않으며, 로컬에서 빌드한 Android Shipping APK를 직접 설치해 플레이하고 실기기 동작을 검증합니다.
 
 ## 새 클론 복구 핵심
 
@@ -31,6 +35,10 @@
 ## 프로젝트
 
 러너는 자동으로 전진합니다. 플레이어는 좌우 중심을 보정하고 점프하며, 머리 위 적재물을 떨어뜨리지 않고 오래 배달해야 합니다. 난이도는 적재물 누적과 바람·눈바람·이동형 위험 구역 RunEvent를 통해 증가합니다.
+
+프로젝트의 사용자 노출 이름은 `Go Deliver!`입니다. 기존 에셋 참조, C++ 모듈과 SaveGame 호환성을 보존하기 위해 저장소, `.uproject`, 모듈과 Android 패키지의 기술 식별자에는 `ProjectG`가 유지됩니다.
+
+Home과 상점의 영수증 `+` 버튼은 상품 목록, 가격 표시, 구매 피드백과 영수증 지급까지 완성된 **모의 구매 흐름**을 보여줍니다. 실제 금전 결제, Google Play Billing 또는 서버 영수증 검증은 수행하지 않습니다.
 
 | 환경 | 조작 |
 |:---|:---|
@@ -155,7 +163,7 @@ Editor Preferences 검색창에서 설정 이름을 검색하는 것이 가장 �
 | `Platforms > Android` | Orientation | Portrait |
 | `Platforms > Android` | Minimum / Target SDK | `26 / 35` |
 | `Platforms > Android` | Architecture | arm64 only |
-| `Platforms > Android` | Bundle / Universal APK | Enabled / Enabled |
+| `Platforms > Android` | App Bundle | Disabled |
 | `Platforms > Android` | Package game data inside APK | Enabled |
 | `Platforms > Android` | Google Play / AdMob | Disabled / Disabled |
 | `Project > Packaging` | Build Configuration | Shipping |
@@ -183,7 +191,7 @@ Input Mapping, DeviceProfile, Go Deliver! Settings, Blueprint, DataAsset와 레�
 2. 텍스처 포맷으로 `Android (ASTC)`를 선택합니다.
 3. 패키징 출력 폴더를 선택합니다. 이 경로는 로컬 설정이므로 새 환경에서 다시 선택합니다.
 4. 패키징 로그가 끝날 때까지 기다립니다.
-5. 출력 폴더에서 실제 게임 APK 또는 AAB를 확인합니다.
+5. 출력 폴더에서 실제 게임 APK를 확인합니다.
 
 > [!NOTE]
 > UE 5.6.1의 Android Gradle Plugin은 compileSdk 35 지원 경고를 출력할 수 있습니다. 현재 프로젝트는 해당 경고가 있는 상태에서 Target SDK 35 Android ASTC 패키징 성공을 확인했습니다.
@@ -192,8 +200,7 @@ Input Mapping, DeviceProfile, Go Deliver! Settings, Blueprint, DataAsset와 레�
 
 | 파일 | 용도 |
 |:---|:---|
-| `ProjectG-Android-Shipping.aab` | Google Play용 App Bundle. 현재 테스트 서명본은 제출용이 아님 |
-| `ProjectG-Android-Shipping*.apk` | 실기기에 직접 설치하는 게임 APK |
+| `ProjectG-Android-Shipping*.apk` | 실기기에 직접 설치하는 arm64 게임 APK |
 | `AFS_ProjectG-*.apk` | Unreal Android File Server 보조 앱. 게임 본체가 아님 |
 | `ProjectG_Symbols_*` | 네이티브 크래시 분석 심볼 |
 
@@ -218,17 +225,15 @@ Input Mapping, DeviceProfile, Go Deliver! Settings, Blueprint, DataAsset와 레�
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Tools\GenerateAndroidIcons.ps1
 ```
 
-스크립트는 Android 밀도별 `icon.png`, 루트 `ProjectG.png`, Play Console용 `GooglePlayIcon512.png`를 생성합니다. 변경 후 `Intermediate/Android`만 삭제하고 Full Rebuild로 패키징하며, 기존 앱을 제거한 뒤 다시 설치해 런처 캐시 영향을 배제합니다.
+스크립트는 Android 밀도별 `icon.png`와 루트 `ProjectG.png`를 생성합니다. 변경 후 `Intermediate/Android`만 삭제하고 Full Rebuild로 패키징하며, 기존 앱을 제거한 뒤 다시 설치해 런처 캐시 영향을 배제합니다.
 
 </details>
 
 <details>
-<summary><strong>Google Play 출시 재개</strong></summary>
+<summary><strong>포트폴리오 에셋 사용 기준</strong></summary>
 
-현재 정식 출시는 보류 상태이며 `For Distribution`은 비활성화되어 있습니다. 출시 재개 시 최신 Target API 및 Families 정책, Upload Keystore, Distribution Signing, Data Safety와 스토어 리소스를 다시 확인합니다.
-
-상세 절차는 [Google Play 출시 체크리스트](Docs/Release/GooglePlayReleaseChecklist.md)를 참고합니다.
+프로젝트에 포함된 외부 에셋은 무료 사용 에셋이거나 프로젝트 소유자가 직접 제작한 에셋입니다. 상세한 폴더 범위와 기록 원칙은 [에셋 사용 확인서](Docs/Portfolio/AssetUsageStatement.md)를 참고합니다.
 
 </details>
 
-`Saved`, `Intermediate`, `DerivedDataCache`, `Binaries`, 패키징 산출물, SDK 절대 경로, 서명 키와 로컬 SaveGame은 Git에 포함하지 않습니다.
+`Saved`, `Intermediate`, `DerivedDataCache`, `Binaries`, 패키징 산출물, SDK 절대 경로와 로컬 SaveGame은 Git에 포함하지 않습니다.

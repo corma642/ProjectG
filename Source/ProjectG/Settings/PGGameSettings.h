@@ -354,8 +354,8 @@ struct FPGShopSettings
 {
 	GENERATED_BODY()
 
-	// 에디터와 Development 빌드에서만 영수증 테스트 지급 상점을 엽니다.
-	// Shipping 빌드는 설정값과 관계없이 항상 차단되어 실제 결제처럼 보이는 테스트 지급이 공개되지 않습니다.
+	// 실제 결제 없이 구매 절차를 시연하는 영수증 테스트 지급 상점을 엽니다.
+	// 미출시 포트폴리오 APK에서도 동일한 구매 흐름을 검증할 수 있도록 빌드 구성과 무관하게 적용합니다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Receipt Shop")
 	bool bEnableReceiptShopTestGrant = false;
 
@@ -403,14 +403,10 @@ struct FPGShopSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Shop Camera", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3.0"))
 	float ShopToHomeCameraBlendTime = 0.35f;
 
-	/** 현재 빌드에서 테스트 지급용 영수증 상점 진입을 허용하는지 반환합니다. */
+	/** 설정에 따라 테스트 지급용 영수증 상점 진입을 허용하는지 반환합니다. */
 	bool IsReceiptShopTestGrantEnabled() const
 	{
-#if UE_BUILD_SHIPPING
-		return false;
-#else
 		return bEnableReceiptShopTestGrant;
-#endif
 	}
 };
 

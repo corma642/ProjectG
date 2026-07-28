@@ -13,4 +13,4 @@ Android 앱 아이콘 원본은 이 폴더의 `AndroidAppIcon.png`로 관리합�
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Tools\GenerateAndroidIcons.ps1
 ```
 
-스크립트는 Android 밀도별 런처 아이콘, 루트 프로젝트 이미지, Play Console용 512px 이미지를 생성합니다.
+스크립트는 Android 밀도별 런처 아이콘과 루트 프로젝트 이미지를 생성합니다.

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root xmlns:android="http://schemas.android.com/apk/res/android">
 	<androidManifestUpdates>
-		<!-- UE 5.6은 OBB를 사용하지 않아도 downloader 선언을 생성하므로 공개 AAB에서 명시적으로 제거합니다. -->
+		<!-- UE 5.6은 OBB를 사용하지 않아도 downloader 선언을 생성하므로 단독 설치 APK에서 제거합니다. -->
 		<loopElements tag="application">
 			<removeAttribute tag="$" name="android:requestLegacyExternalStorage" />
 		</loopElements>
@@ -46,14 +46,14 @@
 	</androidManifestUpdates>
 
 	<gradleCopies>
-		<!-- 엔진이 Google Play 지원 여부와 무관하게 생성하는 미사용 Games App ID 리소스를 제외합니다. -->
+		<!-- 로컬 APK에 필요하지 않은 Games App ID 리소스를 제외합니다. -->
 		<deleteFiles filespec="gradle/app/src/main/res/values/GooglePlayAppID.xml" />
 	</gradleCopies>
 
 	<buildGradleAdditions>
 		<insert>
 			// UE 5.6의 GameActivity/PSO Java 템플릿에는 Google Play 지원을 꺼도 미사용 import가 남습니다.
-			// Gradle 컴파일 직전에 해당 import만 제거해 Play Services AAR 없이도 프로젝트를 패키징합니다.
+			// Gradle 컴파일 직전에 해당 import만 제거해 Play Services AAR 없는 로컬 APK를 패키징합니다.
 			tasks.configureEach { task -&gt;
 				if (task.name.startsWith("compile") &amp;&amp; task.name.endsWith("JavaWithJavac")) {
 					task.doFirst {

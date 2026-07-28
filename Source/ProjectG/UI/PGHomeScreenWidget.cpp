@@ -219,7 +219,7 @@ void UPGHomeScreenWidget::HandleReceiptAddClicked()
 		return;
 	}
 
-	// 공개 빌드에서는 가격 화면을 열지 않고 기존 구매 실패와 같은 피드백만 제공한다.
+	// 설정에서 모의 구매를 끈 경우 가격 화면 대신 기존 구매 실패 피드백을 제공한다.
 	if (Settings)
 	{
 		UPGAudioStatics::PlayUIButtonSound(this, Settings->SFX.ShopPurchaseFailSound.Get());

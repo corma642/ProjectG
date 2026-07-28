@@ -347,7 +347,7 @@ void UPGShopScreenWidget::HandleReceiptAddClicked()
 		return;
 	}
 
-	// 출시본에서는 Receipt Shop을 열지 않고 기존 구매 실패 피드백으로 접근 불가 상태를 알린다.
+	// 설정에서 모의 구매를 끈 경우 기존 구매 실패 피드백으로 접근 불가 상태를 알린다.
 	if (Settings)
 	{
 		UPGAudioStatics::PlayUIButtonSound(this, Settings->SFX.ShopPurchaseFailSound.Get());
