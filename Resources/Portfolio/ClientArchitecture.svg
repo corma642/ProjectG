@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="540" viewBox="0 0 1200 540" role="img" aria-labelledby="title desc">
+  <title id="title">Go Deliver client architecture</title>
+  <desc id="desc">Layered client architecture connecting presentation, gameplay domains, content orchestration, and persistent user data.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#071B2C"/>
+      <stop offset="1" stop-color="#0B3A50"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#78E9DD"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="540" rx="28" fill="url(#bg)"/>
+  <text x="56" y="55" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="25" font-weight="900" letter-spacing="1">CLIENT ARCHITECTURE</text>
+  <text x="56" y="82" fill="#9DEFE7" font-family="Arial, sans-serif" font-size="14" font-weight="600">STATE-DRIVEN FLOW · DOMAIN OWNERSHIP · DATA-DRIVEN CONTENT</text>
+
+  <g font-family="Arial, sans-serif">
+    <g transform="translate(56 118)">
+      <rect width="260" height="340" rx="22" fill="#0E2C42" stroke="#2B6371" stroke-width="2"/>
+      <rect width="260" height="50" rx="22" fill="#F28A2E"/>
+      <path d="M0 28 H260 V50 H0 Z" fill="#F28A2E"/>
+      <text x="24" y="32" fill="#071B2C" font-size="15" font-weight="900" letter-spacing="1.5">PRESENTATION</text>
+      <g fill="#163D55" stroke="#3B7380" stroke-width="1.5">
+        <rect x="22" y="78" width="216" height="55" rx="12"/>
+        <rect x="22" y="150" width="216" height="55" rx="12"/>
+        <rect x="22" y="222" width="216" height="55" rx="12"/>
+      </g>
+      <g fill="#FFFFFF" font-size="16" font-weight="800">
+        <text x="130" y="111" text-anchor="middle">Touch Input</text>
+        <text x="130" y="183" text-anchor="middle">HUD · Pause · Result</text>
+        <text x="130" y="255" text-anchor="middle">Home · Shop · Settings</text>
+      </g>
+      <text x="130" y="310" text-anchor="middle" fill="#8ECBC8" font-size="12" font-weight="600">Blueprint layout</text>
+      <text x="130" y="329" text-anchor="middle" fill="#8ECBC8" font-size="12" font-weight="600">C++ interaction logic</text>
+    </g>
+
+    <g transform="translate(350 118)">
+      <rect width="500" height="340" rx="22" fill="#0E2C42" stroke="#2B6371" stroke-width="2"/>
+      <rect width="500" height="50" rx="22" fill="#13BEBE"/>
+      <path d="M0 28 H500 V50 H0 Z" fill="#13BEBE"/>
+      <text x="24" y="32" fill="#071B2C" font-size="15" font-weight="900" letter-spacing="1.5">GAMEPLAY DOMAINS</text>
+      <g fill="#163D55" stroke="#3B7380" stroke-width="1.5">
+        <rect x="24" y="76" width="214" height="62" rx="12"/>
+        <rect x="262" y="76" width="214" height="62" rx="12"/>
+        <rect x="24" y="158" width="214" height="62" rx="12"/>
+        <rect x="262" y="158" width="214" height="62" rx="12"/>
+        <rect x="24" y="240" width="214" height="62" rx="12"/>
+        <rect x="262" y="240" width="214" height="62" rx="12"/>
+      </g>
+      <g fill="#FFFFFF" font-size="16" font-weight="800">
+        <text x="131" y="105" text-anchor="middle">Run State Machine</text>
+        <text x="131" y="125" text-anchor="middle" fill="#95DCD6" font-size="11">HOME · COUNTDOWN · RUN · FAIL</text>
+        <text x="369" y="105" text-anchor="middle">Runner Movement</text>
+        <text x="369" y="125" text-anchor="middle" fill="#95DCD6" font-size="11">DRAG · FLICK · FALL</text>
+        <text x="131" y="187" text-anchor="middle">Cargo Delivery</text>
+        <text x="131" y="207" text-anchor="middle" fill="#95DCD6" font-size="11">HOLD · GUIDED · CHAOS</text>
+        <text x="369" y="187" text-anchor="middle">Run Event</text>
+        <text x="369" y="207" text-anchor="middle" fill="#95DCD6" font-size="11">WIND · SNOWSTORM</text>
+        <text x="131" y="269" text-anchor="middle">Track Pool</text>
+        <text x="131" y="289" text-anchor="middle" fill="#95DCD6" font-size="11">SEGMENT REUSE</text>
+        <text x="369" y="269" text-anchor="middle">Runtime Preload</text>
+        <text x="369" y="289" text-anchor="middle" fill="#95DCD6" font-size="11">STAGED ASYNC LOAD</text>
+      </g>
+    </g>
+
+    <g transform="translate(884 118)">
+      <rect width="260" height="340" rx="22" fill="#0E2C42" stroke="#2B6371" stroke-width="2"/>
+      <rect width="260" height="50" rx="22" fill="#F7C765"/>
+      <path d="M0 28 H260 V50 H0 Z" fill="#F7C765"/>
+      <text x="24" y="32" fill="#071B2C" font-size="15" font-weight="900" letter-spacing="1.5">DATA &amp; CONTENT</text>
+      <g fill="#163D55" stroke="#3B7380" stroke-width="1.5">
+        <rect x="22" y="78" width="216" height="55" rx="12"/>
+        <rect x="22" y="150" width="216" height="55" rx="12"/>
+        <rect x="22" y="222" width="216" height="55" rx="12"/>
+      </g>
+      <g fill="#FFFFFF" font-size="16" font-weight="800">
+        <text x="130" y="111" text-anchor="middle">DataAsset Catalogs</text>
+        <text x="130" y="183" text-anchor="middle">User Data Subsystem</text>
+        <text x="130" y="255" text-anchor="middle">A/B Save + CRC</text>
+      </g>
+      <text x="130" y="310" text-anchor="middle" fill="#8ECBC8" font-size="12" font-weight="600">single transaction boundary</text>
+      <text x="130" y="329" text-anchor="middle" fill="#8ECBC8" font-size="12" font-weight="600">recoverable persistence</text>
+    </g>
+  </g>
+
+  <g stroke="#78E9DD" stroke-width="4" fill="none" marker-end="url(#arrow)">
+    <path d="M316 288 H342"/>
+    <path d="M850 288 H876"/>
+  </g>
+  <g stroke="#F28A2E" stroke-width="3" fill="none" marker-end="url(#arrow)" opacity="0.8">
+    <path d="M342 330 H320"/>
+  </g>
+  <text x="600" y="500" text-anchor="middle" fill="#A8DBD8" font-family="Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="1">
+    INPUT FLOWS IN · STATE AND EVENTS FLOW OUT · USER DATA COMMITS AT ONE BOUNDARY
+  </text>
+</svg>
