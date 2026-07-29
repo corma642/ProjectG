@@ -35,7 +35,7 @@ Wind와 Snowstorm은 단순한 속도 상승 대신 입력과 물리 상태를 �
 
 | Balance Runner | Cargo Delivery |
 |:---|:---|
-| 자동 전진, 드래그 기반 중심 이동, 플릭 점프를 상태별로 분리했습니다. 입력 요청과 실제 이동 시작을 구분해 입력 버퍼·사운드·낙하 판정의 충돌을 막았습니다. | `Hold → GuidedDrop → PhysicsCargo` 흐름으로 투입 연출의 일관성을 확보한 뒤 Chaos 물리로 전환합니다. |
+| 자동 전진, 드래그 기반 중심 이동, 플릭 점프를 상태별로 분리했습니다. 입력 요청과 실제 이동 시작을 구분해 입력 버퍼·사운드·낙하 판정의 충돌을 막았습니다. | `Hold → PhysicsCargo` 흐름으로 투입 시점을 제어한 뒤 Chaos 물리의 흔들림과 낙하를 그대로 사용합니다. |
 | **Data-driven Infinite Run** | **Complete Client Loop** |
 | 트랙·맵·적재물·이벤트를 DataAsset으로 분리하고 세그먼트를 풀링해 콘텐츠 조합을 확장할 수 있게 했습니다. | Home, Countdown, HUD, Pause, Result, Settings, Tutorial, 캐릭터·맵 상점을 하나의 상태 흐름으로 연결했습니다. |
 
@@ -64,13 +64,13 @@ Wind와 Snowstorm은 단순한 속도 상승 대신 입력과 물리 상태를 �
 </details>
 
 <details>
-<summary><strong>03 · 물리 재미와 공정한 실패</strong> — 축별 안정화로 Chaos 감각 보존</summary>
+<summary><strong>03 · 물리 재미와 공정한 실패</strong> — 좌표 기준 분리로 Chaos 감각 보존</summary>
 
 | | 내용 |
 |:---|:---|
-| **Problem** | 저프레임에서 물리 전환 직후 적재물이 튀며 플레이어가 개입하기 전에 실패할 수 있었습니다. |
-| **Decision** | 투입은 GuidedDrop으로 처리하고 Chaos 전환 직후 Z축과 중력만 짧게 안정화했습니다. |
-| **Result** | 불공정한 즉시 실패를 줄이면서 XY 흔들림과 회전의 물리 긴장감은 유지했습니다. |
+| **Problem** | 저프레임에서 적재물이 뒤처지거나 러너 높이에 종속된 수직 손실선이 점프·단차에서 정상 적재물을 실패로 오판할 수 있었습니다. |
+| **Decision** | Chaos 물리는 유지하고 수직 낙하는 맵별 고정 `CargoLossWorldZ`, 수평 이탈은 러너 XY 거리로 분리했습니다. |
+| **Result** | 플레이어 높이와 실제 낙하 판정을 분리해 맵마다 독립적으로 튜닝하면서 적재물의 물리 긴장감은 유지했습니다. |
 
 </details>
 

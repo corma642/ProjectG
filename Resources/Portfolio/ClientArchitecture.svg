@@ -53,7 +53,7 @@
         <text x="369" y="105" text-anchor="middle">Runner Movement</text>
         <text x="369" y="125" text-anchor="middle" fill="#95DCD6" font-size="11">DRAG · FLICK · FALL</text>
         <text x="131" y="187" text-anchor="middle">Cargo Delivery</text>
-        <text x="131" y="207" text-anchor="middle" fill="#95DCD6" font-size="11">HOLD · GUIDED · CHAOS</text>
+        <text x="131" y="207" text-anchor="middle" fill="#95DCD6" font-size="11">HOLD · PHYSICS · CHAOS</text>
         <text x="369" y="187" text-anchor="middle">Run Event</text>
         <text x="369" y="207" text-anchor="middle" fill="#95DCD6" font-size="11">WIND · SNOWSTORM</text>
         <text x="131" y="269" text-anchor="middle">Track Pool</text>
