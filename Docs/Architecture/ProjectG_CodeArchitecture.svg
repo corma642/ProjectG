@@ -1,0 +1,811 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="6400" height="4000" viewBox="0 0 6400 4000" role="img" aria-labelledby="title desc">
+  <title id="title">Go Deliver! 코드 아키텍처 지도</title>
+  <desc id="desc">전체 런타임 구조, 런 생명주기, 플레이 시스템, 콘텐츠 예열, UI와 저장 흐름을 하나의 대형 지도에 배치한 다이어그램</desc>
+  <defs>
+    <marker id="arrow-navy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#17324D"/></marker>
+    <marker id="arrow-teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#0F8F87"/></marker>
+    <marker id="arrow-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#D97706"/></marker>
+    <marker id="arrow-yellow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#B9870D"/></marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#B91C1C"/></marker>
+    <marker id="arrow-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#64748B"/></marker>
+  </defs>
+  <rect width="6400" height="4000" fill="#F8FAFC"/>
+  <g id="frame-00">
+  <rect x="120" y="100" width="6160" height="500" rx="28" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="3"/>
+  <rect x="120" y="100" width="6160" height="110" rx="28" fill="#17324D" stroke="#17324D" stroke-width="0"/>
+  <text x="160" y="158" fill="#FFFFFF" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="38" font-weight="700" text-anchor="start">
+  <tspan x="160" dy="0">00 · Go Deliver! 코드 아키텍처 지도</tspan>
+  </text>
+  <text x="162" y="188" fill="#DCE8F2" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="500" text-anchor="start">
+  <tspan x="162" dy="0">현재 C++ 런타임 구조와 코드에서 확인되는 Blueprint·DataAsset 경계만 표시합니다.</tspan>
+  </text>
+  <text x="180" y="265" fill="#17324D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="25" font-weight="700" text-anchor="start">
+  <tspan x="180" dy="0">읽는 순서</tspan>
+  </text>
+  <text x="180" y="307" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="22" font-weight="500" text-anchor="start">
+  <tspan x="180" dy="0">01 전체 구조 → 관심 영역 02~05 → 중앙 구조로 돌아와 수명과 의존성 재확인</tspan>
+  </text>
+  <rect x="1100" y="230" width="870" height="210" rx="18" fill="#F1F5F9" stroke="#64748B" stroke-width="2"/>
+  <text x="1122" y="269" fill="#0F172A" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="24" font-weight="700" text-anchor="start">
+  <tspan x="1122" dy="0">선의 의미</tspan>
+  </text>
+  <text x="1122" y="312" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="20" font-weight="500" text-anchor="start">
+  <tspan x="1122" dy="0">━ 소유·직접 호출   ┄ 데이터·참조</tspan>
+  <tspan x="1122" dy="27">━ Delegate·이벤트   ━ 주 실행 흐름</tspan>
+  </text>
+  <line x1="1220" y1="382" x2="1450" y2="382" stroke="#17324D" stroke-width="3"/>
+  <line x1="1600" y1="382" x2="1830" y2="382" stroke="#D97706" stroke-width="3"/>
+  <rect x="2050" y="220" width="700" height="220" rx="18" fill="#E8EEF7" stroke="#17324D" stroke-width="2"/>
+  <text x="2072" y="262" fill="#17324D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="27" font-weight="700" text-anchor="start">
+  <tspan x="2072" dy="0">01 · 전체 구조</tspan>
+  </text>
+  <text x="2072" y="302" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="20" font-weight="500" text-anchor="start">
+  <tspan x="2072" dy="0">중앙 허브</tspan>
+  </text>
+  <rect x="2810" y="220" width="700" height="220" rx="18" fill="#E8EEF7" stroke="#17324D" stroke-width="2"/>
+  <text x="2832" y="262" fill="#17324D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="27" font-weight="700" text-anchor="start">
+  <tspan x="2832" dy="0">02 · 런 생명주기</tspan>
+  </text>
+  <text x="2832" y="302" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="20" font-weight="500" text-anchor="start">
+  <tspan x="2832" dy="0">세부 지도</tspan>
+  </text>
+  <rect x="3570" y="220" width="700" height="220" rx="18" fill="#E6F7F5" stroke="#0F8F87" stroke-width="2"/>
+  <text x="3592" y="262" fill="#0F8F87" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="27" font-weight="700" text-anchor="start">
+  <tspan x="3592" dy="0">03 · 플레이 흐름</tspan>
+  </text>
+  <text x="3592" y="302" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="20" font-weight="500" text-anchor="start">
+  <tspan x="3592" dy="0">세부 지도</tspan>
+  </text>
+  <rect x="4330" y="220" width="700" height="220" rx="18" fill="#FFF7D6" stroke="#B9870D" stroke-width="2"/>
+  <text x="4352" y="262" fill="#B9870D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="27" font-weight="700" text-anchor="start">
+  <tspan x="4352" dy="0">04 · 콘텐츠·예열</tspan>
+  </text>
+  <text x="4352" y="302" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="20" font-weight="500" text-anchor="start">
+  <tspan x="4352" dy="0">세부 지도</tspan>
+  </text>
+  <rect x="5090" y="220" width="700" height="220" rx="18" fill="#FFF1DF" stroke="#D97706" stroke-width="2"/>
+  <text x="5112" y="262" fill="#D97706" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="27" font-weight="700" text-anchor="start">
+  <tspan x="5112" dy="0">05 · UI·저장</tspan>
+  </text>
+  <text x="5112" y="302" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="20" font-weight="500" text-anchor="start">
+  <tspan x="5112" dy="0">세부 지도</tspan>
+  </text>
+  <text x="6020" y="296" fill="#64748B" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="21" font-weight="700" text-anchor="middle">
+  <tspan x="6020" dy="0">기준 커밋</tspan>
+  <tspan x="6020" dy="26.25">ba955c7</tspan>
+  </text>
+  </g>
+  <g id="frame-02">
+  <rect x="120" y="720" width="1900" height="1400" rx="28" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="3"/>
+  <rect x="120" y="720" width="1900" height="110" rx="28" fill="#17324D" stroke="#17324D" stroke-width="0"/>
+  <text x="160" y="778" fill="#FFFFFF" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="38" font-weight="700" text-anchor="start">
+  <tspan x="160" dy="0">02 · 런 생명주기와 화면 전환</tspan>
+  </text>
+  <text x="162" y="808" fill="#DCE8F2" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="500" text-anchor="start">
+  <tspan x="162" dy="0">레벨 로드부터 결과 화면과 재시도까지, 상태를 바꾸는 주체와 구독자를 따라갑니다.</tspan>
+  </text>
+  <text x="242.5" y="966" fill="#17324D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="21" font-weight="700" text-anchor="middle">
+  <tspan x="242.5" dy="0">UI · Controller</tspan>
+  </text>
+  <rect x="350" y="875" width="1610" height="190" rx="14" fill="#F1F5F9" stroke="#CBD5E1" stroke-width="1"/>
+  <text x="242.5" y="1186" fill="#17324D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="21" font-weight="700" text-anchor="middle">
+  <tspan x="242.5" dy="0">Runtime Preload</tspan>
+  </text>
+  <rect x="350" y="1095" width="1610" height="190" rx="14" fill="#FFF7D6" stroke="#CBD5E1" stroke-width="1"/>
+  <text x="242.5" y="1406" fill="#17324D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="21" font-weight="700" text-anchor="middle">
+  <tspan x="242.5" dy="0">GameMode</tspan>
+  </text>
+  <rect x="350" y="1315" width="1610" height="190" rx="14" fill="#E8EEF7" stroke="#CBD5E1" stroke-width="1"/>
+  <text x="242.5" y="1626" fill="#17324D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="21" font-weight="700" text-anchor="middle">
+  <tspan x="242.5" dy="0">Gameplay</tspan>
+  </text>
+  <rect x="350" y="1535" width="1610" height="190" rx="14" fill="#E6F7F5" stroke="#CBD5E1" stroke-width="1"/>
+  <text x="242.5" y="1846" fill="#17324D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="21" font-weight="700" text-anchor="middle">
+  <tspan x="242.5" dy="0">UserData</tspan>
+  </text>
+  <rect x="350" y="1755" width="1610" height="190" rx="14" fill="#FFF1DF" stroke="#CBD5E1" stroke-width="1"/>
+  <rect x="385" y="905" width="230" height="95" rx="18" fill="#FFFFFF" stroke="#64748B" stroke-width="2"/>
+  <text x="407" y="942" fill="#0F172A" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="22" font-weight="700" text-anchor="start">
+  <tspan x="407" dy="0">홈 화면</tspan>
+  </text>
+  <rect x="700" y="905" width="220" height="95" rx="18" fill="#FFFFFF" stroke="#17324D" stroke-width="2"/>
+  <text x="722" y="942" fill="#0F172A" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="22" font-weight="700" text-anchor="start">
+  <tspan x="722" dy="0">START 요청</tspan>
+  </text>
+  <rect x="1470" y="905" width="200" height="95" rx="18" fill="#FFFFFF" stroke="#B91C1C" stroke-width="2"/>
+  <text x="1492" y="942" fill="#0F172A" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="22" font-weight="700" text-anchor="start">
+  <tspan x="1492" dy="0">결과 화면</tspan>
+  </text>
+  <rect x="1710" y="890" width="210" height="125" rx="18" fill="#FFFFFF" stroke="#17324D" stroke-width="2"/>
+  <text x="1732" y="926" fill="#0F172A" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="21" font-weight="700" text-anchor="start">
+  <tspan x="1732" dy="0">재시도 / 홈</tspan>
+  </text>
+  <text x="1732" y="962" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="16" font-weight="500" text-anchor="start">
+  <tspan x="1732" dy="0">같은 맵 또는 홈 흐름</tspan>
+  </text>
+  <rect x="385" y="1125" width="230" height="95" rx="18" fill="#FFFFFF" stroke="#B9870D" stroke-width="2"/>
+  <text x="407" y="1162" fill="#B9870D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="22" font-weight="700" text-anchor="start">
+  <tspan x="407" dy="0">Home 예열</tspan>
+  </text>
+  <rect x="700" y="1125" width="230" height="95" rx="18" fill="#FFFFFF" stroke="#B9870D" stroke-width="2"/>
+  <text x="722" y="1162" fill="#B9870D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="22" font-weight="700" text-anchor="start">
+  <tspan x="722" dy="0">Run 예열</tspan>
+  </text>
+  <text x="722" y="1196" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="16" font-weight="500" text-anchor="start">
+  <tspan x="722" dy="0">필수 리소스 준비</tspan>
+  </text>
+  <rect x="1700" y="1110" width="220" height="125" rx="18" fill="#FFFFFF" stroke="#B9870D" stroke-width="2"/>
+  <text x="1722" y="1145" fill="#B9870D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="20" font-weight="700" text-anchor="start">
+  <tspan x="1722" dy="0">Run 그룹 보존</tspan>
+  </text>
+  <text x="1722" y="1182" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="16" font-weight="500" text-anchor="start">
+  <tspan x="1722" dy="0">동일 맵 Retry만 유지</tspan>
+  </text>
+  <rect x="385" y="1345" width="230" height="95" rx="18" fill="#FFFFFF" stroke="#17324D" stroke-width="2"/>
+  <text x="407" y="1384" fill="#17324D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="24" font-weight="700" text-anchor="start">
+  <tspan x="407" dy="0">Home</tspan>
+  </text>
+  <text x="407" y="1416" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="16" font-weight="500" text-anchor="start">
+  <tspan x="407" dy="0">EPGRunState</tspan>
+  </text>
+  <rect x="770" y="1345" width="250" height="95" rx="18" fill="#FFFFFF" stroke="#17324D" stroke-width="2"/>
+  <text x="792" y="1382" fill="#17324D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="22" font-weight="700" text-anchor="start">
+  <tspan x="792" dy="0">Countdown</tspan>
+  </text>
+  <text x="792" y="1415" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="15" font-weight="500" text-anchor="start">
+  <tspan x="792" dy="0">OnRunCountdownStarted</tspan>
+  </text>
+  <rect x="1110" y="1345" width="230" height="95" rx="18" fill="#FFFFFF" stroke="#0F8F87" stroke-width="2"/>
+  <text x="1132" y="1383" fill="#0F8F87" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="23" font-weight="700" text-anchor="start">
+  <tspan x="1132" dy="0">Running</tspan>
+  </text>
+  <text x="1132" y="1416" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="16" font-weight="500" text-anchor="start">
+  <tspan x="1132" dy="0">OnRunStarted</tspan>
+  </text>
+  <rect x="1440" y="1345" width="230" height="95" rx="18" fill="#FFFFFF" stroke="#B91C1C" stroke-width="2"/>
+  <text x="1462" y="1383" fill="#B91C1C" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="23" font-weight="700" text-anchor="start">
+  <tspan x="1462" dy="0">Failed</tspan>
+  </text>
+  <text x="1462" y="1416" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="16" font-weight="500" text-anchor="start">
+  <tspan x="1462" dy="0">OnRunFailed</tspan>
+  </text>
+  <rect x="1090" y="1565" width="310" height="115" rx="18" fill="#FFFFFF" stroke="#0F8F87" stroke-width="2"/>
+  <text x="1112" y="1602" fill="#0F8F87" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="22" font-weight="700" text-anchor="start">
+  <tspan x="1112" dy="0">시스템 활성화</tspan>
+  </text>
+  <text x="1112" y="1637" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="17" font-weight="500" text-anchor="start">
+  <tspan x="1112" dy="0">Runner · Track · Cargo · RunEvent · HUD</tspan>
+  </text>
+  <rect x="1440" y="1565" width="230" height="115" rx="18" fill="#FFFFFF" stroke="#B91C1C" stroke-width="2"/>
+  <text x="1462" y="1601" fill="#B91C1C" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="21" font-weight="700" text-anchor="start">
+  <tspan x="1462" dy="0">입력·Tick 정지</tspan>
+  </text>
+  <text x="1462" y="1637" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="17" font-weight="500" text-anchor="start">
+  <tspan x="1462" dy="0">실패 이벤트 구독</tspan>
+  </text>
+  <rect x="1420" y="1785" width="270" height="115" rx="18" fill="#FFFFFF" stroke="#D97706" stroke-width="2"/>
+  <text x="1442" y="1822" fill="#D97706" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="22" font-weight="700" text-anchor="start">
+  <tspan x="1442" dy="0">런 보상 정산</tspan>
+  </text>
+  <text x="1442" y="1857" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="17" font-weight="500" text-anchor="start">
+  <tspan x="1442" dy="0">TrySettleRunRewards</tspan>
+  </text>
+  <rect x="1730" y="1785" width="185" height="115" rx="18" fill="#FFFFFF" stroke="#D97706" stroke-width="2"/>
+  <text x="1752" y="1820" fill="#D97706" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="20" font-weight="700" text-anchor="start">
+  <tspan x="1752" dy="0">저장 확정</tspan>
+  </text>
+  <text x="1752" y="1857" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="17" font-weight="500" text-anchor="start">
+  <tspan x="1752" dy="0">A/B + CRC</tspan>
+  </text>
+  <line x1="500" y1="1125" x2="500" y2="1000" stroke="#B9870D" stroke-width="3" marker-end="url(#arrow-yellow)"/>
+  <text x="500" y="1046.5" fill="#B9870D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="500" dy="0">완료</tspan>
+  </text>
+  <line x1="615" y1="952" x2="700" y2="952" stroke="#17324D" stroke-width="5" marker-end="url(#arrow-navy)"/>
+  <line x1="810" y1="1000" x2="815" y2="1125" stroke="#17324D" stroke-width="4" marker-end="url(#arrow-navy)"/>
+  <line x1="930" y1="1172" x2="895" y2="1345" stroke="#B9870D" stroke-width="3" marker-end="url(#arrow-yellow)"/>
+  <text x="912.5" y="1242.5" fill="#B9870D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="912.5" dy="0">Ready</tspan>
+  </text>
+  <line x1="1020" y1="1392" x2="1110" y2="1392" stroke="#17324D" stroke-width="5" marker-end="url(#arrow-navy)"/>
+  <line x1="1340" y1="1392" x2="1440" y2="1392" stroke="#B91C1C" stroke-width="5" marker-end="url(#arrow-red)"/>
+  <text x="1390" y="1376" fill="#B91C1C" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="1390" dy="0">손실·추락</tspan>
+  </text>
+  <line x1="1555" y1="1440" x2="1555" y2="1565" stroke="#D97706" stroke-width="3" marker-end="url(#arrow-orange)"/>
+  <line x1="1555" y1="1680" x2="1555" y2="1785" stroke="#D97706" stroke-width="3" marker-end="url(#arrow-orange)"/>
+  <line x1="1690" y1="1842" x2="1730" y2="1842" stroke="#D97706" stroke-width="3" marker-end="url(#arrow-orange)"/>
+  <line x1="1560" y1="1345" x2="1560" y2="1000" stroke="#B91C1C" stroke-width="3" marker-end="url(#arrow-red)"/>
+  <line x1="1670" y1="952" x2="1710" y2="952" stroke="#17324D" stroke-width="4" marker-end="url(#arrow-navy)"/>
+  <line x1="1815" y1="1015" x2="1810" y2="1110" stroke="#B9870D" stroke-width="3" marker-end="url(#arrow-yellow)"/>
+  <text x="1155" y="1999" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="19" font-weight="500" text-anchor="middle">
+  <tspan x="1155" dy="0">Home 보조 분기  ·  Shop / Tutorial / Settings / 장착 맵 전환은 HomeFlowComponent가 화면 전환과 예열을 조정합니다.</tspan>
+  </text>
+  </g>
+  <g id="frame-01">
+  <rect x="2200" y="720" width="2000" height="1400" rx="28" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="3"/>
+  <rect x="2200" y="720" width="2000" height="110" rx="28" fill="#17324D" stroke="#17324D" stroke-width="0"/>
+  <text x="2240" y="778" fill="#FFFFFF" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="38" font-weight="700" text-anchor="start">
+  <tspan x="2240" dy="0">01 · 전체 런타임 아키텍처</tspan>
+  </text>
+  <text x="2242" y="808" fill="#DCE8F2" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="500" text-anchor="start">
+  <tspan x="2242" dy="0">객체 수명과 소유 관계를 중심으로 읽고, 세부 실행은 주변 02~05 지도에서 확인합니다.</tspan>
+  </text>
+  <rect x="2255" y="865" width="1890" height="105" rx="18" fill="#F1F5F9" stroke="#64748B" stroke-width="2"/>
+  <text x="2277" y="903" fill="#64748B" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="23" font-weight="700" text-anchor="start">
+  <tspan x="2277" dy="0">Unreal 기반</tspan>
+  </text>
+  <text x="2277" y="939" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="500" text-anchor="start">
+  <tspan x="2277" dy="0">ProjectG Runtime Module  ·  Enhanced Input  ·  UMG  ·  Niagara  ·  SaveGame  ·  AssetManager</tspan>
+  </text>
+  <rect x="2255" y="1005" width="430" height="560" rx="18" fill="#FFF7D6" stroke="#B9870D" stroke-width="2"/>
+  <text x="2277" y="1045" fill="#B9870D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="25" font-weight="700" text-anchor="start">
+  <tspan x="2277" dy="0">GameInstance · 전역 설정</tspan>
+  </text>
+  <text x="2277" y="1090" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="19" font-weight="500" text-anchor="start">
+  <tspan x="2277" dy="0">GameInstance Subsystem</tspan>
+  <tspan x="2277" dy="25.650000000000002">UPGRuntimePreloadSubsystem</tspan>
+  <tspan x="2277" dy="25.650000000000002">UPGUserDataSubsystem</tspan>
+  <tspan x="2277" dy="25.650000000000002"></tspan>
+  <tspan x="2277" dy="25.650000000000002">DeveloperSettings CDO</tspan>
+  <tspan x="2277" dy="25.650000000000002">UPGGameSettings</tspan>
+  <tspan x="2277" dy="25.650000000000002">런타임 설정과 Soft Reference</tspan>
+  <tspan x="2277" dy="25.650000000000002"></tspan>
+  <tspan x="2277" dy="25.650000000000002">Engine UserSettings</tspan>
+  <tspan x="2277" dy="25.650000000000002">UPGGameUserSettings</tspan>
+  <tspan x="2277" dy="25.650000000000002">그래픽·음량·FPS</tspan>
+  </text>
+  <rect x="2735" y="1005" width="430" height="560" rx="18" fill="#E8EEF7" stroke="#17324D" stroke-width="2"/>
+  <text x="2757" y="1045" fill="#17324D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="25" font-weight="700" text-anchor="start">
+  <tspan x="2757" dy="0">World 수명</tspan>
+  </text>
+  <text x="2757" y="1090" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="19" font-weight="500" text-anchor="start">
+  <tspan x="2757" dy="0">APGGameModeBase</tspan>
+  <tspan x="2757" dy="25.650000000000002">Home / Countdown / Running / Failed</tspan>
+  <tspan x="2757" dy="25.650000000000002"></tspan>
+  <tspan x="2757" dy="25.650000000000002">UPGCargoDeliverySubsystem</tspan>
+  <tspan x="2757" dy="25.650000000000002">적재물 투입 예약</tspan>
+  <tspan x="2757" dy="25.650000000000002"></tspan>
+  <tspan x="2757" dy="25.650000000000002">UPGRunEventSubsystem</tspan>
+  <tspan x="2757" dy="25.650000000000002">환경 이벤트 예약·발동</tspan>
+  <tspan x="2757" dy="25.650000000000002"></tspan>
+  <tspan x="2757" dy="25.650000000000002">APGRunDirector</tspan>
+  <tspan x="2757" dy="25.650000000000002">무한 트랙 풀링</tspan>
+  </text>
+  <rect x="3215" y="1005" width="430" height="560" rx="18" fill="#FFF1DF" stroke="#D97706" stroke-width="2"/>
+  <text x="3237" y="1045" fill="#D97706" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="25" font-weight="700" text-anchor="start">
+  <tspan x="3237" dy="0">PlayerController 소유</tspan>
+  </text>
+  <text x="3237" y="1090" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="19" font-weight="500" text-anchor="start">
+  <tspan x="3237" dy="0">APGPlayerController</tspan>
+  <tspan x="3237" dy="25.650000000000002">입력 전달·Runner Possess</tspan>
+  <tspan x="3237" dy="25.650000000000002"></tspan>
+  <tspan x="3237" dy="25.650000000000002">HomeFlow · RunHUD</tspan>
+  <tspan x="3237" dy="25.650000000000002">RunResultFeedback</tspan>
+  <tspan x="3237" dy="25.650000000000002">RunEventFeedback</tspan>
+  <tspan x="3237" dy="25.650000000000002">Music · FPSDisplay</tspan>
+  <tspan x="3237" dy="25.650000000000002"></tspan>
+  <tspan x="3237" dy="25.650000000000002">화면 생성·입력 모드·피드백</tspan>
+  </text>
+  <rect x="3695" y="1005" width="450" height="560" rx="18" fill="#E6F7F5" stroke="#0F8F87" stroke-width="2"/>
+  <text x="3717" y="1045" fill="#0F8F87" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="25" font-weight="700" text-anchor="start">
+  <tspan x="3717" dy="0">RunnerCharacter 소유</tspan>
+  </text>
+  <text x="3717" y="1090" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="19" font-weight="500" text-anchor="start">
+  <tspan x="3717" dy="0">APGRunnerCharacter</tspan>
+  <tspan x="3717" dy="25.650000000000002">자동 전진·입력 결합·실패 요청</tspan>
+  <tspan x="3717" dy="25.650000000000002"></tspan>
+  <tspan x="3717" dy="25.650000000000002">RunnerMovementComponent</tspan>
+  <tspan x="3717" dy="25.650000000000002">CargoStackComponent</tspan>
+  <tspan x="3717" dy="25.650000000000002">RunnerEnvironmentComponent</tspan>
+  <tspan x="3717" dy="25.650000000000002">RunProgressComponent</tspan>
+  <tspan x="3717" dy="25.650000000000002">CameraBoom · FollowCamera</tspan>
+  </text>
+  <line x1="2685" y1="1285" x2="2735" y2="1285" stroke="#64748B" stroke-width="3" stroke-dasharray="12 10" marker-end="url(#arrow-gray)"/>
+  <text x="2710" y="1269" fill="#64748B" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="2710" dy="0">참조</tspan>
+  </text>
+  <line x1="3165" y1="1220" x2="3215" y2="1220" stroke="#D97706" stroke-width="3" marker-end="url(#arrow-orange)"/>
+  <text x="3190" y="1204" fill="#D97706" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="3190" dy="0">Run Delegate</tspan>
+  </text>
+  <line x1="3645" y1="1285" x2="3695" y2="1285" stroke="#17324D" stroke-width="3" marker-end="url(#arrow-navy)"/>
+  <text x="3670" y="1269" fill="#17324D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="3670" dy="0">Possess</tspan>
+  </text>
+  <line x1="2950" y1="1565" x2="2950" y2="1590" stroke="#D97706" stroke-width="3"/>
+  <line x1="2950" y1="1590" x2="3920" y2="1590" stroke="#D97706" stroke-width="3"/>
+  <line x1="3920" y1="1590" x2="3920" y2="1565" stroke="#D97706" stroke-width="3" marker-end="url(#arrow-orange)"/>
+  <text x="3115" y="1584" fill="#D97706" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="17" font-weight="700" text-anchor="middle">
+  <tspan x="3115" dy="0">GameMode 상태 이벤트</tspan>
+  </text>
+  <rect x="2255" y="1620" width="1890" height="210" rx="18" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+  <text x="2277" y="1660" fill="#17324D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="25" font-weight="700" text-anchor="start">
+  <tspan x="2277" dy="0">표현과 콘텐츠 경계</tspan>
+  </text>
+  <text x="2277" y="1705" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="20" font-weight="500" text-anchor="start">
+  <tspan x="2277" dy="0">Widget Blueprint — 배치·스타일   |   C++ Widget — 이벤트·데이터 표현   |   Blueprint Actor — 레벨 조립   |   DataAsset — 콘텐츠 정의</tspan>
+  </text>
+  <text x="3430" y="1542" fill="#64748B" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="17" font-weight="700" text-anchor="middle">
+  <tspan x="3430" dy="0">UI 생성·바인딩</tspan>
+  </text>
+  <line x1="3430" y1="1565" x2="3430" y2="1620" stroke="#64748B" stroke-width="3" stroke-dasharray="12 10" marker-end="url(#arrow-gray)"/>
+  <line x1="2470" y1="1620" x2="2470" y2="1565" stroke="#64748B" stroke-width="3" stroke-dasharray="12 10" marker-end="url(#arrow-gray)"/>
+  <text x="2470" y="1576.5" fill="#64748B" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="2470" dy="0">데이터</tspan>
+  </text>
+  <text x="2480" y="1910" fill="#17324D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="20" font-weight="700" text-anchor="middle">
+  <tspan x="2480" dy="0">상세 02</tspan>
+  <tspan x="2480" dy="25">상태와 화면 전환</tspan>
+  </text>
+  <text x="2950" y="1910" fill="#B9870D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="20" font-weight="700" text-anchor="middle">
+  <tspan x="2950" dy="0">상세 04</tspan>
+  <tspan x="2950" dy="25">콘텐츠와 예열</tspan>
+  </text>
+  <text x="3430" y="1910" fill="#D97706" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="20" font-weight="700" text-anchor="middle">
+  <tspan x="3430" dy="0">상세 05</tspan>
+  <tspan x="3430" dy="25">UI와 저장</tspan>
+  </text>
+  <text x="3910" y="1910" fill="#0F8F87" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="20" font-weight="700" text-anchor="middle">
+  <tspan x="3910" dy="0">상세 03</tspan>
+  <tspan x="3910" dy="25">입력과 플레이</tspan>
+  </text>
+  <text x="3200" y="2050" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="20" font-weight="500" text-anchor="middle">
+  <tspan x="3200" dy="0">핵심: GameMode는 런 상태를 방송하고, Controller와 Runner가 기능 컴포넌트를 소유하며, Subsystem이 수명과 도메인 경계를 분리합니다.</tspan>
+  </text>
+  </g>
+  <g id="frame-03">
+  <rect x="4380" y="720" width="1900" height="1400" rx="28" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="3"/>
+  <rect x="4380" y="720" width="1900" height="110" rx="28" fill="#17324D" stroke="#17324D" stroke-width="0"/>
+  <text x="4420" y="778" fill="#FFFFFF" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="38" font-weight="700" text-anchor="start">
+  <tspan x="4420" dy="0">03 · 입력과 플레이 시스템 흐름</tspan>
+  </text>
+  <text x="4422" y="808" fill="#DCE8F2" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="500" text-anchor="start">
+  <tspan x="4422" dy="0">입력이 이동과 적재물 물리에 반영되고, 점수·HUD·실패로 되돌아오는 경로입니다.</tspan>
+  </text>
+  <rect x="4435" y="880" width="390" height="240" rx="18" fill="#F1F5F9" stroke="#64748B" stroke-width="2"/>
+  <text x="4457" y="920" fill="#64748B" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="25" font-weight="700" text-anchor="start">
+  <tspan x="4457" dy="0">입력 계층</tspan>
+  </text>
+  <text x="4457" y="966" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="20" font-weight="500" text-anchor="start">
+  <tspan x="4457" dy="0">InputTouch · Enhanced Input</tspan>
+  <tspan x="4457" dy="27">드래그 → Balance</tspan>
+  <tspan x="4457" dy="27">좌·우·위 플릭 → Jump</tspan>
+  <tspan x="4457" dy="27"></tspan>
+  <tspan x="4457" dy="27">APGPlayerController</tspan>
+  </text>
+  <rect x="4900" y="880" width="530" height="240" rx="18" fill="#E6F7F5" stroke="#0F8F87" stroke-width="2"/>
+  <text x="4922" y="920" fill="#0F8F87" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="25" font-weight="700" text-anchor="start">
+  <tspan x="4922" dy="0">러너 조정자</tspan>
+  </text>
+  <text x="4922" y="966" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="20" font-weight="500" text-anchor="start">
+  <tspan x="4922" dy="0">APGRunnerCharacter</tspan>
+  <tspan x="4922" dy="27">자동 전진 · 중심 입력 결합 · 점프</tspan>
+  <tspan x="4922" dy="27">추락 및 적재물 손실을 GameMode에 전달</tspan>
+  </text>
+  <rect x="5505" y="880" width="710" height="240" rx="18" fill="#E8EEF7" stroke="#17324D" stroke-width="2"/>
+  <text x="5527" y="920" fill="#17324D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="25" font-weight="700" text-anchor="start">
+  <tspan x="5527" dy="0">런 상태 허브</tspan>
+  </text>
+  <text x="5527" y="965" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="19" font-weight="500" text-anchor="start">
+  <tspan x="5527" dy="0">APGGameModeBase</tspan>
+  <tspan x="5527" dy="25.650000000000002">OnRunCountdownStarted · OnRunStarted · OnRunFailed</tspan>
+  <tspan x="5527" dy="25.650000000000002"></tspan>
+  <tspan x="5527" dy="25.650000000000002">활성화와 정지 시점을 World·Controller·Runner에 방송</tspan>
+  </text>
+  <line x1="4825" y1="1000" x2="4900" y2="1000" stroke="#17324D" stroke-width="5" marker-end="url(#arrow-navy)"/>
+  <text x="4862.5" y="984" fill="#17324D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="4862.5" dy="0">입력</tspan>
+  </text>
+  <line x1="5430" y1="970" x2="5505" y2="970" stroke="#B91C1C" stroke-width="3" marker-end="url(#arrow-red)"/>
+  <text x="5467.5" y="954" fill="#B91C1C" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="5467.5" dy="0">실패 요청</tspan>
+  </text>
+  <line x1="5505" y1="1060" x2="5430" y2="1060" stroke="#D97706" stroke-width="3" marker-end="url(#arrow-orange)"/>
+  <text x="5467.5" y="1044" fill="#D97706" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="5467.5" dy="0">Run 이벤트</tspan>
+  </text>
+  <rect x="4435" y="1205" width="390" height="300" rx="18" fill="#E6F7F5" stroke="#0F8F87" stroke-width="2"/>
+  <text x="4457" y="1244" fill="#0F8F87" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="24" font-weight="700" text-anchor="start">
+  <tspan x="4457" dy="0">이동</tspan>
+  </text>
+  <text x="4457" y="1290" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="19" font-weight="500" text-anchor="start">
+  <tspan x="4457" dy="0">UPGRunnerMovementComponent</tspan>
+  <tspan x="4457" dy="25.650000000000002">전진 · 중심 오프셋 · 점프</tspan>
+  <tspan x="4457" dy="25.650000000000002"></tspan>
+  <tspan x="4457" dy="25.650000000000002">UPGRunnerEnvironmentComponent</tspan>
+  <tspan x="4457" dy="25.650000000000002">바람·눈바람 입력 보정</tspan>
+  </text>
+  <rect x="4885" y="1205" width="420" height="300" rx="18" fill="#E6F7F5" stroke="#0F8F87" stroke-width="2"/>
+  <text x="4907" y="1244" fill="#0F8F87" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="24" font-weight="700" text-anchor="start">
+  <tspan x="4907" dy="0">적재물</tspan>
+  </text>
+  <text x="4907" y="1289" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="500" text-anchor="start">
+  <tspan x="4907" dy="0">UPGCargoDeliverySubsystem</tspan>
+  <tspan x="4907" dy="24.3">투입 예약·종류 선택</tspan>
+  <tspan x="4907" dy="24.3"></tspan>
+  <tspan x="4907" dy="24.3">UPGCargoStackComponent</tspan>
+  <tspan x="4907" dy="24.3">Hold → Physics · 완료·손실</tspan>
+  <tspan x="4907" dy="24.3">APGPhysicsCargoActor</tspan>
+  </text>
+  <rect x="5365" y="1205" width="390" height="300" rx="18" fill="#FFF1DF" stroke="#D97706" stroke-width="2"/>
+  <text x="5387" y="1244" fill="#D97706" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="24" font-weight="700" text-anchor="start">
+  <tspan x="5387" dy="0">환경 이벤트</tspan>
+  </text>
+  <text x="5387" y="1290" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="19" font-weight="500" text-anchor="start">
+  <tspan x="5387" dy="0">UPGRunEventSubsystem</tspan>
+  <tspan x="5387" dy="25.650000000000002">예약 · 경고 · 발동 · 종료</tspan>
+  <tspan x="5387" dy="25.650000000000002"></tspan>
+  <tspan x="5387" dy="25.650000000000002">EnvironmentComponent 적용</tspan>
+  <tspan x="5387" dy="25.650000000000002">Feedback UI · VFX · SFX</tspan>
+  </text>
+  <rect x="5815" y="1205" width="400" height="300" rx="18" fill="#FFF7D6" stroke="#B9870D" stroke-width="2"/>
+  <text x="5837" y="1244" fill="#B9870D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="24" font-weight="700" text-anchor="start">
+  <tspan x="5837" dy="0">무한 트랙</tspan>
+  </text>
+  <text x="5837" y="1290" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="19" font-weight="500" text-anchor="start">
+  <tspan x="5837" dy="0">APGRunDirector</tspan>
+  <tspan x="5837" dy="25.650000000000002">UPGTrackSegmentSet</tspan>
+  <tspan x="5837" dy="25.650000000000002">APGTrackSegment</tspan>
+  <tspan x="5837" dy="25.650000000000002"></tspan>
+  <tspan x="5837" dy="25.650000000000002">앞쪽 생성 · 뒤쪽 회수</tspan>
+  <tspan x="5837" dy="25.650000000000002">클래스별 Pool 재사용</tspan>
+  </text>
+  <line x1="5030" y1="1120" x2="4630" y2="1205" stroke="#17324D" stroke-width="3" marker-end="url(#arrow-navy)"/>
+  <text x="4830" y="1146.5" fill="#17324D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="4830" dy="0">이동</tspan>
+  </text>
+  <line x1="5160" y1="1120" x2="5095" y2="1205" stroke="#17324D" stroke-width="3" marker-end="url(#arrow-navy)"/>
+  <text x="5127.5" y="1146.5" fill="#17324D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="5127.5" dy="0">중심·공중 상태</tspan>
+  </text>
+  <line x1="5280" y1="1120" x2="5560" y2="1205" stroke="#D97706" stroke-width="3" marker-end="url(#arrow-orange)"/>
+  <text x="5420" y="1146.5" fill="#D97706" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="5420" dy="0">환경 참조</tspan>
+  </text>
+  <line x1="5350" y1="1120" x2="6015" y2="1205" stroke="#64748B" stroke-width="3" stroke-dasharray="12 10" marker-end="url(#arrow-gray)"/>
+  <text x="5682.5" y="1146.5" fill="#64748B" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="5682.5" dy="0">진행 위치</tspan>
+  </text>
+  <rect x="4570" y="1615" width="470" height="230" rx="18" fill="#E8EEF7" stroke="#17324D" stroke-width="2"/>
+  <text x="4592" y="1654" fill="#17324D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="24" font-weight="700" text-anchor="start">
+  <tspan x="4592" dy="0">진행 데이터</tspan>
+  </text>
+  <text x="4592" y="1700" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="19" font-weight="500" text-anchor="start">
+  <tspan x="4592" dy="0">UPGRunProgressComponent</tspan>
+  <tspan x="4592" dy="25.650000000000002">거리 · 점수 · 런 영수증</tspan>
+  <tspan x="4592" dy="25.650000000000002">OnScore / Distance / Receipts Changed</tspan>
+  </text>
+  <rect x="5115" y="1615" width="430" height="230" rx="18" fill="#FFF1DF" stroke="#D97706" stroke-width="2"/>
+  <text x="5137" y="1654" fill="#D97706" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="24" font-weight="700" text-anchor="start">
+  <tspan x="5137" dy="0">표현</tspan>
+  </text>
+  <text x="5137" y="1700" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="19" font-weight="500" text-anchor="start">
+  <tspan x="5137" dy="0">UPGRunHUDComponent</tspan>
+  <tspan x="5137" dy="25.650000000000002">HUD Widget · 적재물 목록</tspan>
+  <tspan x="5137" dy="25.650000000000002">RunEventFeedbackComponent</tspan>
+  </text>
+  <rect x="5620" y="1615" width="470" height="230" rx="18" fill="#FEECEC" stroke="#B91C1C" stroke-width="2"/>
+  <text x="5642" y="1654" fill="#B91C1C" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="24" font-weight="700" text-anchor="start">
+  <tspan x="5642" dy="0">실패 경로</tspan>
+  </text>
+  <text x="5642" y="1700" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="19" font-weight="500" text-anchor="start">
+  <tspan x="5642" dy="0">Cargo Lost 또는 Runner Fall</tspan>
+  <tspan x="5642" dy="25.650000000000002">→ RequestRunFailed</tspan>
+  <tspan x="5642" dy="25.650000000000002">→ 시스템 정지 · 결과 화면</tspan>
+  </text>
+  <line x1="5095" y1="1505" x2="4880" y2="1615" stroke="#0F8F87" stroke-width="3" marker-end="url(#arrow-teal)"/>
+  <text x="4987.5" y="1544" fill="#0F8F87" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="4987.5" dy="0">완료 보상</tspan>
+  </text>
+  <line x1="5040" y1="1730" x2="5115" y2="1730" stroke="#D97706" stroke-width="3" marker-end="url(#arrow-orange)"/>
+  <text x="5077.5" y="1714" fill="#D97706" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="5077.5" dy="0">Delegate</tspan>
+  </text>
+  <line x1="5095" y1="1505" x2="5095" y2="1540" stroke="#B91C1C" stroke-width="3"/>
+  <line x1="5095" y1="1540" x2="5860" y2="1540" stroke="#B91C1C" stroke-width="3"/>
+  <text x="5477.5" y="1524" fill="#B91C1C" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="5477.5" dy="0">적재물 손실</tspan>
+  </text>
+  <line x1="5860" y1="1540" x2="5860" y2="1615" stroke="#B91C1C" stroke-width="3" marker-end="url(#arrow-red)"/>
+  <line x1="4630" y1="1505" x2="4630" y2="1575" stroke="#B91C1C" stroke-width="3"/>
+  <line x1="4630" y1="1575" x2="5980" y2="1575" stroke="#B91C1C" stroke-width="3"/>
+  <text x="5305" y="1559" fill="#B91C1C" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="5305" dy="0">러너 추락</tspan>
+  </text>
+  <line x1="5980" y1="1575" x2="5980" y2="1615" stroke="#B91C1C" stroke-width="3" marker-end="url(#arrow-red)"/>
+  <text x="5330" y="1984" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="19" font-weight="500" text-anchor="middle">
+  <tspan x="5330" dy="0">Tick 기반: Runner · CargoDelivery · RunEvent · RunDirector   |   이벤트 기반: Run 상태 · HUD 갱신 · 실패 · 사용자 데이터 정산</tspan>
+  </text>
+  </g>
+  <g id="frame-04">
+  <rect x="120" y="2300" width="2950" height="1500" rx="28" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="3"/>
+  <rect x="120" y="2300" width="2950" height="110" rx="28" fill="#17324D" stroke="#17324D" stroke-width="0"/>
+  <text x="160" y="2358" fill="#FFFFFF" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="38" font-weight="700" text-anchor="start">
+  <tspan x="160" dy="0">04 · 콘텐츠와 비동기 예열</tspan>
+  </text>
+  <text x="162" y="2388" fill="#DCE8F2" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="500" text-anchor="start">
+  <tspan x="162" dy="0">설정의 Soft Reference가 화면 그룹별로 로드되고, 소비자에게 전달된 뒤 맵 전환에서 해제되는 흐름입니다.</tspan>
+  </text>
+  <rect x="175" y="2455" width="520" height="330" rx="18" fill="#FFF7D6" stroke="#B9870D" stroke-width="2"/>
+  <text x="197" y="2496" fill="#B9870D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="26" font-weight="700" text-anchor="start">
+  <tspan x="197" dy="0">설정 진입점</tspan>
+  </text>
+  <text x="197" y="2546" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="21" font-weight="500" text-anchor="start">
+  <tspan x="197" dy="0">UPGGameSettings</tspan>
+  <tspan x="197" dy="28.35">Widget Class · Audio · VFX</tspan>
+  <tspan x="197" dy="28.35">DataAsset Soft Reference</tspan>
+  <tspan x="197" dy="28.35"></tspan>
+  <tspan x="197" dy="28.35">UPGGameUserSettings</tspan>
+  <tspan x="197" dy="28.35">그래픽 · 음량 · FPS</tspan>
+  </text>
+  <rect x="175" y="2840" width="520" height="650" rx="18" fill="#FFFFFF" stroke="#B9870D" stroke-width="2"/>
+  <text x="197" y="2881" fill="#B9870D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="26" font-weight="700" text-anchor="start">
+  <tspan x="197" dy="0">DataAsset 계열</tspan>
+  </text>
+  <text x="197" y="2930" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="20" font-weight="500" text-anchor="start">
+  <tspan x="197" dy="0">CharacterShopCatalog</tspan>
+  <tspan x="197" dy="27">CharacterSkinDefinition</tspan>
+  <tspan x="197" dy="27">MapShopCatalog · MapDefinition</tspan>
+  <tspan x="197" dy="27"></tspan>
+  <tspan x="197" dy="27">CargoDropSet · CargoTypeDefinition</tspan>
+  <tspan x="197" dy="27">TrackSegmentSet</tspan>
+  <tspan x="197" dy="27">RunEventSet · PresentationSet</tspan>
+  <tspan x="197" dy="27">TutorialPageSet</tspan>
+  <tspan x="197" dy="27"></tspan>
+  <tspan x="197" dy="27">Blueprint Actor / Widget Blueprint</tspan>
+  <tspan x="197" dy="27">레벨 조립과 표현</tspan>
+  </text>
+  <rect x="840" y="2455" width="490" height="1035" rx="18" fill="#E8EEF7" stroke="#17324D" stroke-width="2"/>
+  <text x="862" y="2497" fill="#17324D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="27" font-weight="700" text-anchor="start">
+  <tspan x="862" dy="0">예열 그룹</tspan>
+  </text>
+  <text x="862" y="2552" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="22" font-weight="500" text-anchor="start">
+  <tspan x="862" dy="0">HOME</tspan>
+  <tspan x="862" dy="29.700000000000003">홈 UI · BGM · 공통 콘텐츠</tspan>
+  <tspan x="862" dy="29.700000000000003"></tspan>
+  <tspan x="862" dy="29.700000000000003">RUN</tspan>
+  <tspan x="862" dy="29.700000000000003">HUD · 결과 · 적재물 · 이벤트</tspan>
+  <tspan x="862" dy="29.700000000000003"></tspan>
+  <tspan x="862" dy="29.700000000000003">SHOP</tspan>
+  <tspan x="862" dy="29.700000000000003">카탈로그 · 스킨 · 맵 UI</tspan>
+  <tspan x="862" dy="29.700000000000003"></tspan>
+  <tspan x="862" dy="29.700000000000003">TUTORIAL</tspan>
+  <tspan x="862" dy="29.700000000000003">페이지 · 튜토리얼 UI</tspan>
+  <tspan x="862" dy="29.700000000000003"></tspan>
+  <tspan x="862" dy="29.700000000000003">EPGRuntimePreloadGroup</tspan>
+  </text>
+  <rect x="1480" y="2455" width="650" height="1035" rx="18" fill="#E6F7F5" stroke="#0F8F87" stroke-width="2"/>
+  <text x="1502" y="2497" fill="#0F8F87" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="27" font-weight="700" text-anchor="start">
+  <tspan x="1502" dy="0">UPGRuntimePreloadSubsystem</tspan>
+  </text>
+  <text x="1502" y="2551" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="21" font-weight="500" text-anchor="start">
+  <tspan x="1502" dy="0">1. Primary 리소스 경로 수집</tspan>
+  <tspan x="1502" dy="28.35">2. Streamable Handle로 비동기 로드</tspan>
+  <tspan x="1502" dy="28.35">3. Nested Soft Reference 추가 수집</tspan>
+  <tspan x="1502" dy="28.35">4. 중첩 리소스 로드</tspan>
+  <tspan x="1502" dy="28.35">5. 유효성 검사</tspan>
+  <tspan x="1502" dy="28.35">6. OnPreloadCompleted 방송</tspan>
+  <tspan x="1502" dy="28.35"></tspan>
+  <tspan x="1502" dy="28.35">GroupStates</tspan>
+  <tspan x="1502" dy="28.35">- PrimaryLoadHandle</tspan>
+  <tspan x="1502" dy="28.35">- NestedLoadHandle</tspan>
+  <tspan x="1502" dy="28.35">- RequestedResourcePaths</tspan>
+  <tspan x="1502" dy="28.35">- bIsReady / bIsPreloading</tspan>
+  </text>
+  <rect x="2280" y="2455" width="730" height="610" rx="18" fill="#FFF1DF" stroke="#D97706" stroke-width="2"/>
+  <text x="2302" y="2497" fill="#D97706" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="27" font-weight="700" text-anchor="start">
+  <tspan x="2302" dy="0">런타임 소비자</tspan>
+  </text>
+  <text x="2302" y="2551" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="21" font-weight="500" text-anchor="start">
+  <tspan x="2302" dy="0">HomeFlowComponent</tspan>
+  <tspan x="2302" dy="28.35">GameMode · Music · FPSDisplay</tspan>
+  <tspan x="2302" dy="28.35">RunHUD · ResultFeedback</tspan>
+  <tspan x="2302" dy="28.35">RunEventFeedback</tspan>
+  <tspan x="2302" dy="28.35">CargoDeliverySubsystem</tspan>
+  <tspan x="2302" dy="28.35">RunEventSubsystem</tspan>
+  <tspan x="2302" dy="28.35">UserDataSubsystem</tspan>
+  <tspan x="2302" dy="28.35"></tspan>
+  <tspan x="2302" dy="28.35">Ready 확인 후 화면 생성 또는 런 시작</tspan>
+  </text>
+  <rect x="2280" y="3120" width="730" height="370" rx="18" fill="#F1F5F9" stroke="#64748B" stroke-width="2"/>
+  <text x="2302" y="3162" fill="#64748B" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="27" font-weight="700" text-anchor="start">
+  <tspan x="2302" dy="0">맵 전환 수명 관리</tspan>
+  </text>
+  <text x="2302" y="3216" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="21" font-weight="500" text-anchor="start">
+  <tspan x="2302" dy="0">PreLoadMap</tspan>
+  <tspan x="2302" dy="28.35">→ 사용하지 않는 그룹 Handle 해제</tspan>
+  <tspan x="2302" dy="28.35"></tspan>
+  <tspan x="2302" dy="28.35">동일 맵 Retry</tspan>
+  <tspan x="2302" dy="28.35">→ ExpectedLevelName 확인</tspan>
+  <tspan x="2302" dy="28.35">→ 준비된 Run 그룹만 보존</tspan>
+  </text>
+  <line x1="695" y1="2620" x2="840" y2="2620" stroke="#64748B" stroke-width="3" stroke-dasharray="12 10" marker-end="url(#arrow-gray)"/>
+  <text x="767.5" y="2604" fill="#64748B" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="767.5" dy="0">Soft Reference</tspan>
+  </text>
+  <line x1="695" y1="3130" x2="840" y2="3130" stroke="#64748B" stroke-width="3" stroke-dasharray="12 10" marker-end="url(#arrow-gray)"/>
+  <text x="767.5" y="3114" fill="#64748B" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="767.5" dy="0">콘텐츠 경로</tspan>
+  </text>
+  <line x1="1330" y1="2970" x2="1480" y2="2970" stroke="#17324D" stroke-width="5" marker-end="url(#arrow-navy)"/>
+  <text x="1405" y="2954" fill="#17324D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="1405" dy="0">RequestPreload</tspan>
+  </text>
+  <line x1="2130" y1="2820" x2="2280" y2="2820" stroke="#D97706" stroke-width="4" marker-end="url(#arrow-orange)"/>
+  <text x="2205" y="2804" fill="#D97706" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="2205" dy="0">완료 Delegate</tspan>
+  </text>
+  <line x1="2640" y1="3120" x2="2640" y2="3065" stroke="#64748B" stroke-width="3" stroke-dasharray="12 10" marker-end="url(#arrow-gray)"/>
+  <text x="2640" y="3076.5" fill="#64748B" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="2640" dy="0">해제·보존</tspan>
+  </text>
+  <text x="1595" y="3601" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="21" font-weight="500" text-anchor="middle">
+  <tspan x="1595" dy="0">코드가 확인하는 타입과 참조 경계만 표시하며, Blueprint 그래프 내부 동작은 다이어그램에 추정해서 넣지 않습니다.</tspan>
+  </text>
+  </g>
+  <g id="frame-05">
+  <rect x="3330" y="2300" width="2950" height="1500" rx="28" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="3"/>
+  <rect x="3330" y="2300" width="2950" height="110" rx="28" fill="#17324D" stroke="#17324D" stroke-width="0"/>
+  <text x="3370" y="2358" fill="#FFFFFF" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="38" font-weight="700" text-anchor="start">
+  <tspan x="3370" dy="0">05 · UI 책임과 사용자 데이터 저장</tspan>
+  </text>
+  <text x="3372" y="2388" fill="#DCE8F2" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="500" text-anchor="start">
+  <tspan x="3372" dy="0">화면 입력이 사용자 상태를 바꾸고 저장된 뒤 Delegate로 다시 화면에 반영되는 경로입니다.</tspan>
+  </text>
+  <rect x="3385" y="2455" width="560" height="360" rx="18" fill="#FFF1DF" stroke="#D97706" stroke-width="2"/>
+  <text x="3407" y="2497" fill="#D97706" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="27" font-weight="700" text-anchor="start">
+  <tspan x="3407" dy="0">UI 책임 분리</tspan>
+  </text>
+  <text x="3407" y="2551" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="21" font-weight="500" text-anchor="start">
+  <tspan x="3407" dy="0">Widget Blueprint</tspan>
+  <tspan x="3407" dy="28.35">배치 · 스타일 · Safe Zone</tspan>
+  <tspan x="3407" dy="28.35"></tspan>
+  <tspan x="3407" dy="28.35">C++ Widget</tspan>
+  <tspan x="3407" dy="28.35">BindWidget · 입력 이벤트 · 데이터 표현</tspan>
+  <tspan x="3407" dy="28.35"></tspan>
+  <tspan x="3407" dy="28.35">Controller Component</tspan>
+  <tspan x="3407" dy="28.35">화면 생성 · 입력 모드 · 상태 전환</tspan>
+  </text>
+  <rect x="3385" y="2870" width="560" height="620" rx="18" fill="#FFFFFF" stroke="#D97706" stroke-width="2"/>
+  <text x="3407" y="2912" fill="#D97706" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="27" font-weight="700" text-anchor="start">
+  <tspan x="3407" dy="0">화면 그룹</tspan>
+  </text>
+  <text x="3407" y="2965" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="20" font-weight="500" text-anchor="start">
+  <tspan x="3407" dy="0">HomeFlowComponent</tspan>
+  <tspan x="3407" dy="27">Home · Shop · Tutorial · Settings</tspan>
+  <tspan x="3407" dy="27"></tspan>
+  <tspan x="3407" dy="27">RunHUDComponent</tspan>
+  <tspan x="3407" dy="27">HUD · Pause · Settings</tspan>
+  <tspan x="3407" dy="27"></tspan>
+  <tspan x="3407" dy="27">RunResultFeedbackComponent</tspan>
+  <tspan x="3407" dy="27">Result · Retry · Home</tspan>
+  <tspan x="3407" dy="27"></tspan>
+  <tspan x="3407" dy="27">RunEventFeedbackComponent</tspan>
+  <tspan x="3407" dy="27">Preview · Active UI · VFX · SFX</tspan>
+  </text>
+  <rect x="4090" y="2455" width="520" height="360" rx="18" fill="#E8EEF7" stroke="#17324D" stroke-width="2"/>
+  <text x="4112" y="2497" fill="#17324D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="27" font-weight="700" text-anchor="start">
+  <tspan x="4112" dy="0">사용자 작업</tspan>
+  </text>
+  <text x="4112" y="2551" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="21" font-weight="500" text-anchor="start">
+  <tspan x="4112" dy="0">캐릭터·맵 구매</tspan>
+  <tspan x="4112" dy="28.35">장착 · 캐릭터 미리보기</tspan>
+  <tspan x="4112" dy="28.35">영수증 팩 선택</tspan>
+  <tspan x="4112" dy="28.35">런 결과 보상 정산</tspan>
+  <tspan x="4112" dy="28.35"></tspan>
+  <tspan x="4112" dy="28.35">Widget 이벤트 → Flow / UserData</tspan>
+  </text>
+  <rect x="4090" y="2870" width="520" height="620" rx="18" fill="#E6F7F5" stroke="#0F8F87" stroke-width="2"/>
+  <text x="4112" y="2912" fill="#0F8F87" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="27" font-weight="700" text-anchor="start">
+  <tspan x="4112" dy="0">UPGUserDataSubsystem</tspan>
+  </text>
+  <text x="4112" y="2965" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="20" font-weight="500" text-anchor="start">
+  <tspan x="4112" dy="0">카탈로그 캐시와 ID 검증</tspan>
+  <tspan x="4112" dy="27">보유·장착·잔액 상태 변경</tspan>
+  <tspan x="4112" dy="27">Preview Runner 스킨 적용</tspan>
+  <tspan x="4112" dy="27"></tspan>
+  <tspan x="4112" dy="27">변경 Delegate</tspan>
+  <tspan x="4112" dy="27">- ReceiptBalanceChanged</tspan>
+  <tspan x="4112" dy="27">- BestRunScoreChanged</tspan>
+  <tspan x="4112" dy="27">- OwnershipChanged</tspan>
+  <tspan x="4112" dy="27">- EquippedChanged</tspan>
+  <tspan x="4112" dy="27">- PreviewChanged</tspan>
+  <tspan x="4112" dy="27"></tspan>
+  <tspan x="4112" dy="27">변경 성공 후 SaveUserData</tspan>
+  </text>
+  <rect x="4765" y="2455" width="560" height="360" rx="18" fill="#FFF7D6" stroke="#B9870D" stroke-width="2"/>
+  <text x="4787" y="2497" fill="#B9870D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="27" font-weight="700" text-anchor="start">
+  <tspan x="4787" dy="0">UPGUserSaveGame</tspan>
+  </text>
+  <text x="4787" y="2551" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="21" font-weight="500" text-anchor="start">
+  <tspan x="4787" dy="0">ReceiptBalance · BestRunScore</tspan>
+  <tspan x="4787" dy="28.35">OwnedCharacterSkinIds</tspan>
+  <tspan x="4787" dy="28.35">EquippedCharacterSkinId</tspan>
+  <tspan x="4787" dy="28.35">OwnedMapIds · EquippedMapId</tspan>
+  <tspan x="4787" dy="28.35"></tspan>
+  <tspan x="4787" dy="28.35">플레이 사용자 상태의 단일 모델</tspan>
+  </text>
+  <rect x="4765" y="2870" width="560" height="620" rx="18" fill="#FFF7D6" stroke="#B9870D" stroke-width="2"/>
+  <text x="4787" y="2912" fill="#B9870D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="27" font-weight="700" text-anchor="start">
+  <tspan x="4787" dy="0">저장 검증과 복구</tspan>
+  </text>
+  <text x="4787" y="2965" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="20" font-weight="500" text-anchor="start">
+  <tspan x="4787" dy="0">A/B 슬롯을 번갈아 기록</tspan>
+  <tspan x="4787" dy="27">Generation으로 최신본 판별</tspan>
+  <tspan x="4787" dy="27">PayloadSize · CRC32 Envelope</tspan>
+  <tspan x="4787" dy="27"></tspan>
+  <tspan x="4787" dy="27">기록 직후 같은 슬롯 재읽기</tspan>
+  <tspan x="4787" dy="27">CRC와 역직렬화 확인</tspan>
+  <tspan x="4787" dy="27">Generation 일치 시에만 성공</tspan>
+  <tspan x="4787" dy="27"></tspan>
+  <tspan x="4787" dy="27">최신 슬롯 손상 → 직전 정상본</tspan>
+  <tspan x="4787" dy="27">양쪽 손상 → 새 데이터</tspan>
+  </text>
+  <rect x="5480" y="2455" width="730" height="1035" rx="18" fill="#F1F5F9" stroke="#64748B" stroke-width="2"/>
+  <text x="5502" y="2497" fill="#64748B" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="27" font-weight="700" text-anchor="start">
+  <tspan x="5502" dy="0">분리된 설정 저장</tspan>
+  </text>
+  <text x="5502" y="2551" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="21" font-weight="500" text-anchor="start">
+  <tspan x="5502" dy="0">UPGGameUserSettings</tspan>
+  <tspan x="5502" dy="28.35"></tspan>
+  <tspan x="5502" dy="28.35">그래픽 품질 Preset</tspan>
+  <tspan x="5502" dy="28.35">해상도 Scale</tspan>
+  <tspan x="5502" dy="28.35">Music / SFX Volume</tspan>
+  <tspan x="5502" dy="28.35">FPS 표시</tspan>
+  <tspan x="5502" dy="28.35"></tspan>
+  <tspan x="5502" dy="28.35">Settings Widget에서 변경</tspan>
+  <tspan x="5502" dy="28.35">→ ApplySettings</tspan>
+  <tspan x="5502" dy="28.35">→ SaveSettings</tspan>
+  <tspan x="5502" dy="28.35"></tspan>
+  <tspan x="5502" dy="28.35">사용자 진행 SaveGame과</tspan>
+  <tspan x="5502" dy="28.35">별도 수명·저장 경계를 유지</tspan>
+  </text>
+  <line x1="3945" y1="2635" x2="4090" y2="2635" stroke="#17324D" stroke-width="5" marker-end="url(#arrow-navy)"/>
+  <text x="4017.5" y="2619" fill="#17324D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="4017.5" dy="0">입력 이벤트</tspan>
+  </text>
+  <line x1="4350" y1="2815" x2="4350" y2="2870" stroke="#17324D" stroke-width="4" marker-end="url(#arrow-navy)"/>
+  <text x="4350" y="2826.5" fill="#17324D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="4350" dy="0">요청</tspan>
+  </text>
+  <line x1="4610" y1="3140" x2="4765" y2="3140" stroke="#17324D" stroke-width="4" marker-end="url(#arrow-navy)"/>
+  <text x="4687.5" y="3124" fill="#17324D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="4687.5" dy="0">저장</tspan>
+  </text>
+  <line x1="5045" y1="2815" x2="5045" y2="2870" stroke="#B9870D" stroke-width="3" marker-end="url(#arrow-yellow)"/>
+  <text x="5045" y="2826.5" fill="#B9870D" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="5045" dy="0">직렬화·검증</tspan>
+  </text>
+  <line x1="4090" y1="3350" x2="3945" y2="3350" stroke="#D97706" stroke-width="4" marker-end="url(#arrow-orange)"/>
+  <text x="4017.5" y="3334" fill="#D97706" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="4017.5" dy="0">변경 Delegate</tspan>
+  </text>
+  <line x1="3945" y1="2550" x2="3980" y2="2430" stroke="#64748B" stroke-width="3" stroke-dasharray="12 10"/>
+  <line x1="3980" y1="2430" x2="5845" y2="2430" stroke="#64748B" stroke-width="3" stroke-dasharray="12 10"/>
+  <text x="4912.5" y="2414" fill="#64748B" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="4912.5" dy="0">Settings 화면</tspan>
+  </text>
+  <line x1="5845" y1="2430" x2="5845" y2="2455" stroke="#64748B" stroke-width="3" stroke-dasharray="12 10" marker-end="url(#arrow-gray)"/>
+  <text x="4805" y="3606" fill="#475569" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="21" font-weight="500" text-anchor="middle">
+  <tspan x="4805" dy="0">진행 데이터는 UPGUserDataSubsystem의 트랜잭션 경계에서 저장하고, 화면은 Delegate를 구독해 같은 상태를 다시 표시합니다.</tspan>
+  </text>
+  </g>
+  <line x1="2200" y1="1420" x2="2020" y2="1420" stroke="#64748B" stroke-width="3" stroke-dasharray="12 10" marker-end="url(#arrow-gray)"/>
+  <text x="2110" y="1404" fill="#64748B" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="2110" dy="0">상세 02</tspan>
+  </text>
+  <line x1="4200" y1="1420" x2="4380" y2="1420" stroke="#64748B" stroke-width="3" stroke-dasharray="12 10" marker-end="url(#arrow-gray)"/>
+  <text x="4290" y="1404" fill="#64748B" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="4290" dy="0">상세 03</tspan>
+  </text>
+  <line x1="2700" y1="2120" x2="2300" y2="2300" stroke="#64748B" stroke-width="3" stroke-dasharray="12 10" marker-end="url(#arrow-gray)"/>
+  <text x="2500" y="2194" fill="#64748B" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="2500" dy="0">상세 04</tspan>
+  </text>
+  <line x1="3700" y1="2120" x2="4100" y2="2300" stroke="#64748B" stroke-width="3" stroke-dasharray="12 10" marker-end="url(#arrow-gray)"/>
+  <text x="3900" y="2194" fill="#64748B" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="18" font-weight="700" text-anchor="middle">
+  <tspan x="3900" dy="0">상세 05</tspan>
+  </text>
+</svg>
