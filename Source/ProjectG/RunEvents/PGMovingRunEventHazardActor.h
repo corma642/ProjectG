@@ -21,16 +21,21 @@ class PROJECTG_API APGMovingRunEventHazardActor : public AActor
 	GENERATED_BODY()
 
 public:
+	/** 이동 Tick과 러너 overlap 전용 BoxComponent를 구성합니다. */
 	APGMovingRunEventHazardActor();
 
-	// RunEventSubsystem이 발동 시점에 공통 설정과 선택된 가상 구역 정보를 주입합니다.
+	/** 발동 시 월드 속도(cm/s), 수명·재충돌 간격(초), Balance 충격 속도(cm/s)와 -1~1 방향을 주입합니다. */
 	void InitializeMovingHazard(const FVector& InMovementVelocity, float InLifetime, float InPushImpulseVelocity, float InMaxPushBalanceVelocity, float InRehitCooldown, float InPushDirectionSign);
 
+	/** Blueprint가 위험 구역 크기와 collision 표현을 조정할 BoxComponent를 반환합니다. */
 	UBoxComponent* GetOverlapBox() const { return OverlapBox; }
 
 protected:
+	/** 러너 overlap delegate를 연결합니다. */
 	virtual void BeginPlay() override;
+	/** 월드 종료 또는 수명 만료 전에 overlap delegate를 해제합니다. */
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	/** 설정된 월드 속도로 이동하고 초 단위 수명이 끝나면 Actor를 제거합니다. */
 	virtual void Tick(float DeltaSeconds) override;
 
 private:
@@ -39,9 +44,11 @@ private:
 
 	float ResolvePushDirectionSign(const AActor& RunnerActor) const;
 
+	/** Blueprint 표현과 이동의 기준이 되는 필수 루트입니다. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Moving Hazard", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USceneComponent> HazardRoot;
 
+	/** 러너에게 Balance 충격을 주는 overlap 영역이며 크기와 profile은 BP에서 조정합니다. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Moving Hazard", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UBoxComponent> OverlapBox;
 

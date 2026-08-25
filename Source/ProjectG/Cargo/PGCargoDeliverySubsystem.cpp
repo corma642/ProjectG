@@ -9,6 +9,7 @@
 #include "GameModes/PGGameModeBase.h"
 #include "Shop/PGMapDefinition.h"
 #include "Shop/PGMapShopCatalog.h"
+#include "Utilities/PGWeightedRandom.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGCargoDeliverySubsystem, Log, All);
 
@@ -278,33 +279,22 @@ UPGCargoTypeDefinition* UPGCargoDeliverySubsystem::SelectCargoType()
 
 	if (LoadedDropSet && !LoadedDropSet->Entries.IsEmpty())
 	{
-		float TotalWeight = 0.0f;
-		for (const FPGCargoDropEntry& Entry : LoadedDropSet->Entries)
+		const int32 SelectedEntryIndex = PGWeightedRandom::SelectIndex(
+			LoadedDropSet->Entries.Num(),
+			[this](int32 EntryIndex)
 		{
+			const FPGCargoDropEntry& Entry = LoadedDropSet->Entries[EntryIndex];
 			if (!Entry.CargoType || RunElapsedTime < Entry.MinRunTime)
 			{
-				continue;
+				return 0.0f;
 			}
-			TotalWeight += FMath::Max(0.0f, Entry.BaseWeight);
-		}
 
-		if (TotalWeight > KINDA_SMALL_NUMBER)
+			return FMath::Max(0.0f, Entry.BaseWeight);
+		}, RandomStream);
+
+		if (LoadedDropSet->Entries.IsValidIndex(SelectedEntryIndex))
 		{
-			const float Roll = RandomStream.FRandRange(0.0f, TotalWeight);
-			float AccumulatedWeight = 0.0f;
-			for (const FPGCargoDropEntry& Entry : LoadedDropSet->Entries)
-			{
-				if (!Entry.CargoType || RunElapsedTime < Entry.MinRunTime)
-				{
-					continue;
-				}
-
-				AccumulatedWeight += FMath::Max(0.0f, Entry.BaseWeight);
-				if (Roll <= AccumulatedWeight)
-				{
-					return Entry.CargoType;
-				}
-			}
+			return LoadedDropSet->Entries[SelectedEntryIndex].CargoType;
 		}
 	}
 

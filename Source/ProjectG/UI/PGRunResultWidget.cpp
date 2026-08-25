@@ -11,6 +11,7 @@
 #include "GameModes/PGGameModeBase.h"
 #include "Kismet/GameplayStatics.h"
 #include "Loading/PGRuntimePreloadSubsystem.h"
+#include "UI/PGUIAnimationUtils.h"
 
 namespace
 {
@@ -37,11 +38,6 @@ constexpr float BackgroundStartScale = 0.96f;
 constexpr float TitleStartScale = 1.35f;
 constexpr float TitleEndScale = 1.0f;
 
-float RunResultEaseOutCubic(float Alpha)
-{
-	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
-	return 1.0f - FMath::Pow(1.0f - ClampedAlpha, 3.0f);
-}
 }
 
 void UPGRunResultWidget::NativeConstruct()
@@ -173,7 +169,7 @@ void UPGRunResultWidget::UpdateBackdropAnimation(float DeltaTime)
 	BackdropAnimationElapsed += DeltaTime;
 
 	const float Alpha = FMath::Clamp(BackdropAnimationElapsed / BackdropAnimationDuration, 0.0f, 1.0f);
-	const float EasedAlpha = RunResultEaseOutCubic(Alpha);
+	const float EasedAlpha = PGUIAnimation::EaseOutCubic(Alpha);
 
 	if (BackdropBlur)
 	{
@@ -236,15 +232,15 @@ void UPGRunResultWidget::UpdateEntryAnimation(float DeltaTime)
 {
 	EntryAnimationElapsed += DeltaTime;
 
-	const float RootAlpha = RunResultEaseOutCubic(EntryAnimationElapsed / RootPanelAnimationDuration);
+	const float RootAlpha = PGUIAnimation::EaseOutCubic(EntryAnimationElapsed / RootPanelAnimationDuration);
 	ApplyWidgetAnimationState(ResultRootPanel, FVector2D(0.0f, FMath::Lerp(RootPanelStartYOffset, 0.0f, RootAlpha)), RootAlpha);
 
-	const float BackgroundAlpha = RunResultEaseOutCubic(EntryAnimationElapsed / BackgroundAnimationDuration);
+	const float BackgroundAlpha = PGUIAnimation::EaseOutCubic(EntryAnimationElapsed / BackgroundAnimationDuration);
 	ApplyWidgetAnimationState(ResultPanel, FVector2D::ZeroVector, BackgroundAlpha);
 	ApplyWidgetScale(ResultPanel, FMath::Lerp(BackgroundStartScale, 1.0f, BackgroundAlpha));
 
 	const float TitleTime = EntryAnimationElapsed - TitleAnimationDelay;
-	const float TitleAlpha = RunResultEaseOutCubic(TitleTime / TitleAnimationDuration);
+	const float TitleAlpha = PGUIAnimation::EaseOutCubic(TitleTime / TitleAnimationDuration);
 	ApplyWidgetAnimationState(TitleText, FVector2D::ZeroVector, TitleAlpha);
 	ApplyWidgetScale(TitleText, FMath::Lerp(TitleStartScale, TitleEndScale, TitleAlpha));
 
@@ -254,7 +250,7 @@ void UPGRunResultWidget::UpdateEntryAnimation(float DeltaTime)
 		// 점수 행은 위에서 아래 순서로 차례대로 들어온다.
 		// 각 행이 같은 방향으로 움직이면 결과 정산이 누적되는 느낌이 난다.
 		const float RowTime = EntryAnimationElapsed - RowAnimationStartDelay - static_cast<float>(Index) * RowAnimationDelay;
-		const float RowAlpha = RunResultEaseOutCubic(RowTime / RowAnimationDuration);
+		const float RowAlpha = PGUIAnimation::EaseOutCubic(RowTime / RowAnimationDuration);
 		bAllRowsFinished &= RowAlpha >= 1.0f;
 		ApplyWidgetAnimationState(AnimatedRows[Index], FVector2D(FMath::Lerp(RowStartXOffset, 0.0f, RowAlpha), 0.0f), RowAlpha);
 	}
@@ -265,7 +261,7 @@ void UPGRunResultWidget::UpdateEntryAnimation(float DeltaTime)
 		// Retry/Home은 결과값이 모두 보인 뒤 마지막 행동 선택지로 등장한다.
 		// 애니메이션 완료 전 입력을 막아 투명 버튼 클릭을 방지한다.
 		const float ButtonTime = EntryAnimationElapsed - ButtonAnimationStartDelay - static_cast<float>(Index) * ButtonAnimationDelay;
-		const float ButtonAlpha = RunResultEaseOutCubic(ButtonTime / ButtonAnimationDuration);
+		const float ButtonAlpha = PGUIAnimation::EaseOutCubic(ButtonTime / ButtonAnimationDuration);
 		bAllButtonsFinished &= ButtonAlpha >= 1.0f;
 		ApplyWidgetAnimationState(AnimatedButtons[Index], FVector2D(0.0f, FMath::Lerp(ButtonStartYOffset, 0.0f, ButtonAlpha)), ButtonAlpha);
 	}

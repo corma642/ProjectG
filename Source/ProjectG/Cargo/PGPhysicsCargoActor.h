@@ -20,15 +20,16 @@ class PROJECTG_API APGPhysicsCargoActor : public AActor
 	GENERATED_BODY()
 
 public:
+	/** 물리 시뮬레이션용 StaticMeshComponent와 충돌 피드백 delegate를 구성합니다. */
 	APGPhysicsCargoActor();
 
-	// 지정한 적재물 데이터 에셋으로 메시와 물리 값을 초기화한다.
+	/** 지정한 적재물 DataAsset의 메시·질량·감쇠와 collision profile을 적용합니다. null이면 초기화하지 않습니다. */
 	void InitializeCargo(UPGCargoTypeDefinition* InCargoType, FName CollisionProfileName);
 
-	// 물리 적재물의 Static Mesh 컴포넌트
+	/** 물리 시뮬레이션과 충돌을 담당하는 StaticMeshComponent를 반환합니다. */
 	UStaticMeshComponent* GetCargoMeshComponent() const { return CargoMeshComponent; }
 
-	// 이 Actor가 어떤 적재물 타입으로 생성됐는지 반환한다.
+	/** InitializeCargo에서 적용한 적재물 타입을 반환하며 초기화 전에는 null입니다. */
 	UPGCargoTypeDefinition* GetCargoType() const { return CargoType; }
 
 private:

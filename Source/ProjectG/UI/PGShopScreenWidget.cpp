@@ -15,6 +15,7 @@
 #include "Shop/PGMapDefinition.h"
 #include "UI/PGCharacterShopItemWidget.h"
 #include "UI/PGMapShopItemWidget.h"
+#include "UI/PGUIAnimationUtils.h"
 #include "User/PGUserDataSubsystem.h"
 
 namespace
@@ -29,20 +30,6 @@ constexpr float ShopActionStartYOffset = 210.0f;
 constexpr float ShopPanelAnimationDuration = 0.5f;
 constexpr float ShopElementAnimationDuration = 0.42f;
 
-float ShopEaseOutCubic(float Alpha)
-{
-	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
-	const float InverseAlpha = 1.0f - ClampedAlpha;
-	return 1.0f - InverseAlpha * InverseAlpha * InverseAlpha;
-}
-
-float ShopEaseOutBack(float Alpha)
-{
-	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
-	constexpr float Overshoot = 1.70158f;
-	const float Shifted = ClampedAlpha - 1.0f;
-	return 1.0f + Shifted * Shifted * ((Overshoot + 1.0f) * Shifted + Overshoot);
-}
 }
 
 void UPGShopScreenWidget::InitializeShop(UPGUserDataSubsystem* InUserDataSubsystem, TSubclassOf<UPGCharacterShopItemWidget> InCharacterItemWidgetClass, TSubclassOf<UPGMapShopItemWidget> InMapItemWidgetClass)
@@ -259,22 +246,7 @@ void UPGShopScreenWidget::HandleActionClicked()
 			bSuccess = true;
 		}
 
-		StartActionFeedback(ActionButton, bSuccess);
-		if (bWasPurchaseAction)
-		{
-			if (const UPGGameSettings* Settings = GetDefault<UPGGameSettings>())
-			{
-				UPGAudioStatics::PlayUIButtonSound(this, bSuccess ? Settings->SFX.ShopPurchaseSuccessSound.Get() : Settings->SFX.ShopPurchaseFailSound.Get());
-			}
-			else
-			{
-				UPGAudioStatics::PlayCommonButtonClick(this);
-			}
-		}
-		else
-		{
-			UPGAudioStatics::PlayCommonButtonClick(this);
-		}
+		ApplyActionResultFeedback(bSuccess, bWasPurchaseAction);
 		RefreshSelectedMapState();
 		return;
 	}
@@ -304,24 +276,7 @@ void UPGShopScreenWidget::HandleActionClicked()
 		bSuccess = true;
 	}
 
-	StartActionFeedback(ActionButton, bSuccess);
-	if (bWasPurchaseAction)
-	{
-		// 구매 결과음이 지정되어 있으면 공통 버튼음을 겹쳐 재생하지 않는다.
-		// 실패도 사용자가 바로 원인을 체감해야 하므로 동일한 경로에서 전용음을 우선한다.
-		if (const UPGGameSettings* Settings = GetDefault<UPGGameSettings>())
-		{
-			UPGAudioStatics::PlayUIButtonSound(this, bSuccess ? Settings->SFX.ShopPurchaseSuccessSound.Get() : Settings->SFX.ShopPurchaseFailSound.Get());
-		}
-		else
-		{
-			UPGAudioStatics::PlayCommonButtonClick(this);
-		}
-	}
-	else
-	{
-		UPGAudioStatics::PlayCommonButtonClick(this);
-	}
+	ApplyActionResultFeedback(bSuccess, bWasPurchaseAction);
 	RefreshSelectedCharacterState();
 }
 
@@ -705,7 +660,7 @@ void UPGShopScreenWidget::RefreshCharacterItems()
 	const auto& CharacterSkins = UserData->GetCharacterSkins();
 	for (int32 Index = 0; Index < CharacterItemWidgets.Num(); ++Index)
 	{
-		UPGCharacterShopItemWidget* ItemWidget = CharacterItemWidgets[Index];
+		UPGCharacterShopItemWidget* ItemWidget = CharacterItemWidgets[Index].Get();
 		const UPGCharacterSkinDefinition* SkinDefinition = CharacterSkins.IsValidIndex(Index) ? CharacterSkins[Index] : nullptr;
 		if (!ItemWidget || !SkinDefinition)
 		{
@@ -730,7 +685,7 @@ void UPGShopScreenWidget::RefreshMapItems()
 	const auto& Maps = UserData->GetMaps();
 	for (int32 Index = 0; Index < MapItemWidgets.Num(); ++Index)
 	{
-		UPGMapShopItemWidget* ItemWidget = MapItemWidgets[Index];
+		UPGMapShopItemWidget* ItemWidget = MapItemWidgets[Index].Get();
 		const UPGMapDefinition* MapDefinition = Maps.IsValidIndex(Index) ? Maps[Index] : nullptr;
 		if (!ItemWidget || !MapDefinition)
 		{
@@ -756,72 +711,22 @@ void UPGShopScreenWidget::RefreshSelectedCharacterState()
 	const UPGCharacterSkinDefinition* SelectedSkin = CharacterSkins.IsValidIndex(SelectedCharacterIndex) ? CharacterSkins[SelectedCharacterIndex] : nullptr;
 	if (!SelectedSkin)
 	{
-		if (SelectedItemNameText)
-		{
-			SelectedItemNameText->SetText(FText::GetEmpty());
-		}
-		if (SelectedPricePanel)
-		{
-			SelectedPricePanel->SetVisibility(ESlateVisibility::Collapsed);
-		}
-		if (SelectedPriceText)
-		{
-			SelectedPriceText->SetText(FText::GetEmpty());
-		}
-		if (ActionButton)
-		{
-			ActionButton->SetIsEnabled(false);
-		}
+		ClearSelectedItemPresentation(false);
 		return;
-	}
-
-	if (SelectedItemNameText)
-	{
-		SelectedItemNameText->SetText(SelectedSkin->DisplayName);
 	}
 
 	const bool bOwned = UserData->IsCharacterOwned(SelectedSkin->SkinId);
 	const bool bEquipped = UserData->IsCharacterEquipped(SelectedSkin->SkinId);
-	if (SelectedPricePanel)
-	{
-		// 가격은 미보유 캐릭터의 상세 영역에서만 보여준다. 카드 내부 가격 텍스트는 모바일 가독성 때문에 제거했다.
-		SelectedPricePanel->SetVisibility(!bOwned ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
-	}
-	if (SelectedPriceText)
-	{
-		SelectedPriceText->SetText(!bOwned ? FText::AsNumber(FMath::Max(0, SelectedSkin->PriceReceipts)) : FText::GetEmpty());
-	}
-	if (ActionButtonText)
-	{
-		if (!bOwned)
-		{
-			ActionButtonText->SetText(NSLOCTEXT("ProjectGShop", "BuyCharacter", "BUY"));
-		}
-		else if (!bEquipped)
-		{
-			ActionButtonText->SetText(NSLOCTEXT("ProjectGShop", "EquipCharacter", "EQUIP"));
-		}
-		else
-		{
-			ActionButtonText->SetText(NSLOCTEXT("ProjectGShop", "EquippedCharacter", "EQUIPPED"));
-		}
-	}
-	if (ActionButton)
-	{
-		ActionButton->SetIsEnabled(!bEquipped && !bIsOpening && bExternalInteractionEnabled);
-	}
-	if (PrevItemButton)
-	{
-		PrevItemButton->SetIsEnabled(SelectedCharacterIndex > 0 && !bIsOpening && bExternalInteractionEnabled);
-	}
-	if (NextItemButton)
-	{
-		NextItemButton->SetIsEnabled(SelectedCharacterIndex < CharacterSkins.Num() - 1 && !bIsOpening && bExternalInteractionEnabled);
-	}
-	if (ReceiptAddButton)
-	{
-		ReceiptAddButton->SetIsEnabled(!bIsOpening && bExternalInteractionEnabled);
-	}
+	ApplySelectedItemPresentation(
+		SelectedSkin->DisplayName,
+		SelectedSkin->PriceReceipts,
+		bOwned,
+		bEquipped,
+		SelectedCharacterIndex,
+		CharacterSkins.Num(),
+		NSLOCTEXT("ProjectGShop", "BuyCharacter", "BUY"),
+		NSLOCTEXT("ProjectGShop", "EquipCharacter", "EQUIP"),
+		NSLOCTEXT("ProjectGShop", "EquippedCharacter", "EQUIPPED"));
 }
 
 void UPGShopScreenWidget::RefreshSelectedMapState()
@@ -836,33 +741,10 @@ void UPGShopScreenWidget::RefreshSelectedMapState()
 	const UPGMapDefinition* SelectedMap = Maps.IsValidIndex(SelectedMapIndex) ? Maps[SelectedMapIndex] : nullptr;
 	if (!SelectedMap)
 	{
-		if (SelectedItemNameText)
-		{
-			SelectedItemNameText->SetText(FText::GetEmpty());
-		}
-		if (SelectedMapThumbnailImage)
-		{
-			SelectedMapThumbnailImage->SetBrushFromTexture(nullptr);
-		}
-		if (SelectedPricePanel)
-		{
-			SelectedPricePanel->SetVisibility(ESlateVisibility::Collapsed);
-		}
-		if (SelectedPriceText)
-		{
-			SelectedPriceText->SetText(FText::GetEmpty());
-		}
-		if (ActionButton)
-		{
-			ActionButton->SetIsEnabled(false);
-		}
+		ClearSelectedItemPresentation(true);
 		return;
 	}
 
-	if (SelectedItemNameText)
-	{
-		SelectedItemNameText->SetText(SelectedMap->DisplayName);
-	}
 	if (SelectedMapThumbnailImage)
 	{
 		SelectedMapThumbnailImage->SetBrushFromTexture(SelectedMap->Thumbnail.Get());
@@ -870,44 +752,108 @@ void UPGShopScreenWidget::RefreshSelectedMapState()
 
 	const bool bOwned = UserData->IsMapOwned(SelectedMap->MapId);
 	const bool bEquipped = UserData->IsMapEquipped(SelectedMap->MapId);
+	ApplySelectedItemPresentation(
+		SelectedMap->DisplayName,
+		SelectedMap->PriceReceipts,
+		bOwned,
+		bEquipped,
+		SelectedMapIndex,
+		Maps.Num(),
+		NSLOCTEXT("ProjectGShop", "BuyMap", "BUY"),
+		NSLOCTEXT("ProjectGShop", "HeldMap", "HOLDED"),
+		NSLOCTEXT("ProjectGShop", "SelectedMap", "SELECTED"));
+}
+
+void UPGShopScreenWidget::ClearSelectedItemPresentation(bool bClearMapThumbnail) const
+{
+	if (SelectedItemNameText)
+	{
+		SelectedItemNameText->SetText(FText::GetEmpty());
+	}
+	if (bClearMapThumbnail && SelectedMapThumbnailImage)
+	{
+		SelectedMapThumbnailImage->SetBrushFromTexture(nullptr);
+	}
 	if (SelectedPricePanel)
 	{
+		SelectedPricePanel->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	if (SelectedPriceText)
+	{
+		SelectedPriceText->SetText(FText::GetEmpty());
+	}
+	if (ActionButton)
+	{
+		ActionButton->SetIsEnabled(false);
+	}
+}
+
+void UPGShopScreenWidget::ApplySelectedItemPresentation(
+	const FText& DisplayName,
+	int32 PriceReceipts,
+	bool bOwned,
+	bool bEquipped,
+	int32 SelectedIndex,
+	int32 ItemCount,
+	const FText& BuyText,
+	const FText& EquipText,
+	const FText& EquippedText) const
+{
+	if (SelectedItemNameText)
+	{
+		SelectedItemNameText->SetText(DisplayName);
+	}
+	if (SelectedPricePanel)
+	{
+		// 가격은 미보유 상품의 상세 영역에서만 보여준다. 카드 내부 가격을 반복하지 않아 세로 화면 가독성을 지킨다.
 		SelectedPricePanel->SetVisibility(!bOwned ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 	if (SelectedPriceText)
 	{
-		SelectedPriceText->SetText(!bOwned ? FText::AsNumber(FMath::Max(0, SelectedMap->PriceReceipts)) : FText::GetEmpty());
+		SelectedPriceText->SetText(!bOwned ? FText::AsNumber(FMath::Max(0, PriceReceipts)) : FText::GetEmpty());
 	}
 	if (ActionButtonText)
 	{
-		if (!bOwned)
-		{
-			ActionButtonText->SetText(NSLOCTEXT("ProjectGShop", "BuyMap", "BUY"));
-		}
-		else if (!bEquipped)
-		{
-			ActionButtonText->SetText(NSLOCTEXT("ProjectGShop", "HeldMap", "HOLDED"));
-		}
-		else
-		{
-			ActionButtonText->SetText(NSLOCTEXT("ProjectGShop", "SelectedMap", "SELECTED"));
-		}
+		ActionButtonText->SetText(!bOwned ? BuyText : (!bEquipped ? EquipText : EquippedText));
 	}
+
+	const bool bCanInteract = !bIsOpening && bExternalInteractionEnabled;
 	if (ActionButton)
 	{
-		ActionButton->SetIsEnabled(!bEquipped && !bIsOpening && bExternalInteractionEnabled);
+		ActionButton->SetIsEnabled(!bEquipped && bCanInteract);
 	}
 	if (PrevItemButton)
 	{
-		PrevItemButton->SetIsEnabled(SelectedMapIndex > 0 && !bIsOpening && bExternalInteractionEnabled);
+		PrevItemButton->SetIsEnabled(SelectedIndex > 0 && bCanInteract);
 	}
 	if (NextItemButton)
 	{
-		NextItemButton->SetIsEnabled(SelectedMapIndex < Maps.Num() - 1 && !bIsOpening && bExternalInteractionEnabled);
+		NextItemButton->SetIsEnabled(SelectedIndex < ItemCount - 1 && bCanInteract);
 	}
 	if (ReceiptAddButton)
 	{
-		ReceiptAddButton->SetIsEnabled(!bIsOpening && bExternalInteractionEnabled);
+		ReceiptAddButton->SetIsEnabled(bCanInteract);
+	}
+}
+
+void UPGShopScreenWidget::ApplyActionResultFeedback(bool bSuccess, bool bWasPurchaseAction)
+{
+	StartActionFeedback(ActionButton, bSuccess);
+	if (!bWasPurchaseAction)
+	{
+		UPGAudioStatics::PlayCommonButtonClick(this);
+		return;
+	}
+
+	// 구매 결과음이 지정되어 있으면 공통 버튼음을 겹쳐 재생하지 않는다.
+	// 실패도 사용자가 바로 원인을 체감해야 하므로 동일한 경로에서 전용음을 우선한다.
+	if (const UPGGameSettings* Settings = GetDefault<UPGGameSettings>())
+	{
+		UPGAudioStatics::PlayUIButtonSound(this, bSuccess ? Settings->SFX.ShopPurchaseSuccessSound.Get() : Settings->SFX.ShopPurchaseFailSound.Get());
+	}
+	else
+	{
+		UPGAudioStatics::PlayCommonButtonClick(this);
 	}
 }
 
@@ -970,7 +916,7 @@ void UPGShopScreenWidget::ScrollSelectedCharacterIntoView() const
 		return;
 	}
 
-	if (UPGCharacterShopItemWidget* SelectedItemWidget = CharacterItemWidgets[SelectedCharacterIndex])
+	if (UPGCharacterShopItemWidget* SelectedItemWidget = CharacterItemWidgets[SelectedCharacterIndex].Get())
 	{
 		ItemListBox->ScrollWidgetIntoView(SelectedItemWidget, true, EDescendantScrollDestination::Center);
 	}
@@ -983,7 +929,7 @@ void UPGShopScreenWidget::ScrollSelectedMapIntoView() const
 		return;
 	}
 
-	if (UPGMapShopItemWidget* SelectedItemWidget = MapItemWidgets[SelectedMapIndex])
+	if (UPGMapShopItemWidget* SelectedItemWidget = MapItemWidgets[SelectedMapIndex].Get())
 	{
 		ItemListBox->ScrollWidgetIntoView(SelectedItemWidget, true, EDescendantScrollDestination::Center);
 	}
@@ -1020,15 +966,17 @@ void UPGShopScreenWidget::SetShopButtonsEnabled(bool bEnabled) const
 	{
 		MapsTabButton->SetIsEnabled(bCanInteract && bMapsTabAvailable && ActiveTab != EPGShopTab::Maps);
 	}
-	for (UPGCharacterShopItemWidget* ItemWidget : CharacterItemWidgets)
+	for (const TWeakObjectPtr<UPGCharacterShopItemWidget>& ItemWidgetPtr : CharacterItemWidgets)
 	{
+		UPGCharacterShopItemWidget* ItemWidget = ItemWidgetPtr.Get();
 		if (ItemWidget)
 		{
 			ItemWidget->SetSelectionEnabled(bCanInteract && ActiveTab == EPGShopTab::Characters);
 		}
 	}
-	for (UPGMapShopItemWidget* ItemWidget : MapItemWidgets)
+	for (const TWeakObjectPtr<UPGMapShopItemWidget>& ItemWidgetPtr : MapItemWidgets)
 	{
+		UPGMapShopItemWidget* ItemWidget = ItemWidgetPtr.Get();
 		if (ItemWidget)
 		{
 			ItemWidget->SetSelectionEnabled(bCanInteract && ActiveTab == EPGShopTab::Maps);
@@ -1061,8 +1009,8 @@ void UPGShopScreenWidget::ApplyWidgetAnimationState(UWidget* Widget, const FVect
 
 	const float EffectiveDuration = FMath::Max(KINDA_SMALL_NUMBER, Duration);
 	const float LocalAlpha = FMath::Clamp((Alpha - Delay) / EffectiveDuration, 0.0f, 1.0f);
-	const float EasedAlpha = ShopEaseOutCubic(LocalAlpha);
-	const float ScaleAlpha = ShopEaseOutBack(LocalAlpha);
+	const float EasedAlpha = PGUIAnimation::EaseOutCubic(LocalAlpha);
+	const float ScaleAlpha = PGUIAnimation::EaseOutBack(LocalAlpha);
 	const float Scale = FMath::Lerp(StartScale, EndScale, ScaleAlpha);
 
 	// BP가 배치한 패널은 유지하고 RenderTransform만 조작해 디자인 자산을 C++에서 덮어쓰지 않는다.

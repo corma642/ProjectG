@@ -6,12 +6,16 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameModes/PGGameModeBase.h"
+#include "Track/PGTrackSegment.h"
+#include "Track/PGTrackSegmentSet.h"
+#include "Utilities/PGWeightedRandom.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGRunDirector, Log, All);
 
 APGRunDirector::APGRunDirector()
 {
 	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bStartWithTickEnabled = false;
 	PrimaryActorTick.TickInterval = 0.1f;
 }
 
@@ -106,6 +110,7 @@ void APGRunDirector::HandleRunCountdownStarted(float Duration)
 {
 	bIsRunActive = true;
 	bIsDifficultyActive = false;
+	SetActorTickEnabled(true);
 	SpawnSegmentsIfNeeded();
 }
 
@@ -114,12 +119,14 @@ void APGRunDirector::HandleRunStarted()
 	bIsRunActive = true;
 	bIsDifficultyActive = true;
 	RunElapsedTime = 0.0f;
+	SetActorTickEnabled(true);
 }
 
 void APGRunDirector::HandleRunFailed(FName FailureReason)
 {
 	bIsRunActive = false;
 	bIsDifficultyActive = false;
+	SetActorTickEnabled(false);
 }
 
 void APGRunDirector::InitializeRunnerReference()
@@ -296,7 +303,7 @@ bool APGRunDirector::SpawnNextSegment()
 		// 연속 등장 제한과 쿨다운은 선택된 데이터 에셋 엔트리 기준으로만 기록한다.
 		// fallback은 안전장치라 난이도 통계에 섞지 않는다.
 		LastSpawnedSegmentByEntry.FindOrAdd(EntryIndex) = SegmentIndex;
-		LastValidSegmentClass = SegmentClass;
+		LastValidSegmentClass = SegmentClass.Get();
 	}
 
 	++GeneratedSegmentCount;
@@ -346,7 +353,7 @@ APGTrackSegment* APGRunDirector::AcquireSegment(TSubclassOf<APGTrackSegment> Seg
 	FPGPooledTrackSegments& SegmentPool = SegmentPoolByClass.FindOrAdd(SegmentClass);
 	while (!SegmentPool.Segments.IsEmpty())
 	{
-		APGTrackSegment* Segment = SegmentPool.Segments.Pop(EAllowShrinking::No);
+		APGTrackSegment* Segment = SegmentPool.Segments.Pop(EAllowShrinking::No).Get();
 		if (Segment && !Segment->IsActorBeingDestroyed())
 		{
 			// 풀에서 꺼낸 세그먼트는 새 Transform을 적용하고, 내부 풀링 액터들이 리셋될 수 있게 알림을 보낸다.
@@ -376,6 +383,10 @@ void APGRunDirector::ReturnSegmentToPool(APGTrackSegment* Segment)
 
 	TSubclassOf<APGTrackSegment> SegmentClass = Segment->GetClass();
 	FPGPooledTrackSegments& SegmentPool = SegmentPoolByClass.FindOrAdd(SegmentClass);
+	SegmentPool.Segments.RemoveAllSwap([](const TWeakObjectPtr<APGTrackSegment>& Segment)
+	{
+		return !Segment.IsValid();
+	}, EAllowShrinking::No);
 	if (SegmentPool.Segments.Num() >= MaxPooledSegmentsPerClass)
 	{
 		// 풀 상한을 넘기면 모바일 메모리 증가를 막기 위해 실제 Destroy한다.
@@ -391,80 +402,31 @@ void APGRunDirector::ReturnSegmentToPool(APGTrackSegment* Segment)
 int32 APGRunDirector::SelectSegmentEntryIndex()
 {
 	const float DifficultyAlpha = GetDifficultyAlpha();
-	float TotalWeight = 0.0f;
 
-	// 첫 패스는 현재 난이도, 쿨다운, 연속 제한을 통과한 후보의 총 가중치를 계산한다.
-	for (int32 EntryIndex = 0; EntryIndex < SegmentSet->SegmentEntries.Num(); ++EntryIndex)
+	// 같은 resolver를 두 번 순회해 후보 배열을 만들지 않는다. 세그먼트 생성 Tick에서의 임시 할당을 피하기 위한 경로다.
+	return PGWeightedRandom::SelectIndex(
+		SegmentSet->SegmentEntries.Num(),
+		[this, DifficultyAlpha](int32 EntryIndex)
 	{
 		const FPGTrackSegmentEntry& Entry = SegmentSet->SegmentEntries[EntryIndex];
 		if (!Entry.SegmentClass || Entry.MinDifficultyAlpha > DifficultyAlpha)
 		{
-			continue;
+			return 0.0f;
 		}
 
 		const int32* LastSpawnedSegment = LastSpawnedSegmentByEntry.Find(EntryIndex);
 		if (LastSpawnedSegment && GeneratedSegmentCount - *LastSpawnedSegment <= Entry.CooldownSegments)
 		{
-			continue;
+			return 0.0f;
 		}
 
 		if (EntryIndex == LastSelectedEntryIndex && ConsecutiveEntryCount >= FMath::Max(1, Entry.MaxConsecutiveCount))
 		{
-			continue;
+			return 0.0f;
 		}
 
-		const float Weight = FMath::Max(0.0f, Entry.BaseWeight + Entry.DifficultyWeight * DifficultyAlpha);
-		if (Weight <= KINDA_SMALL_NUMBER)
-		{
-			continue;
-		}
-
-		TotalWeight += Weight;
-	}
-
-	if (TotalWeight <= KINDA_SMALL_NUMBER)
-	{
-		return INDEX_NONE;
-	}
-
-	const float Roll = RandomStream.FRandRange(0.0f, TotalWeight);
-	float AccumulatedWeight = 0.0f;
-
-	// 두 번째 패스에서 같은 필터를 다시 적용해 누적 가중치에 도달한 엔트리를 선택한다.
-	// 후보 배열을 따로 만들지 않아 Tick 중 임시 할당을 피한다.
-	for (int32 EntryIndex = 0; EntryIndex < SegmentSet->SegmentEntries.Num(); ++EntryIndex)
-	{
-		const FPGTrackSegmentEntry& Entry = SegmentSet->SegmentEntries[EntryIndex];
-		if (!Entry.SegmentClass || Entry.MinDifficultyAlpha > DifficultyAlpha)
-		{
-			continue;
-		}
-
-		const int32* LastSpawnedSegment = LastSpawnedSegmentByEntry.Find(EntryIndex);
-		if (LastSpawnedSegment && GeneratedSegmentCount - *LastSpawnedSegment <= Entry.CooldownSegments)
-		{
-			continue;
-		}
-
-		if (EntryIndex == LastSelectedEntryIndex && ConsecutiveEntryCount >= FMath::Max(1, Entry.MaxConsecutiveCount))
-		{
-			continue;
-		}
-
-		const float Weight = FMath::Max(0.0f, Entry.BaseWeight + Entry.DifficultyWeight * DifficultyAlpha);
-		if (Weight <= KINDA_SMALL_NUMBER)
-		{
-			continue;
-		}
-
-		AccumulatedWeight += Weight;
-		if (Roll <= AccumulatedWeight)
-		{
-			return EntryIndex;
-		}
-	}
-
-	return INDEX_NONE;
+		return FMath::Max(0.0f, Entry.BaseWeight + Entry.DifficultyWeight * DifficultyAlpha);
+	}, RandomStream);
 }
 
 TSubclassOf<APGTrackSegment> APGRunDirector::ResolveFallbackSegmentClass() const
@@ -475,10 +437,10 @@ TSubclassOf<APGTrackSegment> APGRunDirector::ResolveFallbackSegmentClass() const
 		return SegmentSet->FallbackSegmentClass;
 	}
 
-	if (LastValidSegmentClass)
+	if (UClass* LastValidClass = LastValidSegmentClass.Get())
 	{
-		// 최근에 실제로 생성에 성공한 클래스는 모바일 패키징에서도 로드/스폰 가능성이 확인된 후보다.
-		return LastValidSegmentClass;
+		// 최근에 실제로 생성에 성공한 클래스는 모바일 패키징에서도 로드/스폰 가능성이 확인된 후보입니다.
+		return LastValidClass;
 	}
 
 	if (!SegmentSet)

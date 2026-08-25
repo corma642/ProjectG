@@ -23,14 +23,28 @@ class PROJECTG_API UPGCargoDeliverySubsystem : public UTickableWorldSubsystem
 	GENERATED_BODY()
 
 public:
+	/** 설정을 캐시하고 월드 시작 이후 연결할 수 있도록 런타임 상태를 초기화합니다. */
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+
+	/** GameMode delegate와 현재 맵/러너 참조를 월드 종료 전에 해제합니다. */
 	virtual void Deinitialize() override;
+
+	/** 플레이 가능한 월드가 준비된 뒤 GameMode와 러너의 CargoStack을 연결합니다. */
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
+
+	/** Game과 PIE 월드에서만 배달 스케줄러를 생성하도록 제한합니다. */
 	virtual bool DoesSupportWorldType(EWorldType::Type WorldType) const override;
+
+	/** 활성 런에서만 누적 시간을 갱신하고 예정된 적재물 드롭을 처리합니다. */
 	virtual void Tick(float DeltaTime) override;
+
+	/** Unreal Tick 통계에 CargoDeliverySubsystem 식별자를 제공합니다. */
 	virtual TStatId GetStatId() const override;
+
+	/** Running 상태이고 GameMode가 연결된 동안에만 WorldSubsystem Tick을 허용합니다. */
 	virtual bool IsTickable() const override;
 
+	/** 현재 런 시간이 설정된 난이도 상승 시간에서 차지하는 0~1 비율을 반환합니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
 	float GetDifficultyAlpha() const;
 

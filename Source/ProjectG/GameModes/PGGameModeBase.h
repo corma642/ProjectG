@@ -20,11 +20,11 @@ enum class EPGRunState : uint8
 	Failed
 };
 
-/**
- * 레벨 로드 직후 어떤 런 플로우로 시작할지 결정하는 모드입니다.
- */
+/** 초 단위 카운트다운이 시작돼 러너와 런 시스템이 준비 상태로 전환될 때 발생합니다. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPGRunCountdownStartedSignature, float, Duration);
+/** 카운트다운이 끝나 점수·난이도·전진 갱신을 시작할 때 발생합니다. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPGRunStartedSignature);
+/** 실패 원인이 확정돼 런타임 시스템을 정지하고 결과 화면을 표시할 때 발생합니다. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPGRunFailedSignature, FName, FailureReason);
 
 /**
@@ -36,43 +36,44 @@ class PROJECTG_API APGGameModeBase : public AGameModeBase
 	GENERATED_BODY()
 
 public:
+	/** 레벨 배치 러너를 START 시점에 Possess하는 상태 머신 기본값을 구성합니다. */
 	APGGameModeBase();
 
-	// 러너는 레벨에 배치한 BP_Runner를 START 시점에 Possess하므로 기본 Pawn 자동 스폰을 막습니다.
+	/** 러너는 레벨에 배치한 BP_Runner를 START 시점에 Possess하므로 기본 Pawn 자동 스폰을 막습니다. */
 	virtual APawn* SpawnDefaultPawnFor_Implementation(AController* NewPlayer, AActor* StartSpot) override;
 
-	// 게임 시작 직후 초기 런 상태를 준비합니다.
+	/** 레벨 설정을 검증하고 Home 또는 Retry 진입 상태를 준비한 뒤 초기 delegate 순서를 결정합니다. */
 	virtual void BeginPlay() override;
 
-	// 홈 화면이나 Retry 플로우에서 START DELIVERY 카운트다운을 시작합니다.
+	/** Home 또는 Retry에서 START DELIVERY 카운트다운을 시작합니다. 그 외 상태의 중복 요청은 무시합니다. */
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Run")
 	void RequestStartDelivery();
 
-	// 적재물 손실, 추락 등으로 런 실패를 요청합니다.
+	/** Running 상태에서 적재물 손실·추락 실패를 확정하고 보상 정산 후 OnRunFailed를 발생시킵니다. */
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Run")
 	void RequestRunFailed(FName FailureReason);
 
-	// 실패 연출 없이 현재 런 보상만 정산합니다. Pause Home처럼 런을 종료하고 홈으로 돌아갈 때 사용합니다.
+	/** 실패 연출 없이 현재 런 보상을 한 번만 정산합니다. 새 정산이 저장되면 true를 반환합니다. */
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Run")
 	bool SettleCurrentRunRewards(FName Reason);
 
-	// 현재 플레이에 사용할 러너를 반환합니다. Possess 전에는 레벨에 배치된 단일 러너를 사용합니다.
+	/** 현재 플레이 러너를 반환합니다. Possess 전에는 검증된 레벨 배치 러너를 반환하며 없으면 null입니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run")
 	APGRunnerCharacter* GetPlayableRunnerCharacter() const;
 
-	// 현재 러너 플레이 상태입니다.
+	/** 현재 Home/Countdown/Running/Failed 상태를 반환합니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run")
 	EPGRunState GetRunState() const { return RunState; }
 
-	// 카운트다운 시작을 UI, 러너, 트랙 시스템에 전달합니다.
+	/** 카운트다운 시작과 초 단위 Duration을 UI, 러너, 트랙 시스템에 전달합니다. */
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run")
 	FPGRunCountdownStartedSignature OnRunCountdownStarted;
 
-	// 실제 러닝 시작을 러너, 적재물, 이벤트, 점수 시스템에 전달합니다.
+	/** 실제 러닝 시작을 러너, 적재물, 이벤트, 점수 시스템에 전달합니다. */
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run")
 	FPGRunStartedSignature OnRunStarted;
 
-	// 런 실패 확정을 결과 UI와 관련 시스템에 전달합니다.
+	/** 런 실패 원인 확정을 결과 UI와 관련 시스템에 전달합니다. */
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run")
 	FPGRunFailedSignature OnRunFailed;
 

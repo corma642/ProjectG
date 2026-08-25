@@ -19,12 +19,17 @@ class PROJECTG_API UPGFPSDisplayWidget : public UUserWidget
 	GENERATED_BODY()
 
 protected:
+	/** 누적 프레임과 갱신 시간을 초기화하고 첫 표시값을 준비합니다. */
 	virtual void NativeConstruct() override;
+
+	/** 매 프레임 문자열을 만들지 않고 설정된 간격마다 평균 FPS 텍스트를 갱신합니다. */
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
+	// FPS 오버레이의 SafeZone 대응과 배경 배치를 담당하는 필수 BP 루트입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "FPS Display")
 	TObjectPtr<UWidget> RootPanel;
 
+	// 측정한 평균 FPS 숫자를 표시하는 필수 텍스트입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "FPS Display")
 	TObjectPtr<UTextBlock> FPSText;
 

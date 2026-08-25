@@ -22,12 +22,16 @@ class PROJECTG_API UPGMusicComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	/** 오디오 재생은 상태 이벤트로만 구동되도록 ActorComponent Tick을 비활성화합니다. */
 	UPGMusicComponent();
 
+	/** GameMode, preload, 사용자 볼륨 설정을 연결하고 현재 상태에 맞는 BGM을 복구합니다. */
 	virtual void BeginPlay() override;
+
+	/** delegate와 생성한 AudioComponent를 컴포넌트 종료 전에 해제합니다. */
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	// Pause 화면이 열릴 때 Run BGM 볼륨을 낮추고, 닫힐 때 원래 볼륨으로 되돌립니다.
+	/** Pause 진입 시 Run BGM을 설정 배율로 낮추고, 해제 시 현재 사용자 음악 볼륨으로 복구합니다. */
 	void SetMusicDucked(bool bDucked);
 
 private:

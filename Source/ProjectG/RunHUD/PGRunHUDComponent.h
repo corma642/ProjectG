@@ -26,16 +26,22 @@ class PROJECTG_API UPGRunHUDComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	/** 상시 Tick을 끄고 런 중 필요한 HUD 갱신에서만 동적으로 활성화하도록 구성합니다. */
 	UPGRunHUDComponent();
 
+	/** Controller, GameMode와 이미 Possess된 러너를 찾아 HUD 데이터 흐름을 연결합니다. */
 	virtual void BeginPlay() override;
+
+	/** 일시정지를 해제하고 모든 UI·delegate 참조를 수명 종료 전에 정리합니다. */
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	/** 활성 Cargo 카드의 남은 시간처럼 이벤트만으로 갱신할 수 없는 HUD 상태를 제한 주기로 새로 고칩니다. */
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	// START 시점에 실제 러너가 Possess되면 점수/거리/적재물 델리게이트를 바인딩합니다.
+	/** START 시점에 Possess된 러너의 점수·거리·적재물 delegate를 바인딩하고 HUD 값을 동기화합니다. */
 	void HandleRunnerPossessed(APGRunnerCharacter* RunnerCharacter);
 
-	// 러너 Possess가 풀리거나 레벨 종료 시 HUD 데이터 바인딩을 정리합니다.
+	/** 러너 Possess가 풀리거나 레벨 종료될 때 HUD 데이터 delegate와 캐시를 정리합니다. */
 	void HandleRunnerUnpossessed();
 
 private:
@@ -101,12 +107,15 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UPGCargoStackComponent> BoundCargoStackComponent;
 
+	// viewport에 추가한 러닝 HUD를 실패·Home 전환까지 생존시킵니다.
 	UPROPERTY(Transient)
 	TObjectPtr<UPGRunHUDWidget> HUDWidget;
 
+	// 게임 일시정지와 입력 모드 복구를 함께 소유하는 Pause 모달입니다.
 	UPROPERTY(Transient)
 	TObjectPtr<UPGRunPauseWidget> PauseWidget;
 
+	// Pause 위에 중첩되는 Settings 모달이며 닫힘 후 Pause 입력을 복구합니다.
 	UPROPERTY(Transient)
 	TObjectPtr<UPGSettingsScreenWidget> SettingsScreenWidget;
 

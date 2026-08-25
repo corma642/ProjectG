@@ -2,19 +2,12 @@
 
 #include "UI/PGCargoDeliveryItemWidget.h"
 
+#include "Cargo/PGCargoStackComponent.h"
 #include "Components/Image.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
-
-namespace
-{
-float CargoItemEaseOutCubic(float Alpha)
-{
-	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
-	return 1.0f - FMath::Pow(1.0f - ClampedAlpha, 3.0f);
-}
-}
+#include "UI/PGUIAnimationUtils.h"
 
 void UPGCargoDeliveryItemWidget::NativeConstruct()
 {
@@ -35,7 +28,7 @@ void UPGCargoDeliveryItemWidget::NativeTick(const FGeometry& MyGeometry, float I
 	const float Alpha = AnimationDuration > KINDA_SMALL_NUMBER
 		? FMath::Clamp(AnimationElapsed / AnimationDuration, 0.0f, 1.0f)
 		: 1.0f;
-	ApplyAnimationState(CargoItemEaseOutCubic(Alpha), bIsExiting);
+	ApplyAnimationState(PGUIAnimation::EaseOutCubic(Alpha), bIsExiting);
 
 	if (Alpha >= 1.0f)
 	{

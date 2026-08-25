@@ -325,7 +325,7 @@ struct FPGHomeFlowSettings
 };
 
 /**
- * Home 상점 화면과 캐릭터 스킨 카탈로그 설정
+ * 영수증 상점에서 표시하고 테스트 지급에 사용하는 상품 한 건의 설정입니다.
  */
 USTRUCT(BlueprintType)
 struct FPGReceiptShopPack
@@ -349,6 +349,7 @@ struct FPGReceiptShopPack
 	TSoftObjectPtr<UTexture2D> Thumbnail;
 };
 
+/** Home 상점 화면, 상품 카탈로그, 영수증 상점과 Shop 카메라 전환 설정입니다. */
 USTRUCT(BlueprintType)
 struct FPGShopSettings
 {
@@ -786,6 +787,7 @@ class PROJECTG_API UPGGameSettings : public UDeveloperSettings
 	GENERATED_BODY()
 
 public:
+	/** 플랫폼 공통 기본값과 에디터 검증에 사용하는 설정 범위를 구성합니다. */
 	UPGGameSettings();
 
 	// 자동 전진 캐릭터 기본 설정

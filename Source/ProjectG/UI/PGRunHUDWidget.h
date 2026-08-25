@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "Cargo/PGCargoStackComponent.h"
 #include "PGRunHUDWidget.generated.h"
 
 class UButton;
@@ -14,7 +13,9 @@ class UPGCargoDeliveryItemWidget;
 class UPGCargoScoreIndicatorWidget;
 class UTextBlock;
 class UWidget;
+struct FPGActiveCargoInfo;
 
+/** Pause 버튼 입력을 HUD 소유 컴포넌트에 전달합니다. */
 DECLARE_MULTICAST_DELEGATE(FPGRunHUDPauseRequestedSignature);
 
 /**
@@ -27,22 +28,47 @@ class PROJECTG_API UPGRunHUDWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	/** Pause 모달 생성을 상위 HUD 컴포넌트에 요청합니다. */
 	FPGRunHUDPauseRequestedSignature OnPauseRequested;
 
+	/** 적재물 카드 풀을 생성할 Widget Blueprint 클래스를 설정합니다. */
 	void SetCargoItemWidgetClass(TSubclassOf<UPGCargoDeliveryItemWidget> InCargoItemWidgetClass);
+
+	/** 배달 완료 점수 인디케이터를 생성할 Widget Blueprint 클래스를 설정합니다. */
 	void SetCargoScoreIndicatorWidgetClass(TSubclassOf<UPGCargoScoreIndicatorWidget> InCargoScoreIndicatorWidgetClass);
+
+	/** 현재 런 점수를 정수 텍스트로 갱신합니다. */
 	void SetScore(int32 Score);
+
+	/** 표시 거리를 미터 단위 텍스트로 갱신합니다. */
 	void SetDistanceMeters(float DistanceMeters);
+
+	/** 이번 런에서 획득한 영수증 수를 갱신합니다. */
 	void SetReceipts(int32 Receipts);
+
+	/** 전환 또는 Pause 중 HUD의 Pause 입력을 잠급니다. */
 	void SetPauseButtonEnabled(bool bEnabled) const;
+
+	/** 활성 적재물 스냅샷과 카드 풀을 ID 기준으로 동기화합니다. */
 	void RefreshCargoList(const TArray<FPGActiveCargoInfo>& ActiveCargoInfos);
+
+	/** 지정 적재물 카드 위치에 배달 보너스 점수 인디케이터를 표시합니다. */
 	void ShowCargoScoreIndicator(int32 CargoInstanceId, int32 Score);
+
+	/** 런 HUD 진입 애니메이션을 시작합니다. */
 	void PlayEnterAnimation();
+
+	/** 실패 또는 Home 이동 전 HUD 퇴장 애니메이션을 시작합니다. */
 	void PlayExitAnimation();
 
 protected:
+	/** Pause 버튼 delegate를 연결합니다. */
 	virtual void NativeConstruct() override;
+
+	/** Pause 버튼과 풀링 카드 delegate를 위젯 제거 전에 해제합니다. */
 	virtual void NativeDestruct() override;
+
+	/** HUD 진입 또는 퇴장 애니메이션 동안에만 표현 상태를 갱신합니다. */
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	// HUD 전체 루트 패널입니다.
@@ -61,6 +87,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UTextBlock> ReceiptsText;
 
+	/** 러닝 중 Pause 모달 생성을 요청하는 필수 버튼입니다. */
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UButton> PauseButton;
 

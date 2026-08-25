@@ -23,15 +23,18 @@ class PROJECTG_API APGReceiptPickupActor : public AActor, public IPGTrackPoolabl
 	GENERATED_BODY()
 
 public:
+	/** 수집 트리거와 표시 메시를 생성하고 Actor Tick을 비활성화합니다. */
 	APGReceiptPickupActor();
 
+	/** 수집 overlap delegate를 연결하고 레벨 배치 픽업을 활성 상태로 준비합니다. */
 	virtual void BeginPlay() override;
+	/** 세그먼트 또는 월드 종료 전에 overlap delegate를 해제합니다. */
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	// 세그먼트가 풀에서 재사용될 때 영수증을 다시 획득 가능한 상태로 복구합니다.
+	/** 세그먼트가 풀에서 재사용될 때 영수증을 다시 획득 가능한 상태로 복구합니다. */
 	virtual void OnTrackSegmentActivatedFromPool_Implementation() override;
 
-	// 세그먼트가 풀로 반환될 때 충돌과 표시를 꺼서 비활성 상태로 정리합니다.
+	/** 세그먼트가 풀로 반환될 때 충돌과 표시를 꺼서 비활성 상태로 정리합니다. */
 	virtual void OnTrackSegmentDeactivatedForPool_Implementation() override;
 
 protected:

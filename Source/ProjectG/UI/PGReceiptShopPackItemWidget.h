@@ -12,6 +12,7 @@ class UImage;
 class UTextBlock;
 class UWidget;
 
+/** 영수증 상품 버튼이 눌렸을 때 설정 배열의 PackIndex를 상점 화면에 전달합니다. */
 DECLARE_MULTICAST_DELEGATE_OneParam(FPGReceiptShopPackSelectedSignature, int32 /*PackIndex*/);
 
 /**
@@ -24,15 +25,26 @@ class PROJECTG_API UPGReceiptShopPackItemWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	/** 구매 요청 시 상점 설정 배열의 인덱스를 전달합니다. */
 	FPGReceiptShopPackSelectedSignature OnPackSelected;
 
+	/** 상품 이름, 지급량, 가격, 썸네일과 원본 배열 인덱스를 카드에 주입합니다. */
 	void InitializePack(const FPGReceiptShopPack& InPack, int32 InPackIndex);
+
+	/** 지급 성공 여부에 따라 짧은 scale 또는 흔들림 피드백을 재생합니다. */
 	void PlayPurchaseFeedback(bool bSuccess);
+
+	/** 모달 전환이나 처리 중 상품 구매 버튼 입력을 잠급니다. */
 	void SetPackButtonEnabled(bool bEnabled) const;
 
 protected:
+	/** BP 구매 버튼 delegate를 연결합니다. */
 	virtual void NativeConstruct() override;
+
+	/** 제거 전에 구매 버튼 delegate를 해제합니다. */
 	virtual void NativeDestruct() override;
+
+	/** 구매 결과 피드백이 재생되는 동안에만 카드 상태를 갱신합니다. */
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	// 상품 행 전체 루트입니다. 구매 성공/실패 피드백은 이 루트에 적용합니다.

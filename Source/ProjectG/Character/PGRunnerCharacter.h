@@ -3,15 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Cargo/PGCargoStackComponent.h"
-#include "Environment/PGRunnerEnvironmentComponent.h"
 #include "GameFramework/Character.h"
-#include "Movement/PGRunnerMovementComponent.h"
 #include "Settings/PGGameSettings.h"
 #include "PGRunnerCharacter.generated.h"
 
 class UCameraComponent;
 class UPGCharacterSkinDefinition;
+class UPGCargoStackComponent;
+class UPGRunnerEnvironmentComponent;
+class UPGRunnerMovementComponent;
 class UPGRunProgressComponent;
 class USpringArmComponent;
 
@@ -25,82 +25,85 @@ class PROJECTG_API APGRunnerCharacter : public ACharacter
 	GENERATED_BODY()
 
 public:
+	/** 러너 전용 MovementComponent와 카메라·적재물·환경·진행 컴포넌트를 기본 서브오브젝트로 구성합니다. */
 	APGRunnerCharacter(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	// 매 프레임 자동 전진, 중심 불안정성, 적재물 물리 반응, 추락 실패 판정을 갱신한다.
+	/** Countdown/Running에서만 자동 전진, 중심 불안정성, 적재물 반응과 추락 실패 판정을 갱신합니다. */
 	virtual void Tick(float DeltaSeconds) override;
 
-	// 시작 위치와 Project Settings 값을 캐시하고 런타임 컴포넌트를 초기화한다.
+	/** 시작 위치와 Project Settings 값을 캐시해 Home 복구와 이후 런 reset의 기준을 준비합니다. */
 	virtual void BeginPlay() override;
 
-	// 런 중 생성한 Bowl Actor가 레벨 전환/재시작 때 남지 않도록 정리한다.
+	/** 런 중 생성한 Bowl Actor와 delegate가 레벨 전환 또는 재시작 뒤 남지 않도록 정리합니다. */
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	// 화면 입력/Space로 수직 점프를 요청하고, 실제 점프가 시작됐는지 반환한다.
+	/** 화면 입력 또는 Space 수직 점프를 요청하고, 현재 상태에서 점프 요청을 수락했는지 반환합니다. */
 	bool RequestJump();
 
-	// 좌우 플릭 입력으로 점프와 짧은 측면 이동 보정을 함께 요청한다.
+	/** -1~1 방향 부호의 플릭 입력으로 점프와 짧은 측면 이동 보정을 함께 요청합니다. */
 	void RequestFlickJump(float DirectionSign);
 
-	// 터치 드래그/키보드에서 계산한 플레이어 중심 보정 입력을 캐릭터에 반영한다.
+	/** 터치 드래그 또는 키보드에서 계산한 중심 보정 입력을 -1~1 범위로 반영합니다. */
 	void SetBalanceInput(float InBalanceInput);
 
-	// 현재 플레이어가 입력 중인 좌우 중심 보정값
+	/** 현재 플레이어가 입력 중인 좌우 중심 보정값을 -1~1 범위로 반환합니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner")
 	float GetBalanceInput() const { return BalanceInput; }
 
-	// 현재 런이 시작된 뒤 경과한 시간입니다.
+	/** 현재 런이 시작된 뒤 경과한 시간을 초 단위로 반환합니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner")
 	float GetRunElapsedTime() const;
 
-	// 런 시작 지점 기준 전방 진행 거리입니다. UI 표시를 위해 미터 단위로 반환합니다.
+	/** 런 시작 지점 기준 전방 진행 거리를 UI 표시용 미터 단위로 반환합니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner")
 	float GetRunDistanceMeters() const;
 
-	// RunProgressComponent가 계산한 현재 런 점수입니다.
+	/** RunProgressComponent가 계산한 현재 런 점수를 반환합니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner")
 	int32 GetRunScore() const;
 
-	// 현재 런에서 획득한 영수증 개수입니다.
+	/** 현재 런에서 획득한 영수증 수를 반환합니다. 영구 지갑 잔액과는 별개입니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner")
 	int32 GetRunReceipts() const;
 
-	// 현재 런에서 배달 완료한 적재물 개수입니다.
+	/** 현재 런에서 배달 완료한 적재물 개수를 반환합니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner")
 	int32 GetDeliveredCargoCount() const;
 
-	// 적재물 자동 연출/환경 이벤트 시스템이 현재 러너의 적재 상태에 접근할 때 사용합니다.
+	/** 적재물 드롭과 HUD가 현재 러너의 적재 상태에 접근할 때 사용하는 컴포넌트를 반환합니다. */
 	UPGCargoStackComponent* GetCargoStackComponent() const { return CargoStackComponent; }
 
-	// HUD가 점수, 거리, 영수증 변화를 구독할 때 사용하는 진행 컴포넌트입니다.
+	/** HUD가 점수, 거리, 영수증 변화를 구독할 때 사용하는 진행 컴포넌트를 반환합니다. */
 	UPGRunProgressComponent* GetRunProgressComponent() const { return RunProgressComponent; }
 
-	// 상점/저장 시스템에서 선택한 캐릭터 스킨을 러너 시각 메시로 적용합니다.
+	/** 선택한 스킨의 메시·애님 클래스를 적용하고, 필수 에셋이 없으면 false를 반환합니다. */
 	bool ApplyCharacterSkin(const UPGCharacterSkinDefinition* SkinDefinition);
 
-	// 현재 저장된 장착 캐릭터 스킨을 러너에 적용합니다.
+	/** UserData에 저장된 장착 캐릭터 스킨을 현재 러너에 적용합니다. */
 	void ApplyEquippedCharacterSkin();
 
-	// Home/Shop 프리뷰 회전과 분리해 실제 런 시작은 위치 유지 + 회전 0 기준으로 정렬합니다.
+	/** Home/Shop 프리뷰 회전과 분리해 실제 런 시작을 위치 유지와 yaw 0 기준으로 정렬합니다. */
 	void PrepareTransformForRunStart();
 
-	// Home 화면에 다시 표시될 때 BeginPlay에서 저장한 Home 배치 Transform으로 복구합니다.
+	/** Home 화면에 다시 표시될 때 BeginPlay에서 저장한 배치 Transform으로 복구합니다. */
 	void RestoreHomePreviewTransform();
 
-	// 물리 적재물이 손실됐을 때 런 실패를 요청한다.
+	/** 물리 적재물이 손실됐을 때 GameMode에 런 실패를 요청합니다. */
 	UFUNCTION()
 	void HandleCargoLost(int32 CargoIndex);
 
-	// 적재물 배달 완료 시 점수 보상을 반영합니다.
+	/** 적재물 배달 완료 점수·영수증을 진행도에 반영하고 월드 위치 피드백을 전달합니다. */
 	void HandleCargoDelivered(int32 CargoInstanceId, int32 Score, int32 Receipts, FVector DeliveryLocation);
 
-	// 런 실패 이벤트를 받으면 자동 전진과 입력 반응을 정지한다.
+	/** 런 실패 이벤트를 받으면 자동 전진·입력·Actor Tick을 정지하고 실패 lean을 적용합니다. */
 	UFUNCTION()
 	void HandleRunFailed(FName FailureReason);
 
+	/** 카운트다운 시작 시 러너 Transform과 적재 상태를 새 런 기준으로 준비하고 Tick을 활성화합니다. */
 	UFUNCTION()
 	void HandleRunCountdownStarted(float Duration);
 
+	/** GO 시점 위치·시간을 점수 기준으로 다시 잡고 입력과 환경 반응을 활성화합니다. */
 	UFUNCTION()
 	void HandleRunStarted();
 

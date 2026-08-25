@@ -21,6 +21,7 @@ enum class EPGRuntimePreloadGroup : uint8
 	Tutorial
 };
 
+/** 요청한 리소스 그룹의 비동기 로드가 끝나 대기 중인 화면 흐름을 재개할 때 발생합니다. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPGRuntimePreloadCompletedSignature, EPGRuntimePreloadGroup, Group);
 
 /**
@@ -33,7 +34,10 @@ class PROJECTG_API UPGRuntimePreloadSubsystem : public UGameInstanceSubsystem
 	GENERATED_BODY()
 
 public:
+	/** 맵 전환 delegate를 연결하고 Home 그룹의 비동기 예열 상태를 받을 준비를 합니다. */
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+
+	/** 진행 중인 streamable handle과 맵 delegate를 Subsystem 종료 전에 해제합니다. */
 	virtual void Deinitialize() override;
 
 	/** 지정한 화면 흐름에 필요한 리소스 예열을 시작합니다. 이미 준비됐거나 진행 중이면 중복 요청하지 않습니다. */

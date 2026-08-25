@@ -21,9 +21,12 @@ class PROJECTG_API UPGFPSDisplayComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	/** 설정 delegate로만 구동되도록 ActorComponent Tick을 비활성화합니다. */
 	UPGFPSDisplayComponent();
 
+	/** 로컬 PlayerController와 FPS 표시 설정을 연결하고 준비된 UI 리소스로 현재 표시 상태를 복구합니다. */
 	virtual void BeginPlay() override;
+	/** 설정·preload delegate를 해제하고 생성한 FPS 위젯을 제거합니다. */
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:

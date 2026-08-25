@@ -7,16 +7,7 @@
 #include "Components/Image.h"
 #include "Components/Widget.h"
 #include "Shop/PGCharacterSkinDefinition.h"
-
-namespace
-{
-float CharacterItemEaseOutCubic(float Alpha)
-{
-	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
-	const float InverseAlpha = 1.0f - ClampedAlpha;
-	return 1.0f - InverseAlpha * InverseAlpha * InverseAlpha;
-}
-}
+#include "UI/PGUIAnimationUtils.h"
 
 void UPGCharacterShopItemWidget::NativeConstruct()
 {
@@ -122,7 +113,7 @@ void UPGCharacterShopItemWidget::StartStateAnimation(bool bOwned, bool bEquipped
 
 void UPGCharacterShopItemWidget::ApplyStateAnimation(float Alpha)
 {
-	const float EasedAlpha = CharacterItemEaseOutCubic(Alpha);
+	const float EasedAlpha = PGUIAnimation::EaseOutCubic(Alpha);
 	const float TargetRootScale = bLastSelected ? 1.05f : 1.0f;
 	const float TargetRootOpacity = bLastSelected ? 1.0f : 0.86f;
 	const float TargetThumbnailScale = bLastSelected ? 1.04f : 1.0f;

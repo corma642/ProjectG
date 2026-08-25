@@ -6,29 +6,7 @@
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "Settings/PGGameSettings.h"
-
-namespace
-{
-float EaseOutBack(float Alpha)
-{
-	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
-	constexpr float Overshoot = 1.70158f;
-	const float Shifted = ClampedAlpha - 1.0f;
-	return 1.0f + (Overshoot + 1.0f) * Shifted * Shifted * Shifted + Overshoot * Shifted * Shifted;
-}
-
-float EaseOutCubic(float Alpha)
-{
-	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
-	return 1.0f - FMath::Pow(1.0f - ClampedAlpha, 3.0f);
-}
-
-float EaseInCubicCountdown(float Alpha)
-{
-	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
-	return ClampedAlpha * ClampedAlpha * ClampedAlpha;
-}
-}
+#include "UI/PGUIAnimationUtils.h"
 
 void UPGRunCountdownWidget::NativeConstruct()
 {
@@ -126,17 +104,17 @@ void UPGRunCountdownWidget::ApplyStepAnimation(float StepAlpha)
 	if (StepAlpha < ImpactEndAlpha)
 	{
 		const float ImpactAlpha = StepAlpha / ImpactEndAlpha;
-		Scale = FMath::Lerp(2.4f, 1.15f, EaseOutBack(ImpactAlpha));
+		Scale = FMath::Lerp(2.4f, 1.15f, PGUIAnimation::EaseOutBack(ImpactAlpha));
 	}
 	else if (StepAlpha < FadeOutStartAlpha)
 	{
 		const float HoldAlpha = (StepAlpha - ImpactEndAlpha) / FMath::Max(KINDA_SMALL_NUMBER, FadeOutStartAlpha - ImpactEndAlpha);
-		Scale = FMath::Lerp(1.15f, 1.0f, EaseOutCubic(HoldAlpha));
+		Scale = FMath::Lerp(1.15f, 1.0f, PGUIAnimation::EaseOutCubic(HoldAlpha));
 	}
 	else
 	{
 		const float ExitAlpha = (StepAlpha - FadeOutStartAlpha) / FMath::Max(KINDA_SMALL_NUMBER, 1.0f - FadeOutStartAlpha);
-		Scale = FMath::Lerp(1.0f, 0.65f, EaseInCubicCountdown(ExitAlpha));
+		Scale = FMath::Lerp(1.0f, 0.65f, PGUIAnimation::EaseInCubic(ExitAlpha));
 	}
 
 	const float FadeInAlpha = FMath::Clamp(StepAlpha / 0.12f, 0.0f, 1.0f);

@@ -10,6 +10,7 @@ class UAnimInstance;
 class USkeletalMesh;
 class UTexture2D;
 
+/** 상점 필터와 표시 문구에 사용하는 캐릭터 성별 메타데이터입니다. */
 UENUM(BlueprintType)
 enum class EPGCharacterGender : uint8
 {

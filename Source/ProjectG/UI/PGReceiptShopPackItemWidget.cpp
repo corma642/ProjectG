@@ -7,16 +7,7 @@
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "Engine/Texture2D.h"
-
-namespace
-{
-float ReceiptPackEaseOutCubic(float Alpha)
-{
-	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
-	const float InverseAlpha = 1.0f - ClampedAlpha;
-	return 1.0f - InverseAlpha * InverseAlpha * InverseAlpha;
-}
-}
+#include "UI/PGUIAnimationUtils.h"
 
 void UPGReceiptShopPackItemWidget::InitializePack(const FPGReceiptShopPack& InPack, int32 InPackIndex)
 {
@@ -100,12 +91,12 @@ void UPGReceiptShopPackItemWidget::ApplyPurchaseFeedback(float DeltaSeconds)
 
 	FeedbackElapsed += DeltaSeconds;
 	const float Alpha = FeedbackDuration > KINDA_SMALL_NUMBER ? FMath::Clamp(FeedbackElapsed / FeedbackDuration, 0.0f, 1.0f) : 1.0f;
-	const float EasedAlpha = ReceiptPackEaseOutCubic(Alpha);
+	const float EasedAlpha = PGUIAnimation::EaseOutCubic(Alpha);
 
 	if (bFeedbackSuccess)
 	{
 		const float PulseAlpha = Alpha < 0.5f ? Alpha * 2.0f : (1.0f - Alpha) * 2.0f;
-		const float Scale = FMath::Lerp(1.0f, 1.06f, ReceiptPackEaseOutCubic(PulseAlpha));
+		const float Scale = FMath::Lerp(1.0f, 1.06f, PGUIAnimation::EaseOutCubic(PulseAlpha));
 		RootPanel->SetRenderScale(FVector2D(Scale, Scale));
 		RootPanel->SetRenderTranslation(FVector2D::ZeroVector);
 	}

@@ -19,45 +19,47 @@ class PROJECTG_API UPGRunnerMovementComponent : public UCharacterMovementCompone
 	GENERATED_BODY()
 
 public:
+	/** 러너 전용 이동 모드와 불필요한 기본 회전 동작을 설정합니다. */
 	UPGRunnerMovementComponent();
 
-	// 런 시작 기준 위치/축과 Project Settings의 점프, 터치, Balance 설정값을 적용합니다.
+	/** 런 시작 위치·정규 축과 점프/터치/Balance 설정을 적용하고 누적 이동 상태를 reset합니다. */
 	void InitializeRunnerMovement(const FPGJumpSettings& InJumpSettings, const FPGTouchControlSettings& InTouchControlSettings, const FPGBalanceSettings& InBalanceSettings, const FVector& InOriginLocation, const FVector& InRunnerForwardVector, const FVector& InRunnerRightVector);
 
-	// 지면 상태와 쿨타임을 만족하면 수직 점프를 실행합니다. 실제 점프가 시작된 경우에만 true를 반환합니다.
+	/** 지면 상태와 쿨타임을 만족하면 수직 점프를 실행하고, 실제 점프가 시작된 경우에만 true를 반환합니다. */
 	bool RequestJump();
 
-	// 까마귀 무리 같은 이동형 위험 Actor가 Balance 속도에 순간 충격을 더할 때 사용합니다.
+	/** 이동형 위험 Actor의 cm/s 순간 충격을 Balance 속도에 더하고 MaxAbsVelocity 범위로 제한합니다. */
 	void ApplyExternalBalanceImpulse(float ImpulseVelocity, float MaxAbsVelocity);
 
-	// 좌우 플릭 점프가 성공했을 때 기존 Balance 이동 위에 짧은 측면 이동 보정을 더합니다.
+	/** 점프 성공 직후 -1~1 방향 부호에 따라 짧은 측면 이동 보정을 더합니다. */
 	void ApplyFlickLateralStep(float DirectionSign);
 
-	// 착지 직후 입력 완화가 남은 시간입니다.
+	/** 착지 직후 입력 완화가 남은 시간을 초 단위로 반환합니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner Movement")
 	float GetLandingStabilizeRemainingTime() const { return LandingStabilizeRemainingTime; }
 
-	// 러너 시작 기준 전방 축입니다. 자동 전진과 위험 Actor 스폰 기준으로 사용합니다.
+	/** 자동 전진과 위험 Actor 스폰 기준인 런 시작 월드 전방 단위 벡터를 반환합니다. */
 	FVector GetRunnerForwardVector() const { return RunnerForwardVector; }
 
-	// 러너 시작 기준 오른쪽 축입니다. Balance 이동과 가상 위험 구역 배치 기준으로 사용합니다.
+	/** Balance 이동과 위험 구역 배치 기준인 런 시작 월드 오른쪽 단위 벡터를 반환합니다. */
 	FVector GetRunnerRightVector() const { return RunnerRightVector; }
 
-	// 기본 흔들림과 플레이어 보정 입력을 받아 다음 Tick의 좌우 Balance 이동에 반영합니다.
+	/** -1~1 기본 흔들림과 플레이어 보정 입력을 다음 CharacterMovement Tick에 반영합니다. */
 	void SetBalanceMovementInput(float InBaseInstabilityInput, float InPlayerCorrectionInput);
 
-	// 실패 확정 시 이동 모드를 끄고 점프/Balance 관련 잔여 상태를 정리합니다.
+	/** 실패 확정 시 이동 모드를 끄고 점프·Balance 잔여 상태를 정리합니다. */
 	void StopRunnerMovementForFailure();
 
-	// 시작 기준 축에서 현재 캡슐이 좌우로 벗어난 거리입니다.
+	/** 시작 기준 축에서 현재 캡슐이 좌우로 벗어난 거리를 cm 단위로 반환합니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner Movement")
 	float GetBalanceOffset() const { return BalanceOffset; }
 
-	// Balance 이동으로 발생 중인 좌우 속도입니다.
+	/** Balance 이동으로 발생 중인 좌우 속도를 cm/s 단위로 반환합니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner Movement")
 	float GetBalanceVelocity() const { return BalanceVelocity; }
 
 protected:
+	/** CharacterMovement의 표준 Tick에서 자동 전진과 Balance 오프셋을 순서대로 반영합니다. */
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 private:

@@ -11,6 +11,7 @@ class UPGCharacterSkinDefinition;
 class UButton;
 class UWidget;
 
+/** 캐릭터 카드 선택 시 해당 상품의 SkinId를 상점 화면에 전달합니다. */
 DECLARE_MULTICAST_DELEGATE_OneParam(FPGCharacterShopItemSelectedSignature, FName);
 
 /**
@@ -23,15 +24,26 @@ class PROJECTG_API UPGCharacterShopItemWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	/** 카드가 눌렸을 때 현재 SkinId를 상점 화면에 전달합니다. */
 	FPGCharacterShopItemSelectedSignature OnCharacterSelected;
 
+	/** 캐릭터 상품과 보유·장착·선택 상태를 카드 표현에 주입합니다. */
 	void SetCharacterSkin(const UPGCharacterSkinDefinition* InSkinDefinition, bool bOwned, bool bEquipped, bool bSelected);
+
+	/** 상위 상점의 전환·모달 상태에 맞춰 카드 선택 입력을 잠급니다. */
 	void SetSelectionEnabled(bool bEnabled) const;
+
+	/** 현재 카드가 나타내는 상품의 SkinId를 반환합니다. */
 	FName GetSkinId() const { return SkinId; }
 
 protected:
+	/** BP 선택 버튼 delegate를 연결합니다. */
 	virtual void NativeConstruct() override;
+
+	/** 재사용 또는 제거 전에 선택 버튼 delegate를 해제합니다. */
 	virtual void NativeDestruct() override;
+
+	/** 보유·장착·선택 상태가 바뀐 직후의 짧은 카드 애니메이션만 갱신합니다. */
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	// 카드 전체 루트입니다. 선택 상태에 따라 스케일과 투명도 애니메이션을 적용합니다.

@@ -21,16 +21,21 @@ class PROJECTG_API UPGRunResultWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	// 결과 위젯 생성 직후 현재 런의 실패 원인, 시간, 거리, 점수, 영수증, 배달 완료 수를 전달합니다.
+	/** 결과 위젯 생성 직후 실패 원인, 초 단위 시간, 미터 단위 거리, 점수, 영수증, 완료 배달 수를 전달합니다. */
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | UI")
 	void ConfigureRunResult(FName FailureReason, float RunTimeSeconds, float DistanceMeters, int32 Score, int32 Receipts, int32 OrdersDelivered);
 
 protected:
+	/** BP 버튼·행 캐시를 연결하고 ConfigureRunResult 이전에도 안전한 초기 표현을 준비합니다. */
 	virtual void NativeConstruct() override;
+
+	/** Retry/Home 버튼 delegate와 임시 애니메이션 캐시를 제거 전에 해제합니다. */
 	virtual void NativeDestruct() override;
+
+	/** backdrop과 결과 행의 시차 진입 애니메이션이 끝날 때까지 상태를 갱신합니다. */
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
-	// BP 상속 위젯에서 결과 데이터 수신 후 추가 연출이나 스타일 후처리를 붙일 수 있는 확장 지점입니다.
+	/** BP 상속 위젯에서 결과 데이터 수신 후 추가 연출이나 스타일 후처리를 붙이는 확장 지점입니다. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "ProjectG | UI")
 	void OnRunResultConfigured(FName FailureReason, float RunTimeSeconds, float DistanceMeters, int32 Score, int32 Receipts, int32 OrdersDelivered);
 
@@ -74,21 +79,27 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UWidget> OrdersRow;
 
+	/** 정수 런 점수를 표시하는 필수 결과 텍스트입니다. */
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UTextBlock> ScoreValueText;
 
+	/** 런 진행 거리를 미터 단위로 표시하는 필수 결과 텍스트입니다. */
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UTextBlock> DistanceValueText;
 
+	/** 이번 런에서 획득한 영수증 수를 표시하는 필수 결과 텍스트입니다. */
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UTextBlock> ReceiptsValueText;
 
+	/** 이번 런에서 완료한 배달 수를 표시하는 필수 결과 텍스트입니다. */
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UTextBlock> OrdersValueText;
 
+	/** 같은 맵에서 새 런을 시작하도록 요청하는 필수 버튼입니다. */
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UButton> RetryButton;
 
+	/** 결과를 닫고 Home 레벨로 복귀하도록 요청하는 필수 버튼입니다. */
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UButton> HomeButton;
 

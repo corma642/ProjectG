@@ -23,6 +23,7 @@ class UPGTutorialScreenWidget;
 class UPGUserDataSubsystem;
 enum class EPGRuntimePreloadGroup : uint8;
 
+/** 전역 fade가 화면을 덮은 시점에 적용할 Home 계열 화면 전환 종류입니다. */
 enum class EPGHomeFlowTransition : uint8
 {
 	None,
@@ -32,6 +33,17 @@ enum class EPGHomeFlowTransition : uint8
 	HomeToCountdown,
 	ShopToMapLevel
 };
+
+/** 서로 다른 preload group에서 동시에 대기할 수 있는 Home 요청을 추적하는 내부 bitmask입니다. */
+enum class EPGHomePendingPreloadRequest : uint8
+{
+	None = 0,
+	StartDelivery = 1 << 0,
+	Shop = 1 << 1,
+	ReceiptShop = 1 << 2,
+	Tutorial = 1 << 3
+};
+ENUM_CLASS_FLAGS(EPGHomePendingPreloadRequest);
 
 /**
  * 로컬 PlayerController가 소유하는 Home 흐름 관리자입니다.
@@ -43,9 +55,13 @@ class PROJECTG_API UPGHomeFlowComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	/** 상시 Tick 없이 GameMode·preload·UI delegate로만 화면 흐름을 구동하도록 구성합니다. */
 	UPGHomeFlowComponent();
 
+	/** 소유 Controller와 GameMode/Subsystem을 연결하고 현재 런 상태에 맞는 첫 화면을 복구합니다. */
 	virtual void BeginPlay() override;
+
+	/** 등록한 delegate와 이 컴포넌트가 생성한 모든 위젯을 수명 종료 전에 해제합니다. */
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
@@ -81,6 +97,16 @@ private:
 	void BlendToHomeCamera();
 	void ShowCountdown(float Duration);
 	void CleanupWidgets();
+	void RemoveHomeScreenWidget();
+	void RemoveCountdownWidget();
+	void RemoveScreenTransitionFadeWidget();
+	void RemoveShopScreenWidget();
+	void RemoveReceiptShopWidget();
+	void RemoveSettingsScreenWidget();
+	void RemoveTutorialScreenWidget();
+	void QueuePendingPreloadRequest(EPGHomePendingPreloadRequest Request);
+	void ConsumePendingPreloadRequest(EPGHomePendingPreloadRequest Request);
+	bool HasPendingPreloadRequest(EPGHomePendingPreloadRequest Request) const;
 	bool StartScreenTransition(EPGHomeFlowTransition Transition);
 	void ApplyPendingScreenTransition();
 	void FinishScreenTransition();
@@ -147,11 +173,8 @@ private:
 	FPGShopSettings CachedShopSettings;
 	bool bIsBoundToGameMode = false;
 
-	// START를 눌렀지만 필수 리소스 예열이 끝나지 않은 경우 완료 후 자동 시작하기 위한 대기 플래그입니다.
-	bool bPendingStartDeliveryAfterPreload = false;
-	bool bPendingShopAfterPreload = false;
-	bool bPendingReceiptShopAfterPreload = false;
-	bool bPendingTutorialAfterPreload = false;
+	// 서로 다른 group의 예열 완료가 역순으로 와도 각 사용자 요청을 잃지 않도록 bitmask로 보관합니다.
+	EPGHomePendingPreloadRequest PendingPreloadRequests = EPGHomePendingPreloadRequest::None;
 
 	// Retry URL 옵션으로 들어온 경우 Home UI를 건너뛰고 카운트다운을 요청하는지 추적합니다.
 	bool bRetryCountdownRequested = false;

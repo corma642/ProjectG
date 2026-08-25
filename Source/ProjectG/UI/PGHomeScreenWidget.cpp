@@ -8,6 +8,7 @@
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "Settings/PGGameSettings.h"
+#include "UI/PGUIAnimationUtils.h"
 
 namespace
 {
@@ -21,18 +22,6 @@ const FVector2D LogoExitOffset(0.0f, -620.0f);
 const FVector2D MenuExitOffset(0.0f, 760.0f);
 const FVector2D ReceiptExitOffset(320.0f, -160.0f);
 
-float EaseInCubicHome(float Alpha)
-{
-	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
-	return ClampedAlpha * ClampedAlpha * ClampedAlpha;
-}
-
-float EaseOutCubicHome(float Alpha)
-{
-	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
-	const float InverseAlpha = 1.0f - ClampedAlpha;
-	return 1.0f - InverseAlpha * InverseAlpha * InverseAlpha;
-}
 }
 
 void UPGHomeScreenWidget::NativeConstruct()
@@ -292,7 +281,7 @@ void UPGHomeScreenWidget::ApplyWidgetAnimationState(UWidget* Widget, const FVect
 	const float TotalDuration = bReverse ? ExitAnimationDuration : EntryAnimationDuration;
 	const float EffectiveDuration = FMath::Max(KINDA_SMALL_NUMBER, TotalDuration - Delay);
 	const float LocalAlpha = FMath::Clamp((AnimationTime - Delay) / EffectiveDuration, 0.0f, 1.0f);
-	const float EasedAlpha = bReverse ? EaseInCubicHome(LocalAlpha) : EaseOutCubicHome(LocalAlpha);
+	const float EasedAlpha = bReverse ? PGUIAnimation::EaseInCubic(LocalAlpha) : PGUIAnimation::EaseOutCubic(LocalAlpha);
 	const float Scale = FMath::Lerp(StartScale, EndScale, EasedAlpha);
 	const FVector2D Translation = bReverse
 		? StartOffset * EasedAlpha

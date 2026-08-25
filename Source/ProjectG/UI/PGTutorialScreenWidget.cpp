@@ -8,15 +8,7 @@
 #include "Components/Widget.h"
 #include "Engine/Texture2D.h"
 #include "Tutorial/PGTutorialPageSet.h"
-
-namespace
-{
-float TutorialEaseOutCubic(float Alpha)
-{
-	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
-	return 1.0f - FMath::Pow(1.0f - ClampedAlpha, 3.0f);
-}
-}
+#include "UI/PGUIAnimationUtils.h"
 
 void UPGTutorialScreenWidget::NativeConstruct()
 {
@@ -74,7 +66,7 @@ void UPGTutorialScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDe
 	const float Alpha = TransitionDuration > KINDA_SMALL_NUMBER
 		? FMath::Clamp(TransitionElapsed / TransitionDuration, 0.0f, 1.0f)
 		: 1.0f;
-	ApplyTransitionState(TutorialEaseOutCubic(Alpha));
+	ApplyTransitionState(PGUIAnimation::EaseOutCubic(Alpha));
 
 	if (Alpha >= 1.0f)
 	{

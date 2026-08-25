@@ -4,15 +4,7 @@
 
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
-
-namespace
-{
-float CargoScoreEaseOutCubic(float Alpha)
-{
-	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
-	return 1.0f - FMath::Pow(1.0f - ClampedAlpha, 3.0f);
-}
-}
+#include "UI/PGUIAnimationUtils.h"
 
 void UPGCargoScoreIndicatorWidget::NativeConstruct()
 {
@@ -58,7 +50,7 @@ void UPGCargoScoreIndicatorWidget::PlayScoreIndicator(int32 Score)
 
 void UPGCargoScoreIndicatorWidget::ApplyAnimationState(float Alpha)
 {
-	const float MoveAlpha = CargoScoreEaseOutCubic(Alpha);
+	const float MoveAlpha = PGUIAnimation::EaseOutCubic(Alpha);
 	const float FadeAlpha = FMath::Clamp((Alpha - 0.45f) / 0.55f, 0.0f, 1.0f);
 	const float Opacity = 1.0f - FadeAlpha;
 	const float YOffset = FMath::Lerp(0.0f, -72.0f, MoveAlpha);

@@ -7,98 +7,23 @@
 #include "Engine/StreamableManager.h"
 #include "GameModes/PGGameModeBase.h"
 #include "Kismet/GameplayStatics.h"
-#include "Misc/Crc.h"
-#include "Serialization/MemoryReader.h"
-#include "Serialization/MemoryWriter.h"
 #include "Settings/PGGameSettings.h"
 #include "Shop/PGCharacterShopCatalog.h"
 #include "Shop/PGCharacterSkinDefinition.h"
 #include "Shop/PGMapDefinition.h"
 #include "Shop/PGMapShopCatalog.h"
 #include "UObject/UObjectGlobals.h"
+#include "User/PGUserSaveCodec.h"
 #include "User/PGUserSaveGame.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGUserData, Log, All);
 
 namespace
 {
-constexpr uint32 UserSaveEnvelopeMagic = 0x50475553; // PGUS
-constexpr uint32 UserSaveEnvelopeVersion = 1;
-constexpr int32 UserSaveEnvelopeSize = sizeof(uint32) * 4 + sizeof(uint64);
-
-struct FPGUserSaveEnvelope
-{
-	uint32 Magic = UserSaveEnvelopeMagic;
-	uint32 Version = UserSaveEnvelopeVersion;
-	uint64 Generation = 0;
-	uint32 PayloadSize = 0;
-	uint32 PayloadCrc = 0;
-
-	friend FArchive& operator<<(FArchive& Archive, FPGUserSaveEnvelope& Envelope)
-	{
-		Archive << Envelope.Magic;
-		Archive << Envelope.Version;
-		Archive << Envelope.Generation;
-		Archive << Envelope.PayloadSize;
-		Archive << Envelope.PayloadCrc;
-		return Archive;
-	}
-};
-
 int32 AddReceiptBalanceClamped(int32 CurrentBalance, int32 Amount)
 {
 	const int64 NewBalance = static_cast<int64>(FMath::Max(0, CurrentBalance)) + static_cast<int64>(FMath::Max(0, Amount));
 	return static_cast<int32>(FMath::Clamp<int64>(NewBalance, 0, MAX_int32));
-}
-
-bool BuildUserSaveEnvelope(UPGUserSaveGame* UserData, uint64 Generation, TArray<uint8>& OutSaveData)
-{
-	TArray<uint8> Payload;
-	if (!UGameplayStatics::SaveGameToMemory(UserData, Payload) || Payload.IsEmpty())
-	{
-		return false;
-	}
-
-	FPGUserSaveEnvelope Envelope;
-	Envelope.Generation = Generation;
-	Envelope.PayloadSize = Payload.Num();
-	Envelope.PayloadCrc = FCrc::MemCrc32(Payload.GetData(), Payload.Num());
-
-	FMemoryWriter Writer(OutSaveData, true);
-	Writer << Envelope;
-	Writer.Serialize(Payload.GetData(), Payload.Num());
-	return !Writer.IsError();
-}
-
-bool ReadUserSaveEnvelope(const TArray<uint8>& SaveData, TArray<uint8>& OutPayload, uint64& OutGeneration)
-{
-	if (SaveData.Num() < UserSaveEnvelopeSize)
-	{
-		return false;
-	}
-
-	FMemoryReader Reader(SaveData, true);
-	FPGUserSaveEnvelope Envelope;
-	Reader << Envelope;
-	if (Reader.IsError()
-		|| Envelope.Magic != UserSaveEnvelopeMagic
-		|| Envelope.Version != UserSaveEnvelopeVersion
-		|| Envelope.PayloadSize == 0
-		|| Envelope.PayloadSize != static_cast<uint32>(SaveData.Num() - UserSaveEnvelopeSize))
-	{
-		return false;
-	}
-
-	OutPayload.SetNumUninitialized(Envelope.PayloadSize);
-	Reader.Serialize(OutPayload.GetData(), Envelope.PayloadSize);
-	if (Reader.IsError() || FCrc::MemCrc32(OutPayload.GetData(), OutPayload.Num()) != Envelope.PayloadCrc)
-	{
-		OutPayload.Reset();
-		return false;
-	}
-
-	OutGeneration = Envelope.Generation;
-	return true;
 }
 }
 
@@ -474,24 +399,11 @@ bool UPGUserDataSubsystem::PurchaseCharacter(FName SkinId)
 		return false;
 	}
 
-	const int32 PreviousBalance = UserData->ReceiptBalance;
-	const TArray<FName> PreviousOwnedSkinIds = UserData->OwnedCharacterSkinIds;
-
-	UserData->ReceiptBalance = FMath::Max(0, UserData->ReceiptBalance - Price);
-	UserData->OwnedCharacterSkinIds.AddUnique(SkinId);
-
-	// 구매는 재화 차감과 보유 추가가 한 거래다. 같은 SaveGame을 한 번만 저장해 두 상태가 어긋나지 않게 한다.
-	if (!SaveUserData())
+	if (!CommitCatalogPurchase(*UserData, SkinId, Price, UserData->OwnedCharacterSkinIds, TEXT("CharacterPurchase")))
 	{
-		UserData->ReceiptBalance = PreviousBalance;
-		UserData->OwnedCharacterSkinIds = PreviousOwnedSkinIds;
 		return false;
 	}
 
-	if (Price > 0)
-	{
-		OnReceiptBalanceChanged.Broadcast(UserData->ReceiptBalance, TEXT("CharacterPurchase"));
-	}
 	OnCharacterOwnershipChanged.Broadcast(SkinId);
 	return true;
 }
@@ -509,11 +421,8 @@ bool UPGUserDataSubsystem::EquipCharacter(FName SkinId)
 		return false;
 	}
 
-	const FName PreviousEquippedSkinId = UserData->EquippedCharacterSkinId;
-	UserData->EquippedCharacterSkinId = SkinId;
-	if (!SaveUserData())
+	if (!CommitEquippedCatalogItem(SkinId, UserData->EquippedCharacterSkinId))
 	{
-		UserData->EquippedCharacterSkinId = PreviousEquippedSkinId;
 		return false;
 	}
 
@@ -547,23 +456,11 @@ bool UPGUserDataSubsystem::PurchaseMap(FName MapId)
 		return false;
 	}
 
-	const int32 PreviousBalance = UserData->ReceiptBalance;
-	const TArray<FName> PreviousOwnedMapIds = UserData->OwnedMapIds;
-
-	UserData->ReceiptBalance = FMath::Max(0, UserData->ReceiptBalance - Price);
-	UserData->OwnedMapIds.AddUnique(MapId);
-
-	if (!SaveUserData())
+	if (!CommitCatalogPurchase(*UserData, MapId, Price, UserData->OwnedMapIds, TEXT("MapPurchase")))
 	{
-		UserData->ReceiptBalance = PreviousBalance;
-		UserData->OwnedMapIds = PreviousOwnedMapIds;
 		return false;
 	}
 
-	if (Price > 0)
-	{
-		OnReceiptBalanceChanged.Broadcast(UserData->ReceiptBalance, TEXT("MapPurchase"));
-	}
 	OnMapOwnershipChanged.Broadcast(MapId);
 	return true;
 }
@@ -581,16 +478,54 @@ bool UPGUserDataSubsystem::EquipMap(FName MapId)
 		return false;
 	}
 
-	const FName PreviousEquippedMapId = UserData->EquippedMapId;
-	UserData->EquippedMapId = MapId;
-	if (!SaveUserData())
+	if (!CommitEquippedCatalogItem(MapId, UserData->EquippedMapId))
 	{
-		UserData->EquippedMapId = PreviousEquippedMapId;
 		return false;
 	}
 
 	OnEquippedMapChanged.Broadcast(MapId);
 	return true;
+}
+
+bool UPGUserDataSubsystem::CommitCatalogPurchase(UPGUserSaveGame& UserData, FName ItemId, int32 PriceReceipts, TArray<FName>& OwnedItemIds, FName BalanceReason)
+{
+	const int32 Price = FMath::Max(0, PriceReceipts);
+	if (Price > 0 && UserData.ReceiptBalance < Price)
+	{
+		return false;
+	}
+
+	const int32 PreviousBalance = UserData.ReceiptBalance;
+	const TArray<FName> PreviousOwnedItemIds = OwnedItemIds;
+	UserData.ReceiptBalance = FMath::Max(0, UserData.ReceiptBalance - Price);
+	OwnedItemIds.AddUnique(ItemId);
+
+	// 구매는 재화 차감과 보유 추가가 한 거래다. 같은 SaveGame을 한 번만 기록해야 두 상태가 어긋나지 않는다.
+	if (!SaveUserData())
+	{
+		UserData.ReceiptBalance = PreviousBalance;
+		OwnedItemIds = PreviousOwnedItemIds;
+		return false;
+	}
+
+	if (Price > 0)
+	{
+		OnReceiptBalanceChanged.Broadcast(UserData.ReceiptBalance, BalanceReason);
+	}
+	return true;
+}
+
+bool UPGUserDataSubsystem::CommitEquippedCatalogItem(FName ItemId, FName& EquippedItemId)
+{
+	const FName PreviousEquippedItemId = EquippedItemId;
+	EquippedItemId = ItemId;
+	if (SaveUserData())
+	{
+		return true;
+	}
+
+	EquippedItemId = PreviousEquippedItemId;
+	return false;
 }
 
 bool UPGUserDataSubsystem::PreviewCharacter(FName SkinId)
@@ -693,7 +628,7 @@ bool UPGUserDataSubsystem::TryLoadUserDataSlot(const TCHAR* SlotName, UPGUserSav
 	TArray<uint8> SaveData;
 	TArray<uint8> Payload;
 	if (!UGameplayStatics::LoadDataFromSlot(SaveData, SlotName, UserSaveIndex)
-		|| !ReadUserSaveEnvelope(SaveData, Payload, OutGeneration))
+		|| !PGUserSaveCodec::Decode(SaveData, Payload, OutGeneration))
 	{
 		return false;
 	}
@@ -704,8 +639,10 @@ bool UPGUserDataSubsystem::TryLoadUserDataSlot(const TCHAR* SlotName, UPGUserSav
 
 bool UPGUserDataSubsystem::WriteUserDataSlot(const TCHAR* SlotName, uint64 Generation) const
 {
+	TArray<uint8> Payload;
 	TArray<uint8> SaveData;
-	if (!BuildUserSaveEnvelope(UserSaveGame, Generation, SaveData)
+	if (!UGameplayStatics::SaveGameToMemory(UserSaveGame, Payload)
+		|| !PGUserSaveCodec::Encode(Payload, Generation, SaveData)
 		|| !UGameplayStatics::SaveDataToSlot(SaveData, SlotName, UserSaveIndex))
 	{
 		return false;

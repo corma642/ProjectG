@@ -6,6 +6,7 @@
 #include "Components/BackgroundBlur.h"
 #include "Components/Button.h"
 #include "Components/Widget.h"
+#include "UI/PGUIAnimationUtils.h"
 
 namespace
 {
@@ -15,12 +16,6 @@ constexpr float PausePanelDelay = 0.08f;
 constexpr float PauseButtonDelay = 0.12f;
 constexpr float PauseButtonStagger = 0.05f;
 constexpr float PauseButtonSlideDistance = 220.0f;
-
-float RunPauseEaseOutCubic(float Alpha)
-{
-	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
-	return 1.0f - FMath::Pow(1.0f - ClampedAlpha, 3.0f);
-}
 
 float RunPauseDelayedAlpha(float Alpha, float Delay)
 {
@@ -39,7 +34,7 @@ void ApplyRunPauseWidgetState(UWidget* Widget, float Alpha, const FVector2D& Sta
 		return;
 	}
 
-	const float EasedAlpha = RunPauseEaseOutCubic(Alpha);
+	const float EasedAlpha = PGUIAnimation::EaseOutCubic(Alpha);
 	Widget->SetRenderOpacity(EasedAlpha);
 	Widget->SetRenderTranslation(FMath::Lerp(StartTranslation, FVector2D::ZeroVector, EasedAlpha));
 }
@@ -96,7 +91,7 @@ void UPGRunPauseWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 	const float Alpha = AnimationDuration > KINDA_SMALL_NUMBER
 		? FMath::Clamp(AnimationElapsed / AnimationDuration, 0.0f, 1.0f)
 		: 1.0f;
-	ApplyAnimationState(RunPauseEaseOutCubic(Alpha), bIsClosingForResume);
+	ApplyAnimationState(PGUIAnimation::EaseOutCubic(Alpha), bIsClosingForResume);
 
 	if (Alpha >= 1.0f)
 	{

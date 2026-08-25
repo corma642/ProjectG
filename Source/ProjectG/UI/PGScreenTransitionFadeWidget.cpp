@@ -3,17 +3,7 @@
 #include "UI/PGScreenTransitionFadeWidget.h"
 
 #include "Components/Widget.h"
-
-namespace
-{
-float EaseInOutCubicTransition(float Alpha)
-{
-	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
-	return ClampedAlpha < 0.5f
-		? 4.0f * ClampedAlpha * ClampedAlpha * ClampedAlpha
-		: 1.0f - FMath::Pow(-2.0f * ClampedAlpha + 2.0f, 3.0f) * 0.5f;
-}
-}
+#include "UI/PGUIAnimationUtils.h"
 
 void UPGScreenTransitionFadeWidget::NativeConstruct()
 {
@@ -46,7 +36,7 @@ void UPGScreenTransitionFadeWidget::NativeTick(const FGeometry& MyGeometry, floa
 	if (ElapsedTime < CoverEndTime)
 	{
 		const float Alpha = FadeInDuration > KINDA_SMALL_NUMBER ? ElapsedTime / FadeInDuration : 1.0f;
-		ApplyFadeOpacity(MaxOpacity * EaseInOutCubicTransition(Alpha));
+		ApplyFadeOpacity(MaxOpacity * PGUIAnimation::EaseInOutCubic(Alpha));
 	}
 	else if (ElapsedTime < HoldEndTime)
 	{
@@ -67,7 +57,7 @@ void UPGScreenTransitionFadeWidget::NativeTick(const FGeometry& MyGeometry, floa
 
 		const float FadeOutElapsed = ElapsedTime - HoldEndTime;
 		const float Alpha = FadeOutDuration > KINDA_SMALL_NUMBER ? FadeOutElapsed / FadeOutDuration : 1.0f;
-		ApplyFadeOpacity(MaxOpacity * (1.0f - EaseInOutCubicTransition(Alpha)));
+		ApplyFadeOpacity(MaxOpacity * (1.0f - PGUIAnimation::EaseInOutCubic(Alpha)));
 	}
 
 	if (ElapsedTime >= TotalDuration)

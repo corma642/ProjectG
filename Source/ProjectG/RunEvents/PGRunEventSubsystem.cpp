@@ -7,6 +7,7 @@
 #include "GameModes/PGGameModeBase.h"
 #include "Movement/PGRunnerMovementComponent.h"
 #include "RunEvents/PGMovingRunEventHazardActor.h"
+#include "Utilities/PGWeightedRandom.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGRunEventSubsystem, Log, All);
 
@@ -293,43 +294,27 @@ bool UPGRunEventSubsystem::SelectEventRule(FPGRunEventRule& OutRule)
 {
 	const TArray<FPGRunEventRule>& Rules = GetEffectiveEventRules();
 	const float DifficultyAlpha = GetDifficultyAlpha();
-	float TotalWeight = 0.0f;
-
-	for (const FPGRunEventRule& Rule : Rules)
+	const int32 SelectedRuleIndex = PGWeightedRandom::SelectIndex(
+		Rules.Num(),
+		[this, &Rules, DifficultyAlpha](int32 RuleIndex)
 	{
+		const FPGRunEventRule& Rule = Rules[RuleIndex];
 		if (!CanUseRule(Rule))
 		{
-			continue;
+			return 0.0f;
 		}
 
-		TotalWeight += FMath::Max(0.0f, Rule.BaseWeight + Rule.DifficultyWeight * DifficultyAlpha);
-	}
+		return FMath::Max(0.0f, Rule.BaseWeight + Rule.DifficultyWeight * DifficultyAlpha);
+	}, RandomStream);
 
-	if (TotalWeight <= KINDA_SMALL_NUMBER)
+	if (!Rules.IsValidIndex(SelectedRuleIndex))
 	{
 		return false;
 	}
 
-	const float Roll = RandomStream.FRandRange(0.0f, TotalWeight);
-	float AccumulatedWeight = 0.0f;
-	for (const FPGRunEventRule& Rule : Rules)
-	{
-		if (!CanUseRule(Rule))
-		{
-			continue;
-		}
-
-		const float Weight = FMath::Max(0.0f, Rule.BaseWeight + Rule.DifficultyWeight * DifficultyAlpha);
-		AccumulatedWeight += Weight;
-		if (Roll <= AccumulatedWeight)
-		{
-			// 가중치는 난이도 알파를 반영한다. 같은 룰이라도 런 후반에는 DifficultyWeight가 선택 확률을 밀어 올린다.
-			OutRule = Rule;
-			return true;
-		}
-	}
-
-	return false;
+	// 가중치는 난이도 알파를 반영한다. 같은 룰이라도 런 후반에는 DifficultyWeight가 선택 확률을 밀어 올린다.
+	OutRule = Rules[SelectedRuleIndex];
+	return true;
 }
 
 const TArray<FPGRunEventRule>& UPGRunEventSubsystem::GetEffectiveEventRules() const
@@ -374,7 +359,7 @@ bool UPGRunEventSubsystem::CanUseRule(const FPGRunEventRule& Rule) const
 		}
 	}
 
-	return FMath::Max(0.0f, Rule.BaseWeight + Rule.DifficultyWeight * GetDifficultyAlpha()) > KINDA_SMALL_NUMBER;
+	return Rule.BaseWeight + Rule.DifficultyWeight * GetDifficultyAlpha() > 0.0f;
 }
 
 void UPGRunEventSubsystem::TriggerPendingEvent()

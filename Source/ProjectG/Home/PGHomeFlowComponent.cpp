@@ -104,6 +104,7 @@ void UPGHomeFlowComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		RuntimePreloadSubsystem->OnPreloadCompleted.RemoveDynamic(this, &UPGHomeFlowComponent::HandleRuntimePreloadCompleted);
 		RuntimePreloadSubsystem = nullptr;
 	}
+	PendingPreloadRequests = EPGHomePendingPreloadRequest::None;
 	UnbindGameMode();
 	UnbindUserDataSubsystem();
 	CleanupWidgets();
@@ -209,7 +210,7 @@ void UPGHomeFlowComponent::RequestStartDeliveryAfterPreload()
 	{
 		// 예열은 끝났지만 필수 런 리소스가 누락된 경우 자동 재시도로 복구할 수 없다.
 		// Home 입력을 되돌려 설정 오류를 수정한 뒤 다시 시도할 수 있게 한다.
-		bPendingStartDeliveryAfterPreload = false;
+		ConsumePendingPreloadRequest(EPGHomePendingPreloadRequest::StartDelivery);
 		RuntimePreloadSubsystem->LogRunReadinessIssues();
 		if (HomeScreenWidget)
 		{
@@ -223,7 +224,7 @@ void UPGHomeFlowComponent::RequestStartDeliveryAfterPreload()
 		// Retry는 이미 레벨 로딩으로 화면 전환이 끝난 상태이므로 추가 페이드 없이 카운트다운으로 들어간다.
 		if (bRetryCountdownRequested)
 		{
-			bPendingStartDeliveryAfterPreload = false;
+			ConsumePendingPreloadRequest(EPGHomePendingPreloadRequest::StartDelivery);
 			RestoreShopPreviewRunner();
 			BoundGameMode->RequestStartDelivery();
 			return;
@@ -242,7 +243,7 @@ void UPGHomeFlowComponent::RequestStartDeliveryAfterPreload()
 	}
 
 	// 예열 중 START를 누르면 입력만 잠그고, OnPreloadCompleted에서 동일 요청을 다시 처리한다.
-	bPendingStartDeliveryAfterPreload = true;
+	QueuePendingPreloadRequest(EPGHomePendingPreloadRequest::StartDelivery);
 	RuntimePreloadSubsystem->RequestPreload(EPGRuntimePreloadGroup::Run);
 	if (HomeScreenWidget)
 	{
@@ -432,8 +433,7 @@ void UPGHomeFlowComponent::ShowCountdown(float Duration)
 
 	if (CountdownWidget)
 	{
-		CountdownWidget->RemoveFromParent();
-		CountdownWidget = nullptr;
+		RemoveCountdownWidget();
 	}
 
 	UClass* WidgetClass = CachedHomeFlowSettings.RunCountdownWidgetClass.Get();
@@ -460,6 +460,17 @@ void UPGHomeFlowComponent::ShowCountdown(float Duration)
 
 void UPGHomeFlowComponent::CleanupWidgets()
 {
+	RemoveHomeScreenWidget();
+	RemoveCountdownWidget();
+	RemoveScreenTransitionFadeWidget();
+	RemoveShopScreenWidget();
+	RemoveReceiptShopWidget();
+	RemoveSettingsScreenWidget();
+	RemoveTutorialScreenWidget();
+}
+
+void UPGHomeFlowComponent::RemoveHomeScreenWidget()
+{
 	if (HomeScreenWidget)
 	{
 		HomeScreenWidget->OnStartDeliveryRequested.RemoveAll(this);
@@ -470,13 +481,19 @@ void UPGHomeFlowComponent::CleanupWidgets()
 		HomeScreenWidget->RemoveFromParent();
 		HomeScreenWidget = nullptr;
 	}
+}
 
+void UPGHomeFlowComponent::RemoveCountdownWidget()
+{
 	if (CountdownWidget)
 	{
 		CountdownWidget->RemoveFromParent();
 		CountdownWidget = nullptr;
 	}
+}
 
+void UPGHomeFlowComponent::RemoveScreenTransitionFadeWidget()
+{
 	if (ScreenTransitionFadeWidget)
 	{
 		ScreenTransitionFadeWidget->OnFadeCovered.RemoveAll(this);
@@ -484,7 +501,10 @@ void UPGHomeFlowComponent::CleanupWidgets()
 		ScreenTransitionFadeWidget->RemoveFromParent();
 		ScreenTransitionFadeWidget = nullptr;
 	}
+}
 
+void UPGHomeFlowComponent::RemoveShopScreenWidget()
+{
 	if (ShopScreenWidget)
 	{
 		ShopScreenWidget->OnShopCloseRequested.RemoveAll(this);
@@ -493,27 +513,51 @@ void UPGHomeFlowComponent::CleanupWidgets()
 		ShopScreenWidget->RemoveFromParent();
 		ShopScreenWidget = nullptr;
 	}
+}
 
+void UPGHomeFlowComponent::RemoveReceiptShopWidget()
+{
 	if (ReceiptShopWidget)
 	{
 		ReceiptShopWidget->OnReceiptShopClosed.RemoveAll(this);
 		ReceiptShopWidget->RemoveFromParent();
 		ReceiptShopWidget = nullptr;
 	}
+}
 
+void UPGHomeFlowComponent::RemoveSettingsScreenWidget()
+{
 	if (SettingsScreenWidget)
 	{
 		SettingsScreenWidget->OnSettingsScreenClosed.RemoveAll(this);
 		SettingsScreenWidget->RemoveFromParent();
 		SettingsScreenWidget = nullptr;
 	}
+}
 
+void UPGHomeFlowComponent::RemoveTutorialScreenWidget()
+{
 	if (TutorialScreenWidget)
 	{
 		TutorialScreenWidget->OnTutorialClosed.RemoveAll(this);
 		TutorialScreenWidget->RemoveFromParent();
 		TutorialScreenWidget = nullptr;
 	}
+}
+
+void UPGHomeFlowComponent::QueuePendingPreloadRequest(EPGHomePendingPreloadRequest Request)
+{
+	EnumAddFlags(PendingPreloadRequests, Request);
+}
+
+void UPGHomeFlowComponent::ConsumePendingPreloadRequest(EPGHomePendingPreloadRequest Request)
+{
+	EnumRemoveFlags(PendingPreloadRequests, Request);
+}
+
+bool UPGHomeFlowComponent::HasPendingPreloadRequest(EPGHomePendingPreloadRequest Request) const
+{
+	return EnumHasAnyFlags(PendingPreloadRequests, Request);
 }
 
 void UPGHomeFlowComponent::BlendToHomeCamera()
@@ -592,14 +636,7 @@ void UPGHomeFlowComponent::ApplyPendingScreenTransition()
 		ShowShopScreen();
 		break;
 	case EPGHomeFlowTransition::ShopToHome:
-		if (ShopScreenWidget)
-		{
-			ShopScreenWidget->OnShopCloseRequested.RemoveAll(this);
-			ShopScreenWidget->OnReceiptShopRequested.RemoveAll(this);
-			ShopScreenWidget->OnMapTravelRequested.RemoveAll(this);
-			ShopScreenWidget->RemoveFromParent();
-			ShopScreenWidget = nullptr;
-		}
+		RemoveShopScreenWidget();
 		if (UserDataSubsystem)
 		{
 			RestoreShopPreviewRunner();
@@ -611,7 +648,7 @@ void UPGHomeFlowComponent::ApplyPendingScreenTransition()
 		}
 		break;
 	case EPGHomeFlowTransition::HomeToCountdown:
-		bPendingStartDeliveryAfterPreload = false;
+		ConsumePendingPreloadRequest(EPGHomePendingPreloadRequest::StartDelivery);
 		RestoreShopPreviewRunner();
 		if (BoundGameMode)
 		{
@@ -631,12 +668,7 @@ void UPGHomeFlowComponent::ApplyPendingScreenTransition()
 
 void UPGHomeFlowComponent::FinishScreenTransition()
 {
-	if (ScreenTransitionFadeWidget)
-	{
-		ScreenTransitionFadeWidget->OnFadeCovered.RemoveAll(this);
-		ScreenTransitionFadeWidget->OnFadeFinished.RemoveAll(this);
-		ScreenTransitionFadeWidget = nullptr;
-	}
+	RemoveScreenTransitionFadeWidget();
 
 	if (PendingScreenTransition == EPGHomeFlowTransition::ShopToHome && HomeScreenWidget)
 	{
@@ -740,7 +772,7 @@ void UPGHomeFlowComponent::HandleShopRequested()
 
 	if (RuntimePreloadSubsystem && !RuntimePreloadSubsystem->IsGroupReady(EPGRuntimePreloadGroup::Shop))
 	{
-		bPendingShopAfterPreload = true;
+		QueuePendingPreloadRequest(EPGHomePendingPreloadRequest::Shop);
 		RuntimePreloadSubsystem->RequestPreload(EPGRuntimePreloadGroup::Shop);
 		if (HomeScreenWidget)
 		{
@@ -825,7 +857,7 @@ void UPGHomeFlowComponent::HandleReceiptShopRequested()
 	// UI 진입점 외에도 흐름 소유자가 다시 확인해 직접 델리게이트 호출로 가격 화면이 열리는 것을 막는다.
 	if (!CachedShopSettings.IsReceiptShopTestGrantEnabled())
 	{
-		bPendingReceiptShopAfterPreload = false;
+		ConsumePendingPreloadRequest(EPGHomePendingPreloadRequest::ReceiptShop);
 		return;
 	}
 
@@ -836,7 +868,7 @@ void UPGHomeFlowComponent::HandleReceiptShopRequested()
 
 	if (RuntimePreloadSubsystem && !RuntimePreloadSubsystem->IsGroupReady(EPGRuntimePreloadGroup::Shop))
 	{
-		bPendingReceiptShopAfterPreload = true;
+		QueuePendingPreloadRequest(EPGHomePendingPreloadRequest::ReceiptShop);
 		RuntimePreloadSubsystem->RequestPreload(EPGRuntimePreloadGroup::Shop);
 		if (ShopScreenWidget)
 		{
@@ -854,11 +886,7 @@ void UPGHomeFlowComponent::HandleReceiptShopRequested()
 
 void UPGHomeFlowComponent::HandleReceiptShopClosed()
 {
-	if (ReceiptShopWidget)
-	{
-		ReceiptShopWidget->OnReceiptShopClosed.RemoveAll(this);
-		ReceiptShopWidget = nullptr;
-	}
+	RemoveReceiptShopWidget();
 
 	if (ShopScreenWidget)
 	{
@@ -882,11 +910,7 @@ void UPGHomeFlowComponent::HandleSettingsRequested()
 
 void UPGHomeFlowComponent::HandleSettingsScreenClosed()
 {
-	if (SettingsScreenWidget)
-	{
-		SettingsScreenWidget->OnSettingsScreenClosed.RemoveAll(this);
-		SettingsScreenWidget = nullptr;
-	}
+	RemoveSettingsScreenWidget();
 }
 
 void UPGHomeFlowComponent::HandleHelpRequested()
@@ -898,7 +922,7 @@ void UPGHomeFlowComponent::HandleHelpRequested()
 
 	if (RuntimePreloadSubsystem && !RuntimePreloadSubsystem->IsGroupReady(EPGRuntimePreloadGroup::Tutorial))
 	{
-		bPendingTutorialAfterPreload = true;
+		QueuePendingPreloadRequest(EPGHomePendingPreloadRequest::Tutorial);
 		RuntimePreloadSubsystem->RequestPreload(EPGRuntimePreloadGroup::Tutorial);
 		if (HomeScreenWidget)
 		{
@@ -912,11 +936,7 @@ void UPGHomeFlowComponent::HandleHelpRequested()
 
 void UPGHomeFlowComponent::HandleTutorialClosed()
 {
-	if (TutorialScreenWidget)
-	{
-		TutorialScreenWidget->OnTutorialClosed.RemoveAll(this);
-		TutorialScreenWidget = nullptr;
-	}
+	RemoveTutorialScreenWidget();
 
 	if (HomeScreenWidget)
 	{
@@ -1000,7 +1020,7 @@ void UPGHomeFlowComponent::ShowReceiptShopScreen()
 {
 	if (!CachedShopSettings.IsReceiptShopTestGrantEnabled())
 	{
-		bPendingReceiptShopAfterPreload = false;
+		ConsumePendingPreloadRequest(EPGHomePendingPreloadRequest::ReceiptShop);
 		return;
 	}
 
@@ -1051,35 +1071,10 @@ void UPGHomeFlowComponent::ShowReceiptShopScreen()
 void UPGHomeFlowComponent::HandleRunCountdownStarted(float Duration)
 {
 	// 카운트다운이 시작되면 Home 계열 모달은 모두 닫고, 러너 카메라와 카운트다운 UI만 남긴다.
-	if (SettingsScreenWidget)
-	{
-		SettingsScreenWidget->OnSettingsScreenClosed.RemoveAll(this);
-		SettingsScreenWidget->RemoveFromParent();
-		SettingsScreenWidget = nullptr;
-	}
-
-	if (TutorialScreenWidget)
-	{
-		TutorialScreenWidget->OnTutorialClosed.RemoveAll(this);
-		TutorialScreenWidget->RemoveFromParent();
-		TutorialScreenWidget = nullptr;
-	}
-
-	if (ShopScreenWidget)
-	{
-		ShopScreenWidget->OnShopCloseRequested.RemoveAll(this);
-		ShopScreenWidget->OnReceiptShopRequested.RemoveAll(this);
-		ShopScreenWidget->OnMapTravelRequested.RemoveAll(this);
-		ShopScreenWidget->RemoveFromParent();
-		ShopScreenWidget = nullptr;
-	}
-
-	if (ReceiptShopWidget)
-	{
-		ReceiptShopWidget->OnReceiptShopClosed.RemoveAll(this);
-		ReceiptShopWidget->RemoveFromParent();
-		ReceiptShopWidget = nullptr;
-	}
+	RemoveSettingsScreenWidget();
+	RemoveTutorialScreenWidget();
+	RemoveShopScreenWidget();
+	RemoveReceiptShopWidget();
 
 	if (HomeScreenWidget)
 	{
@@ -1087,13 +1082,7 @@ void UPGHomeFlowComponent::HandleRunCountdownStarted(float Duration)
 		{
 			// 카메라 전환 구간은 전역 Fade가 화면을 덮은 뒤에 교체한다.
 			// Home 퇴장 애니메이션을 함께 보여주면 Fade와 중복되어 전환 타이밍이 어색해진다.
-			HomeScreenWidget->OnStartDeliveryRequested.RemoveAll(this);
-			HomeScreenWidget->OnShopRequested.RemoveAll(this);
-			HomeScreenWidget->OnSettingsRequested.RemoveAll(this);
-			HomeScreenWidget->OnHelpRequested.RemoveAll(this);
-			HomeScreenWidget->OnReceiptShopRequested.RemoveAll(this);
-			HomeScreenWidget->RemoveFromParent();
-			HomeScreenWidget = nullptr;
+			RemoveHomeScreenWidget();
 		}
 		else
 		{
@@ -1107,11 +1096,7 @@ void UPGHomeFlowComponent::HandleRunCountdownStarted(float Duration)
 
 void UPGHomeFlowComponent::HandleRunStarted()
 {
-	if (CountdownWidget)
-	{
-		CountdownWidget->RemoveFromParent();
-		CountdownWidget = nullptr;
-	}
+	RemoveCountdownWidget();
 
 	ApplyGameInputMode();
 }
@@ -1138,7 +1123,7 @@ void UPGHomeFlowComponent::HandleRuntimePreloadCompleted(EPGRuntimePreloadGroup 
 		}
 	}
 
-	if (Group == EPGRuntimePreloadGroup::Run && (bPendingStartDeliveryAfterPreload || (bRetryCountdownRequested && bRetryCountdownInitializationReady)))
+	if (Group == EPGRuntimePreloadGroup::Run && (HasPendingPreloadRequest(EPGHomePendingPreloadRequest::StartDelivery) || (bRetryCountdownRequested && bRetryCountdownInitializationReady)))
 	{
 		RequestStartDeliveryAfterPreload();
 		return;
@@ -1146,23 +1131,23 @@ void UPGHomeFlowComponent::HandleRuntimePreloadCompleted(EPGRuntimePreloadGroup 
 
 	if (Group == EPGRuntimePreloadGroup::Shop)
 	{
-		if (bPendingReceiptShopAfterPreload)
+		if (HasPendingPreloadRequest(EPGHomePendingPreloadRequest::ReceiptShop))
 		{
-			bPendingReceiptShopAfterPreload = false;
+			ConsumePendingPreloadRequest(EPGHomePendingPreloadRequest::ReceiptShop);
 			ShowReceiptShopScreen();
 			return;
 		}
-		if (bPendingShopAfterPreload)
+		if (HasPendingPreloadRequest(EPGHomePendingPreloadRequest::Shop))
 		{
-			bPendingShopAfterPreload = false;
+			ConsumePendingPreloadRequest(EPGHomePendingPreloadRequest::Shop);
 			HandleShopRequested();
 			return;
 		}
 	}
 
-	if (Group == EPGRuntimePreloadGroup::Tutorial && bPendingTutorialAfterPreload)
+	if (Group == EPGRuntimePreloadGroup::Tutorial && HasPendingPreloadRequest(EPGHomePendingPreloadRequest::Tutorial))
 	{
-		bPendingTutorialAfterPreload = false;
+		ConsumePendingPreloadRequest(EPGHomePendingPreloadRequest::Tutorial);
 		ShowTutorialScreen();
 	}
 }

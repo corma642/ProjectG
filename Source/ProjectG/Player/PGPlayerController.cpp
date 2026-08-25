@@ -17,6 +17,8 @@
 #include "Settings/PGGameUserSettings.h"
 #include "RunResults/PGRunResultFeedbackComponent.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogPGPlayerController, Log, All);
+
 APGPlayerController::APGPlayerController()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -43,7 +45,7 @@ void APGPlayerController::BeginPlay()
 
 	if (!HasRequiredInputAssets())
 	{
-		UE_LOG(LogTemp, Error, TEXT("PGPlayerController requires DefaultMappingContext, JumpAction, BalanceLeftAction, and BalanceRightAction."));
+		UE_LOG(LogPGPlayerController, Error, TEXT("PGPlayerController requires DefaultMappingContext, JumpAction, BalanceLeftAction, and BalanceRightAction."));
 	}
 
 	if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
@@ -113,13 +115,6 @@ void APGPlayerController::OnUnPossess()
 	Super::OnUnPossess();
 }
 
-void APGPlayerController::PlayerTick(float DeltaTime)
-{
-	Super::PlayerTick(DeltaTime);
-
-	UpdateControlInput(DeltaTime);
-}
-
 void APGPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
@@ -127,7 +122,7 @@ void APGPlayerController::SetupInputComponent()
 	UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent);
 	if (!EnhancedInputComponent)
 	{
-		UE_LOG(LogTemp, Error, TEXT("PGPlayerController requires EnhancedInputComponent. Check DefaultInput.ini."));
+		UE_LOG(LogPGPlayerController, Error, TEXT("PGPlayerController requires EnhancedInputComponent. Check DefaultInput.ini."));
 		return;
 	}
 
@@ -162,6 +157,7 @@ void APGPlayerController::ApplyGameSettings()
 void APGPlayerController::CacheRunnerPawn(APawn* InPawn)
 {
 	CachedRunnerCharacter = Cast<APGRunnerCharacter>(InPawn);
+	UpdateKeyboardBalanceInput();
 	if (RunHUDComponent)
 	{
 		RunHUDComponent->HandleRunnerPossessed(CachedRunnerCharacter.Get());
@@ -188,21 +184,25 @@ void APGPlayerController::HandleJumpStarted(const FInputActionValue& ActionValue
 void APGPlayerController::HandleBalanceLeftStarted(const FInputActionValue& ActionValue)
 {
 	bIsBalanceLeftHeld = true;
+	UpdateKeyboardBalanceInput();
 }
 
 void APGPlayerController::HandleBalanceLeftCompleted(const FInputActionValue& ActionValue)
 {
 	bIsBalanceLeftHeld = false;
+	UpdateKeyboardBalanceInput();
 }
 
 void APGPlayerController::HandleBalanceRightStarted(const FInputActionValue& ActionValue)
 {
 	bIsBalanceRightHeld = true;
+	UpdateKeyboardBalanceInput();
 }
 
 void APGPlayerController::HandleBalanceRightCompleted(const FInputActionValue& ActionValue)
 {
 	bIsBalanceRightHeld = false;
+	UpdateKeyboardBalanceInput();
 }
 
 void APGPlayerController::SendJumpRequest()
@@ -348,20 +348,14 @@ bool APGPlayerController::TryHandleFlickGesture(const FVector2D& EndLocation, fl
 	return false;
 }
 
-void APGPlayerController::UpdateControlInput(float DeltaTime)
+void APGPlayerController::UpdateKeyboardBalanceInput()
 {
 #if !PLATFORM_ANDROID
-	// 데스크탑 Q/E 테스트 입력은 모바일 센서 보정 상태와 무관해야 한다.
+	// Q/E 입력은 상태가 바뀔 때만 전달한다. 값이 유지되는 동안 같은 setter를 매 프레임 호출할 필요가 없다.
 	if (APGRunnerCharacter* RunnerCharacter = CachedRunnerCharacter.Get())
 	{
 		RunnerCharacter->SetBalanceInput(GetKeyboardBalanceInput());
 	}
-	return;
-#else
-	// Android 조작은 MotionState 센서 입력을 사용하지 않는다.
-	// Balance 입력은 InputTouch()에서 드래그 제스처를 기존 중심 보정값으로 변환해 전달한다.
-	return;
-
 #endif
 }
 

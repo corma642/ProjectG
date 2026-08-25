@@ -11,6 +11,7 @@
 #include "Components/Widget.h"
 #include "GameFramework/GameUserSettings.h"
 #include "Settings/PGGameUserSettings.h"
+#include "UI/PGUIAnimationUtils.h"
 
 namespace
 {
@@ -23,12 +24,6 @@ constexpr float SettingsBackdropDimOpacity = 0.35f;
 constexpr float SettingsPanelStartScale = 0.94f;
 constexpr float SettingsPanelStartOffsetY = 40.0f;
 
-float EaseOutCubicSettings(float Alpha)
-{
-	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
-	const float InverseAlpha = 1.0f - ClampedAlpha;
-	return 1.0f - InverseAlpha * InverseAlpha * InverseAlpha;
-}
 }
 
 void UPGSettingsScreenWidget::NativeConstruct()
@@ -349,7 +344,7 @@ void UPGSettingsScreenWidget::ApplyAnimationState(float Alpha)
 		RootPanel->SetRenderTranslation(FVector2D::ZeroVector);
 	}
 
-	const float EasedAlpha = EaseOutCubicSettings(Alpha);
+	const float EasedAlpha = PGUIAnimation::EaseOutCubic(Alpha);
 
 	if (BackgroundBlur)
 	{

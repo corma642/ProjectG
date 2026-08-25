@@ -4,15 +4,18 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Track/PGTrackSegmentSet.h"
 #include "PGRunDirector.generated.h"
 
 class APGGameModeBase;
 class APGRunnerCharacter;
+class APGTrackSegment;
+class UPGTrackSegmentSet;
 
+/** 클래스별로 비활성 트랙 세그먼트를 보관하는 런타임 풀입니다. */
 struct FPGPooledTrackSegments
 {
-	TArray<TObjectPtr<APGTrackSegment>> Segments;
+	// World가 수명을 소유하는 비활성 Actor를 풀에서 관찰하며 파괴된 항목은 획득 시 건너뜁니다.
+	TArray<TWeakObjectPtr<APGTrackSegment>> Segments;
 };
 
 /**
@@ -49,22 +52,29 @@ class PROJECTG_API APGRunDirector : public AActor
 	GENERATED_BODY()
 
 public:
+	/** Home/Failed 상태에서는 Tick하지 않고 Countdown 이후 0.1초 간격으로 트랙을 관리하도록 구성합니다. */
 	APGRunDirector();
 
+	/** 레벨 배치 중복을 검증하고 시작 세그먼트·GameMode·러너 참조를 연결합니다. */
 	virtual void BeginPlay() override;
+
+	/** GameMode delegate와 활성·풀링 세그먼트 참조를 월드 종료 전에 정리합니다. */
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	/** 활성 런에서 지나간 세그먼트를 회수하고 전방 목표 거리까지 새 세그먼트를 채웁니다. */
 	virtual void Tick(float DeltaSeconds) override;
 
-	// 러닝 시간이 난이도 램프 시간 대비 얼마나 진행됐는지 0~1로 반환합니다.
+	/** 러닝 시간이 난이도 램프 시간 대비 얼마나 진행됐는지 0~1로 반환합니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run Director")
 	float GetDifficultyAlpha() const;
 
-	// 현재 월드에 배치되었거나 풀에서 활성화된 트랙 세그먼트 수입니다.
+	/** 현재 월드에 배치됐거나 풀에서 꺼내 활성화한 트랙 세그먼트 수를 반환합니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run Director")
 	int32 GetActiveSegmentCount() const { return ActiveSegments.Num(); }
 
-	// 맵 계약 검증에서 사용하는 시작 세그먼트와 세그먼트 카탈로그입니다.
+	/** 맵 계약 검증에 사용하는 레벨 배치 시작 세그먼트를 반환하며 누락 시 null입니다. */
 	APGTrackSegment* GetInitialSegment() const { return InitialSegment; }
+	/** 가중치 트랙 후보 카탈로그를 반환하며 미설정이면 null입니다. */
 	UPGTrackSegmentSet* GetSegmentSet() const { return SegmentSet; }
 
 protected:
@@ -80,11 +90,11 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Run Director | Track", meta = (ClampMin = "2", UIMin = "2", UIMax = "12"))
 	int32 TargetActiveSegmentCount = 6;
 
-	// 플레이어 진행 방향 앞쪽으로 최소 유지할 거리입니다.
+	// 플레이어 진행 방향 앞쪽으로 최소 유지할 거리(cm)이며 500 미만 입력은 clamp됩니다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Run Director | Track", meta = (ClampMin = "500.0", UIMin = "1000.0", UIMax = "20000.0"))
 	float SpawnAheadDistance = 8000.0f;
 
-	// 플레이어가 세그먼트 끝을 이 거리만큼 지나면 회수합니다.
+	// 플레이어가 세그먼트 끝을 이 거리(cm)만큼 지나면 풀로 회수합니다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Run Director | Track", meta = (ClampMin = "0.0", UIMin = "500.0", UIMax = "10000.0"))
 	float DespawnBehindDistance = 2500.0f;
 
@@ -96,7 +106,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Run Director | Track", meta = (ClampMin = "0", UIMin = "0", UIMax = "20"))
 	int32 MaxPooledSegmentsPerClass = 8;
 
-	// 트랙 난이도가 1.0까지 도달하는 시간입니다.
+	// 트랙 난이도가 1.0까지 도달하는 초 단위 시간이며 최소 1초로 clamp됩니다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Run Director | Difficulty", meta = (ClampMin = "1.0", UIMin = "30.0", UIMax = "300.0"))
 	float DifficultyRampDuration = 180.0f;
 
@@ -148,5 +158,6 @@ private:
 	int32 LastSelectedEntryIndex = INDEX_NONE;
 	int32 ConsecutiveEntryCount = 0;
 	TMap<int32, int32> LastSpawnedSegmentByEntry;
-	TSubclassOf<APGTrackSegment> LastValidSegmentClass;
+	// 실제 spawn 성공 이력만 fallback으로 기억하며 클래스 수명은 SegmentSet DataAsset이 유지합니다.
+	TWeakObjectPtr<UClass> LastValidSegmentClass;
 };

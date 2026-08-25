@@ -4,8 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "Track/PGTrackSegment.h"
 #include "PGTrackSegmentSet.generated.h"
+
+class APGTrackSegment;
 
 /**
  * 자동 생성 후보 트랙 세그먼트 하나의 선택 규칙입니다.

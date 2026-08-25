@@ -12,8 +12,11 @@ class UPGCargoTypeDefinition;
 class UStaticMeshComponent;
 class UTexture2D;
 
+/** 적재물 손실 개수가 확정돼 런 진행도 페널티를 적용할 때 발생합니다. */
 DECLARE_MULTICAST_DELEGATE_OneParam(FPGCargoLostSignature, int32);
+/** 배달 완료 시 적재물 ID, 기본 점수, 연쇄 보너스와 월드 위치를 HUD/진행도에 전달합니다. */
 DECLARE_MULTICAST_DELEGATE_FourParams(FPGCargoDeliveredSignature, int32, int32, int32, FVector);
+/** 활성 적재물 목록 또는 남은 배달 시간이 바뀌어 HUD 카드 동기화가 필요할 때 발생합니다. */
 DECLARE_MULTICAST_DELEGATE(FPGCargoListChangedSignature);
 
 /**
@@ -71,49 +74,54 @@ class PROJECTG_API UPGCargoStackComponent : public USceneComponent
 	GENERATED_BODY()
 
 public:
+	/** 러너가 명시적으로 갱신하는 SceneComponent와 scripted cargo 표시 상태를 구성합니다. */
 	UPGCargoStackComponent();
+
+	/** 설정 적용 전에 런타임 표시 컴포넌트와 소유 러너 참조를 준비합니다. */
 	virtual void BeginPlay() override;
+
+	/** 생성한 물리 적재물과 Hold 표시 컴포넌트를 월드 종료 전에 정리합니다. */
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	// 배달 적재물이 플레이어 기준 손실 범위를 벗어나면 발생합니다.
+	/** 배달 적재물이 플레이어 기준 손실 범위를 벗어나면 손실 개수와 함께 발생합니다. */
 	FPGCargoLostSignature OnCargoLost;
 
-	// 배달 적재물이 완료 시간까지 유지되어 점수/영수증 보상 처리 직전에 발생합니다.
+	/** 배달 완료 시 instance ID, 점수, 영수증과 월드 위치를 보상 처리 계층에 전달합니다. */
 	FPGCargoDeliveredSignature OnCargoDelivered;
 
-	// 활성 적재물 목록이 바뀌어 HUD 카드 갱신이 필요할 때 발생합니다.
+	/** 활성 적재물 목록 또는 시간 표시가 바뀌어 HUD 카드 갱신이 필요할 때 발생합니다. */
 	FPGCargoListChangedSignature OnCargoListChanged;
 
-	// Project Settings의 적재물 물리/배달 튜닝값을 적용하고 새 런 기준 상태로 초기화합니다.
+	/** Project Settings의 적재물 물리·배달 튜닝값을 적용하고 새 런 기준 상태로 초기화합니다. */
 	void InitializeCargoStack(const FPGCargoSettings& InCargoSettings);
 
-	// 현재 열린 맵에서 사용할 고정 수직 손실선을 적용합니다.
+	/** 현재 맵에서 사용할 고정 월드 Z 손실선(cm)을 적용합니다. */
 	void SetCargoLossWorldZ(float InCargoLossWorldZ);
 
-	// 중심 입력, Hold 타이머, 물리 보정, 배달 완료, 손실 판정을 한 프레임 갱신합니다.
+	/** -1~1 중심 입력과 공중 상태로 Hold, 물리 보정, 배달 완료와 손실 판정을 한 프레임 갱신합니다. */
 	void UpdateCargoReaction(float DeltaSeconds, float BalanceInput, bool bIsAirborne);
 
-	// 지정한 적재물 타입으로 CargoStack 위치의 Hold 연출을 시작합니다.
+	/** 지정한 적재물 타입으로 CargoStack 위치의 Hold 연출을 시작하고, 완료 후 물리 적재물로 전환합니다. */
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Cargo")
 	bool AddCargoByType(UPGCargoTypeDefinition* CargoType);
 
-	// 실제 물리 Actor로 존재하는 배달 적재물 개수입니다.
+	/** 현재 실제 물리 Actor로 존재하는 배달 적재물 개수를 반환합니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
 	int32 GetCurrentCargoCount() const { return CargoInstances.Num(); }
 
-	// 물리 적재물과 Hold 대기 중인 적재물을 모두 포함한 예약 개수입니다.
+	/** 물리 적재물과 Hold 대기 중인 적재물을 모두 포함한 예약 개수를 반환합니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
 	int32 GetReservedCargoCount() const { return CargoInstances.Num() + (bHasPendingCargoDrop ? 1 : 0); }
 
-	// 현재 런에서 배달 완료 처리된 적재물 개수입니다.
+	/** 현재 런에서 배달 완료 처리된 적재물 개수를 반환합니다. 런 reset 시 0으로 돌아갑니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
 	int32 GetDeliveredCargoCount() const { return DeliveredCargoCount; }
 
-	// 물리 전환 전 Hold 메시로 대기 중인 적재물이 있는지 여부입니다.
+	/** 물리 전환 전 Hold 메시로 대기 중인 적재물이 있는지 반환합니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
 	bool HasPendingCargoDrop() const { return bHasPendingCargoDrop; }
 
-	// HUD가 썸네일, 남은 시간, 진행 바를 표시할 때 사용하는 활성 적재물 목록입니다.
+	/** HUD용 활성 적재물 스냅샷을 반환합니다. 남은 시간은 초, 진행률은 0~1 범위입니다. */
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Cargo")
 	TArray<FPGActiveCargoInfo> GetActiveCargoInfos() const;
 

@@ -7,8 +7,13 @@
 #include "Settings/PGGameSettings.h"
 #include "PGRunProgressComponent.generated.h"
 
+/** 표시용 진행 거리가 바뀔 때 미터 단위 값을 전달하는 delegate입니다. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPGDisplayedDistanceChangedSignature, float, DisplayedDistanceMeters);
+
+/** 현재 런 점수가 바뀔 때 새 값과 변경 사유를 전달하는 delegate입니다. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPGRunScoreChangedSignature, int32, Score, FName, Reason);
+
+/** 현재 런에서 획득한 영수증 수가 바뀔 때 새 값과 변경 사유를 전달하는 delegate입니다. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPGReceiptsChangedSignature, int32, Receipts, FName, Reason);
 
 /**
@@ -21,52 +26,53 @@ class PROJECTG_API UPGRunProgressComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	/** 외부 러너 갱신만 사용하므로 자체 ActorComponent Tick을 비활성화해 생성합니다. */
 	UPGRunProgressComponent();
 
-	// 런 시작 위치와 전방 방향을 기준으로 거리/점수/영수증을 0부터 초기화합니다.
+	/** 런 시작 월드 위치·전방 단위 벡터·초 단위 시작 시각을 기준으로 진행 상태를 0부터 초기화합니다. */
 	void InitializeRunProgress(const FPGRunProgressSettings& InSettings, const FVector& InStartLocation, const FVector& InForwardVector, float InStartTimeSeconds);
 
-	// 현재 위치 기준 진행 거리와 거리 기반 점수를 갱신합니다.
+	/** 현재 월드 위치의 전방 투영 거리와 거리 기반 점수를 갱신하고 변경 delegate를 발생시킵니다. */
 	void UpdateRunProgress(const FVector& CurrentLocation);
 
-	// 실패 또는 런 종료 시점의 마지막 진행 값을 고정합니다.
+	/** 실패 또는 런 종료 시점의 마지막 위치를 반영한 뒤 이후 진행 갱신을 정지합니다. */
 	void StopRunProgress(const FVector& CurrentLocation);
 
-	// 배달 완료 같은 이벤트 보너스 점수를 현재 런 점수에 더합니다.
+	/** 양수 이벤트 보너스를 현재 런 점수에 더하고 OnScoreChanged를 발생시킵니다. */
 	void AddScore(int32 ScoreDelta, FName Reason);
 
-	// 영수증 픽업 또는 배달 보상으로 얻은 이번 런 영수증을 누적합니다.
+	/** 양수 영수증 보상을 이번 런에 누적하고 OnReceiptsChanged를 발생시킵니다. */
 	void AddReceipts(int32 Amount, FName Reason);
 
-	// 결과 UI와 HUD에 표시할 5m 단위 진행 거리입니다.
+	/** 결과 UI와 HUD에 표시할 설정 단위 양자화 거리를 미터로 반환합니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run")
 	float GetDisplayedDistanceMeters() const { return DisplayedDistanceMeters; }
 
-	// 실제 전방 진행 거리입니다.
+	/** 시작점에서 현재 위치까지의 실제 전방 투영 거리를 미터로 반환합니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run")
 	float GetRawDistanceMeters() const { return RawDistanceMeters; }
 
-	// 거리 기반 점수와 배달 보너스를 합산한 현재 점수입니다.
+	/** 거리 기반 점수와 이벤트 보너스를 합산한 현재 점수를 반환합니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run")
 	int32 GetScore() const { return Score; }
 
-	// 현재 런에서 획득한 영수증 개수입니다. Home 지갑 잔액과는 별개입니다.
+	/** 현재 런에서 획득한 영수증 수를 반환합니다. Home의 영구 지갑 잔액과는 별개입니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run")
 	int32 GetReceipts() const { return Receipts; }
 
-	// 런 시작 이후 경과 시간입니다.
+	/** 런 시작 이후 경과 시간을 초 단위로 반환하며, 정지 후에는 마지막 값을 유지합니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run")
 	float GetElapsedTimeSeconds() const;
 
-	// 표시 거리 값이 바뀔 때 HUD가 갱신할 수 있도록 발생합니다.
+	/** 표시 거리 값이 바뀔 때 HUD 갱신용 미터 값을 전달합니다. */
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run")
 	FPGDisplayedDistanceChangedSignature OnDisplayedDistanceChanged;
 
-	// 점수가 바뀔 때 HUD와 결과 데이터가 같은 값을 읽도록 발생합니다.
+	/** 점수가 바뀔 때 새 값과 변경 이유를 HUD와 결과 데이터에 전달합니다. */
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run")
 	FPGRunScoreChangedSignature OnScoreChanged;
 
-	// 이번 런 영수증 값이 바뀔 때 HUD와 결과 화면 갱신용으로 발생합니다.
+	/** 이번 런 영수증 값이 바뀔 때 새 값과 변경 이유를 전달합니다. */
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run")
 	FPGReceiptsChangedSignature OnReceiptsChanged;
 

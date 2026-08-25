@@ -10,6 +10,7 @@
 #include "Components/Widget.h"
 #include "Settings/PGGameSettings.h"
 #include "UI/PGReceiptShopPackItemWidget.h"
+#include "UI/PGUIAnimationUtils.h"
 #include "User/PGUserDataSubsystem.h"
 
 namespace
@@ -18,20 +19,6 @@ constexpr float ReceiptShopTargetBlurStrength = 5.0f;
 constexpr float ReceiptShopTargetDimAlpha = 0.38f;
 const FVector2D ReceiptShopPanelStartOffset(0.0f, 460.0f);
 
-float ReceiptShopEaseOutCubic(float Alpha)
-{
-	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
-	const float InverseAlpha = 1.0f - ClampedAlpha;
-	return 1.0f - InverseAlpha * InverseAlpha * InverseAlpha;
-}
-
-float ReceiptShopEaseOutBack(float Alpha)
-{
-	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
-	constexpr float Overshoot = 1.45f;
-	const float Shifted = ClampedAlpha - 1.0f;
-	return 1.0f + Shifted * Shifted * ((Overshoot + 1.0f) * Shifted + Overshoot);
-}
 }
 
 void UPGReceiptShopWidget::InitializeReceiptShop(UPGUserDataSubsystem* InUserDataSubsystem, TSubclassOf<UPGReceiptShopPackItemWidget> InPackItemWidgetClass, const TArray<FPGReceiptShopPack>& InReceiptPacks)
@@ -69,8 +56,9 @@ void UPGReceiptShopWidget::NativeDestruct()
 		CloseButton->OnClicked.RemoveDynamic(this, &UPGReceiptShopWidget::HandleCloseClicked);
 	}
 
-	for (UPGReceiptShopPackItemWidget* ItemWidget : PackItemWidgets)
+	for (const TWeakObjectPtr<UPGReceiptShopPackItemWidget>& ItemWidgetPtr : PackItemWidgets)
 	{
+		UPGReceiptShopPackItemWidget* ItemWidget = ItemWidgetPtr.Get();
 		if (ItemWidget)
 		{
 			ItemWidget->OnPackSelected.RemoveAll(this);
@@ -169,11 +157,11 @@ void UPGReceiptShopWidget::HandlePackSelected(int32 PackIndex)
 		UPGAudioStatics::PlayCommonButtonClick(this);
 	}
 
-	if (TObjectPtr<UPGReceiptShopPackItemWidget>* ItemWidget = PackItemWidgetsByPackIndex.Find(PackIndex))
+	if (const TWeakObjectPtr<UPGReceiptShopPackItemWidget>* ItemWidget = PackItemWidgetsByPackIndex.Find(PackIndex))
 	{
-		if (ItemWidget->Get())
+		if (UPGReceiptShopPackItemWidget* ItemWidgetObject = ItemWidget->Get())
 		{
-			ItemWidget->Get()->PlayPurchaseFeedback(bSuccess);
+			ItemWidgetObject->PlayPurchaseFeedback(bSuccess);
 		}
 	}
 }
@@ -226,8 +214,9 @@ void UPGReceiptShopWidget::SetReceiptShopButtonsEnabled(bool bEnabled) const
 		CloseButton->SetIsEnabled(bEnabled);
 	}
 
-	for (UPGReceiptShopPackItemWidget* ItemWidget : PackItemWidgets)
+	for (const TWeakObjectPtr<UPGReceiptShopPackItemWidget>& ItemWidgetPtr : PackItemWidgets)
 	{
+		UPGReceiptShopPackItemWidget* ItemWidget = ItemWidgetPtr.Get();
 		if (ItemWidget)
 		{
 			ItemWidget->SetPackButtonEnabled(bEnabled);
@@ -238,8 +227,8 @@ void UPGReceiptShopWidget::SetReceiptShopButtonsEnabled(bool bEnabled) const
 void UPGReceiptShopWidget::ApplyEntryAnimation(float Alpha) const
 {
 	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
-	const float EasedAlpha = ReceiptShopEaseOutCubic(ClampedAlpha);
-	const float ScaleAlpha = ReceiptShopEaseOutBack(ClampedAlpha);
+	const float EasedAlpha = PGUIAnimation::EaseOutCubic(ClampedAlpha);
+	const float ScaleAlpha = PGUIAnimation::EaseOutBack(ClampedAlpha, 1.45f);
 
 	if (BackgroundBlur)
 	{

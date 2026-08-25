@@ -3,6 +3,7 @@
 #include "UI/PGRunHUDWidget.h"
 
 #include "Audio/PGAudioStatics.h"
+#include "Cargo/PGCargoStackComponent.h"
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -11,15 +12,7 @@
 #include "Components/Widget.h"
 #include "UI/PGCargoDeliveryItemWidget.h"
 #include "UI/PGCargoScoreIndicatorWidget.h"
-
-namespace
-{
-float RunHUDEaseOutCubic(float Alpha)
-{
-	const float ClampedAlpha = FMath::Clamp(Alpha, 0.0f, 1.0f);
-	return 1.0f - FMath::Pow(1.0f - ClampedAlpha, 3.0f);
-}
-}
+#include "UI/PGUIAnimationUtils.h"
 
 void UPGRunHUDWidget::NativeConstruct()
 {
@@ -54,7 +47,7 @@ void UPGRunHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	const float Alpha = AnimationDuration > KINDA_SMALL_NUMBER
 		? FMath::Clamp(AnimationElapsed / AnimationDuration, 0.0f, 1.0f)
 		: 1.0f;
-	ApplyAnimationState(RunHUDEaseOutCubic(Alpha), bIsExiting);
+	ApplyAnimationState(PGUIAnimation::EaseOutCubic(Alpha), bIsExiting);
 
 	if (Alpha >= 1.0f)
 	{

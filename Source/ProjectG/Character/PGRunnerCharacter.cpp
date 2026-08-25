@@ -3,14 +3,17 @@
 #include "Character/PGRunnerCharacter.h"
 
 #include "Camera/CameraComponent.h"
+#include "Cargo/PGCargoStackComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
+#include "Environment/PGRunnerEnvironmentComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameModes/PGGameModeBase.h"
 #include "Audio/PGAudioStatics.h"
+#include "Movement/PGRunnerMovementComponent.h"
 #include "RunProgress/PGRunProgressComponent.h"
 #include "Settings/PGGameSettings.h"
 #include "Shop/PGCharacterSkinDefinition.h"
@@ -23,6 +26,7 @@ APGRunnerCharacter::APGRunnerCharacter(const FObjectInitializer& ObjectInitializ
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UPGRunnerMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
 	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bStartWithTickEnabled = false;
 
 	// 메시가 없어도 캡슐 기준 이동 테스트가 가능하도록 기본 크기를 먼저 잡는다.
 	GetCapsuleComponent()->InitCapsuleSize(42.0f, 96.0f);
@@ -464,6 +468,8 @@ void APGRunnerCharacter::HandleRunCountdownStarted(float Duration)
 		return;
 	}
 
+	SetActorTickEnabled(true);
+
 	bIsRunActive = true;
 	bIsRunCountdownActive = true;
 	bIsGameplayInputLocked = true;
@@ -501,6 +507,8 @@ void APGRunnerCharacter::HandleRunStarted()
 	{
 		return;
 	}
+
+	SetActorTickEnabled(true);
 
 	bIsRunActive = true;
 	bIsRunCountdownActive = false;
@@ -580,6 +588,7 @@ void APGRunnerCharacter::HandleRunFailed(FName FailureReason)
 	}
 
 	UpdateBodyLean(0.0f);
+	SetActorTickEnabled(false);
 }
 
 void APGRunnerCharacter::ApplyGameSettings()

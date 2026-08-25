@@ -28,27 +28,25 @@ class PROJECTG_API APGPlayerController : public APlayerController
 	GENERATED_BODY()
 
 public:
+	/** Enhanced Input과 Home/HUD/오디오/피드백 소유 컴포넌트를 기본 서브오브젝트로 구성합니다. */
 	APGPlayerController();
 
-	// 로컬 플레이어에 기본 입력 매핑과 프로젝트 설정을 적용합니다.
+	/** 로컬 플레이어에 기본 입력 매핑과 터치 설정을 적용하고 초기 Pawn 캐시를 준비합니다. */
 	virtual void BeginPlay() override;
 
-	// 등록된 입력 매핑 컨텍스트를 정리합니다.
+	/** 등록한 입력 매핑 컨텍스트와 러너 입력 상태를 레벨 종료 전에 정리합니다. */
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	// 소유한 러너 캐릭터 참조를 갱신합니다.
+	/** 새 Pawn이 러너면 캐시하고 현재 Q/E 키 상태를 즉시 재적용합니다. */
 	virtual void OnPossess(APawn* InPawn) override;
 
-	// 소유 해제 시 러너 캐릭터 참조와 피드백 바인딩을 정리합니다.
+	/** 소유 해제 전에 러너 중심 입력을 중립으로 돌리고 약한 캐시를 비웁니다. */
 	virtual void OnUnPossess() override;
 
-	// 매 프레임 플랫폼별 테스트 입력을 러너 캐릭터에 전달합니다.
-	virtual void PlayerTick(float DeltaTime) override;
-
-	// Enhanced Input 액션을 바인딩합니다.
+	/** Enhanced Input의 점프와 Q/E Started·Completed·Canceled 이벤트를 바인딩합니다. */
 	virtual void SetupInputComponent() override;
 
-	// 모바일 터치 드래그/플릭 제스처를 러너 Balance 입력과 점프로 변환합니다.
+	/** Android 터치 드래그·플릭을 Balance 입력과 점프로 변환하고 입력을 처리했는지 반환합니다. */
 	virtual bool InputTouch(const FInputDeviceId DeviceId, uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, float Force, uint32 TouchpadIndex, const uint64 Timestamp) override;
 
 private:
@@ -97,8 +95,8 @@ private:
 	// 종료된 터치 궤적이 왼쪽/오른쪽/위쪽 플릭인지 판정하고 처리합니다.
 	bool TryHandleFlickGesture(const FVector2D& EndLocation, float GestureDurationSeconds);
 
-	// 데스크탑에서는 키보드 테스트 입력을 전달하고, Android는 InputTouch 제스처 입력만 사용합니다.
-	void UpdateControlInput(float DeltaTime);
+	// Q/E 상태가 바뀌거나 Pawn을 다시 소유할 때 데스크탑 테스트 입력을 즉시 전달합니다.
+	void UpdateKeyboardBalanceInput();
 
 	// 데스크탑 테스트용 Q/E 중심 보정 입력을 -1~1 범위로 반환합니다.
 	float GetKeyboardBalanceInput() const;
@@ -150,7 +148,7 @@ private:
 	// BeginPlay에서 캐시한 터치 드래그/플릭 조작 설정
 	FPGTouchControlSettings CachedTouchControlSettings;
 
-	// 매 프레임 Pawn Cast를 반복하지 않기 위한 러너 캐릭터 참조
+	// 입력 이벤트마다 Pawn Cast를 반복하지 않기 위한 러너 캐릭터 약한 참조입니다.
 	TWeakObjectPtr<APGRunnerCharacter> CachedRunnerCharacter;
 
 	// Q를 누르고 있는 동안 true가 되어 왼쪽 중심 보정을 적용합니다.
