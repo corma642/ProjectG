@@ -55,7 +55,8 @@ void UPGRunCountdownWidget::StartCountdown(float Duration)
 {
 	CountdownDuration = FMath::Max(0.0f, Duration);
 	CountdownElapsed = 0.0f;
-	CurrentStepIndex = INDEX_NONE;
+	// 첫 단계는 여기서 바로 표시하므로, 첫 Tick이 같은 단계를 다시 갱신해 사운드가 두 번 나지 않게 인덱스를 맞춥니다.
+	CurrentStepIndex = 0;
 	bIsCountdownActive = true;
 	UpdateCountdownText(0);
 	ApplyStepAnimation(0.0f);

@@ -156,7 +156,9 @@ void UPGRunPauseWidget::HandleSettingsClicked()
 void UPGRunPauseWidget::HandleHomeClicked()
 {
 	UPGAudioStatics::PlayCommonButtonClick(this);
-	SetPauseButtonsEnabled(false);
+
+	// 여기서 버튼을 잠그지 않습니다. 이동에 성공하면 HUD 컴포넌트가 같은 호출 안에서 이 위젯을 제거하고,
+	// 정산 저장 실패로 이동이 막히면 Resume이나 재시도가 가능해야 정지 상태에 갇히지 않습니다.
 	OnHomeRequested.Broadcast();
 }
 

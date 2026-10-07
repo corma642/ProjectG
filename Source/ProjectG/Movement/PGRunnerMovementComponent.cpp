@@ -25,6 +25,7 @@ void UPGRunnerMovementComponent::InitializeRunnerMovement(const FPGJumpSettings&
 
 	BalanceOffset = 0.0f;
 	BalanceVelocity = 0.0f;
+	ExternalImpulseSpeedLimit = 0.0f;
 	BaseInstabilityInput = 0.0f;
 	PlayerCorrectionInput = 0.0f;
 	FlickLateralRemainingTime = 0.0f;
@@ -65,12 +66,24 @@ void UPGRunnerMovementComponent::ApplyExternalBalanceImpulse(float ImpulseVeloci
 
 	BalanceVelocity += ImpulseVelocity;
 
-	const float VelocityLimit = FMath::Max(0.0f, MaxAbsVelocity);
-	if (VelocityLimit > 0.0f)
+	// 속도는 여기서 자르지 않고, 일반 최대 속도를 넘겨도 되는 허용 상한만 기록합니다.
+	// 실제 제한은 다음 Tick이 그 시점의 지상/공중 일반 상한과 이 허용 상한 중 큰 값으로 수행하므로,
+	// 피격 직후 점프하는 프레임에서도 밀치기 세기가 달라지지 않고 연속 피격의 누적도 그때 함께 제한됩니다.
+	ExternalImpulseSpeedLimit = FMath::Min(FMath::Abs(BalanceVelocity), FMath::Max(0.0f, MaxAbsVelocity));
+}
+
+float UPGRunnerMovementComponent::ClampBalanceVelocity(float Velocity, float NormalMaxSpeed, float DampingSpeed, float DeltaSeconds, float& InOutImpulseSpeedLimit)
+{
+	// 허용 상한을 실제 속도와 별개로 먼저 감쇠시켜야, 밀린 방향 입력이 초과 속도를 떠받쳐 계속 유지하지 못합니다.
+	if (DampingSpeed > 0.0f)
 	{
-		// 위험 Actor가 여러 번 맞더라도 Balance 속도가 비정상적으로 누적되지 않도록 상한을 둡니다.
-		BalanceVelocity = FMath::Clamp(BalanceVelocity, -VelocityLimit, VelocityLimit);
+		InOutImpulseSpeedLimit = FMath::FInterpTo(InOutImpulseSpeedLimit, 0.0f, DeltaSeconds, DampingSpeed);
 	}
+
+	const float SpeedLimit = FMath::Max(NormalMaxSpeed, InOutImpulseSpeedLimit);
+	const float ClampedVelocity = FMath::Clamp(Velocity, -SpeedLimit, SpeedLimit);
+	InOutImpulseSpeedLimit = FMath::Abs(ClampedVelocity) > NormalMaxSpeed ? FMath::Abs(ClampedVelocity) : 0.0f;
+	return ClampedVelocity;
 }
 
 void UPGRunnerMovementComponent::ApplyFlickLateralStep(float DirectionSign)
@@ -106,6 +119,7 @@ void UPGRunnerMovementComponent::StopRunnerMovementForFailure()
 	DisableMovement();
 
 	BalanceVelocity = 0.0f;
+	ExternalImpulseSpeedLimit = 0.0f;
 	BaseInstabilityInput = 0.0f;
 	PlayerCorrectionInput = 0.0f;
 	FlickLateralRemainingTime = 0.0f;
@@ -187,8 +201,9 @@ void UPGRunnerMovementComponent::UpdateBalanceMovement(float DeltaSeconds)
 		BalanceVelocity = FMath::FInterpTo(BalanceVelocity, 0.0f, DeltaSeconds, DampingSpeed);
 	}
 
+	// 일반 상한은 그대로 적용하고, 외부 충격으로 넘긴 속도만 감쇠하는 허용 상한까지 유지합니다.
 	const float MaxSpeed = FMath::Max(0.0f, CachedBalanceSettings.BalanceMaxSpeed) * AirborneControlScale;
-	BalanceVelocity = FMath::Clamp(BalanceVelocity, -MaxSpeed, MaxSpeed);
+	BalanceVelocity = ClampBalanceVelocity(BalanceVelocity, MaxSpeed, DampingSpeed, DeltaSeconds, ExternalImpulseSpeedLimit);
 
 	BalanceOffset += BalanceVelocity * DeltaSeconds;
 

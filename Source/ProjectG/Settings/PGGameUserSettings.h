@@ -54,11 +54,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void SetShowFPSDisplay(bool bShow, bool bSaveAfterApply = true);
 
-	/** 배경음 볼륨을 0~150%로 clamp해 적용하고 변경 delegate를 발생시킨 뒤 선택적으로 저장합니다. */
+	/**
+	 * 배경음 볼륨을 0~150%로 clamp해 적용하고 값이 바뀌면 변경 delegate를 발생시킵니다.
+	 * bSaveAfterApply가 true면 이번 변경과 이전에 저장 없이 반영된 볼륨 변경을 함께 저장하고, 저장할 볼륨 변경이 없으면 저장하지 않습니다.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio")
 	void SetMusicVolumePercent(float NewMusicVolumePercent, bool bSaveAfterApply = true);
 
-	/** 효과음 볼륨을 0~150%로 clamp해 적용하고 변경 delegate를 발생시킨 뒤 선택적으로 저장합니다. */
+	/** 효과음 볼륨을 배경음과 같은 규칙으로 0~150%로 clamp해 적용하고 선택적으로 저장합니다. */
 	UFUNCTION(BlueprintCallable, Category = "Audio")
 	void SetSFXVolumePercent(float NewSFXVolumePercent, bool bSaveAfterApply = true);
 
@@ -106,6 +109,10 @@ private:
 	const FPGMobileQualityPresetSettings& GetPresetSettings(EPGMobileQualityPreset Preset) const;
 	static void SetConsoleVariableInt(const TCHAR* Name, int32 Value);
 	static int32 ClampScalabilityQuality(int32 Value);
+	void SavePendingVolumeChange(bool bValueChanged, bool bSaveAfterApply);
+
+	// 저장 없이 반영된 볼륨 변경이 남아 있는지 여부입니다. 저장 요청이 올 때 한 번만 기록하기 위해 씁니다.
+	bool bHasUnsavedVolumeChange = false;
 
 	// 사용자가 마지막으로 선택한 모바일 품질 프리셋입니다.
 	UPROPERTY(Config)

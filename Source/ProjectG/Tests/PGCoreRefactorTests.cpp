@@ -3,6 +3,7 @@
 #if WITH_DEV_AUTOMATION_TESTS && WITH_EDITOR
 
 #include "Misc/AutomationTest.h"
+#include "Movement/PGRunnerMovementComponent.h"
 #include "UI/PGUIAnimationUtils.h"
 #include "User/PGUserSaveCodec.h"
 #include "Utilities/PGWeightedRandom.h"
@@ -122,6 +123,71 @@ bool FPGUIAnimationEasingTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("기본 back overshoot를 보존해야 합니다."), FMath::IsNearlyEqual(PGUIAnimation::EaseOutBack(0.5f), 1.0876975f));
 	TestTrue(TEXT("Receipt Shop의 완화된 overshoot를 보존해야 합니다."), FMath::IsNearlyEqual(PGUIAnimation::EaseOutBack(0.5f, 1.45f), 1.05625f));
 	TestEqual(TEXT("EaseOutBack 종료값"), PGUIAnimation::EaseOutBack(1.0f), 1.0f);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FPGBalanceImpulseSpeedLimitTest,
+	"ProjectG.Core.BalanceMovement.ImpulseSpeedLimit",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPGBalanceImpulseSpeedLimitTest::RunTest(const FString& Parameters)
+{
+	constexpr float NormalMaxSpeed = 100.0f;
+	constexpr float DampingSpeed = 4.0f;
+	constexpr float DeltaSeconds = 1.0f / 60.0f;
+
+	float ImpulseSpeedLimit = 0.0f;
+	TestEqual(
+		TEXT("충격이 없으면 일반 상한으로 제한해야 합니다."),
+		UPGRunnerMovementComponent::ClampBalanceVelocity(250.0f, NormalMaxSpeed, DampingSpeed, DeltaSeconds, ImpulseSpeedLimit),
+		NormalMaxSpeed);
+	TestEqual(TEXT("충격이 없으면 허용 상한이 생기지 않아야 합니다."), ImpulseSpeedLimit, 0.0f);
+
+	ImpulseSpeedLimit = 600.0f;
+	float Velocity = UPGRunnerMovementComponent::ClampBalanceVelocity(600.0f, NormalMaxSpeed, DampingSpeed, DeltaSeconds, ImpulseSpeedLimit);
+	TestTrue(TEXT("충격 속도는 일반 상한으로 즉시 잘리면 안 됩니다."), Velocity > NormalMaxSpeed);
+	TestTrue(TEXT("충격 속도는 첫 Tick부터 감쇠로 줄어야 합니다."), Velocity < 600.0f);
+
+	// 밀린 방향 입력이 매 Tick 속도를 다시 끌어올려도 허용 상한은 감쇠로 줄어 일반 상한으로 돌아와야 합니다.
+	int32 StepCount = 0;
+	while (ImpulseSpeedLimit > 0.0f && StepCount < 600)
+	{
+		const float PreviousVelocity = Velocity;
+		Velocity = UPGRunnerMovementComponent::ClampBalanceVelocity(Velocity + 100.0f, NormalMaxSpeed, DampingSpeed, DeltaSeconds, ImpulseSpeedLimit);
+		TestTrue(TEXT("입력 가속으로 초과 속도가 커지거나 유지되면 안 됩니다."), Velocity < PreviousVelocity);
+		++StepCount;
+	}
+	TestTrue(TEXT("초과 속도는 유한한 시간 안에 해제되어야 합니다."), StepCount < 600);
+	TestEqual(TEXT("허용이 해제되면 일반 상한으로 돌아와야 합니다."), Velocity, NormalMaxSpeed);
+
+	ImpulseSpeedLimit = 600.0f;
+	TestEqual(
+		TEXT("감쇠가 0이면 허용 상한을 줄이지 않아야 합니다."),
+		UPGRunnerMovementComponent::ClampBalanceVelocity(600.0f, NormalMaxSpeed, 0.0f, DeltaSeconds, ImpulseSpeedLimit),
+		600.0f);
+	TestEqual(TEXT("감쇠가 0이면 허용 상한이 그대로 남아야 합니다."), ImpulseSpeedLimit, 600.0f);
+
+	ImpulseSpeedLimit = 600.0f;
+	const float NegativeVelocity = UPGRunnerMovementComponent::ClampBalanceVelocity(-600.0f, NormalMaxSpeed, DampingSpeed, DeltaSeconds, ImpulseSpeedLimit);
+	TestTrue(TEXT("왼쪽 방향 충격도 같은 규칙으로 허용하고 감쇠해야 합니다."), NegativeVelocity > -600.0f && NegativeVelocity < -NormalMaxSpeed);
+
+	// 설정 상한이 일반 상한 이하면 큰 충격량도 그 Tick 상태의 일반 상한까지만 적용되어야 합니다.
+	constexpr float AirborneMaxSpeed = 200.0f;
+	constexpr float AirborneDampingSpeed = 0.8f;
+	ImpulseSpeedLimit = 100.0f;
+	TestEqual(
+		TEXT("공중에서는 설정 상한이 낮아도 공중 일반 상한까지 밀려야 합니다."),
+		UPGRunnerMovementComponent::ClampBalanceVelocity(2000.0f, AirborneMaxSpeed, AirborneDampingSpeed, DeltaSeconds, ImpulseSpeedLimit),
+		AirborneMaxSpeed);
+	TestEqual(TEXT("일반 상한 안의 속도에는 허용 상한이 남지 않아야 합니다."), ImpulseSpeedLimit, 0.0f);
+
+	ImpulseSpeedLimit = 0.0f;
+	TestEqual(
+		TEXT("허용 상한이 0이면 큰 충격량도 일반 상한까지만 적용되어야 합니다."),
+		UPGRunnerMovementComponent::ClampBalanceVelocity(2000.0f, NormalMaxSpeed, DampingSpeed, DeltaSeconds, ImpulseSpeedLimit),
+		NormalMaxSpeed);
 
 	return true;
 }

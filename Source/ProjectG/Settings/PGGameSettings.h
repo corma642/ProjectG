@@ -719,7 +719,9 @@ struct FPGMovingHazardSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event | Moving Hazard", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2500.0"))
 	float PushImpulseVelocity = 850.0f;
 
-	// 위험 Actor가 만든 Balance 속도의 절대 상한입니다.
+	// 위험 Actor에 맞았을 때 허용할 Balance 속도 상한(cm/s)입니다.
+	// 일반 최대 속도(BalanceMaxSpeed, 공중은 AirborneBalanceControlScale 배) 이하면 일반 상한까지만 밀리고,
+	// 그보다 크면 충격 직후 이 속도까지 밀린 뒤 감쇠로 줄어듭니다. 값을 올릴수록 밀치기가 강해집니다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event | Moving Hazard", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2500.0"))
 	float MaxPushBalanceVelocity = 1000.0f;
 

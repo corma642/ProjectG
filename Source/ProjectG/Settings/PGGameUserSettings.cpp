@@ -88,35 +88,47 @@ void UPGGameUserSettings::SetShowFPSDisplay(bool bShow, bool bSaveAfterApply)
 void UPGGameUserSettings::SetMusicVolumePercent(float NewMusicVolumePercent, bool bSaveAfterApply)
 {
 	const float ClampedVolume = FMath::Clamp(NewMusicVolumePercent, MinUserVolumePercent, MaxUserVolumePercent);
-	if (FMath::IsNearlyEqual(MusicVolumePercent, ClampedVolume))
+	const bool bValueChanged = !FMath::IsNearlyEqual(MusicVolumePercent, ClampedVolume);
+	if (bValueChanged)
 	{
-		return;
+		MusicVolumePercent = ClampedVolume;
 	}
 
-	MusicVolumePercent = ClampedVolume;
-	if (bSaveAfterApply)
-	{
-		SaveSettings();
-	}
+	SavePendingVolumeChange(bValueChanged, bSaveAfterApply);
 
-	OnMusicVolumeChanged.Broadcast(GetMusicVolumeScale());
+	if (bValueChanged)
+	{
+		OnMusicVolumeChanged.Broadcast(GetMusicVolumeScale());
+	}
 }
 
 void UPGGameUserSettings::SetSFXVolumePercent(float NewSFXVolumePercent, bool bSaveAfterApply)
 {
 	const float ClampedVolume = FMath::Clamp(NewSFXVolumePercent, MinUserVolumePercent, MaxUserVolumePercent);
-	if (FMath::IsNearlyEqual(SFXVolumePercent, ClampedVolume))
+	const bool bValueChanged = !FMath::IsNearlyEqual(SFXVolumePercent, ClampedVolume);
+	if (bValueChanged)
 	{
-		return;
+		SFXVolumePercent = ClampedVolume;
 	}
 
-	SFXVolumePercent = ClampedVolume;
-	if (bSaveAfterApply)
+	SavePendingVolumeChange(bValueChanged, bSaveAfterApply);
+
+	if (bValueChanged)
+	{
+		OnSFXVolumeChanged.Broadcast(GetSFXVolumeScale());
+	}
+}
+
+void UPGGameUserSettings::SavePendingVolumeChange(bool bValueChanged, bool bSaveAfterApply)
+{
+	// 슬라이더는 드래그 중 저장 없이 값을 먼저 반영하고, 손을 뗄 때 같은 값으로 저장을 요청합니다.
+	// 값 비교만으로는 그 저장이 누락되므로 저장하지 않은 변경이 남았는지를 따로 기억합니다.
+	bHasUnsavedVolumeChange |= bValueChanged;
+	if (bSaveAfterApply && bHasUnsavedVolumeChange)
 	{
 		SaveSettings();
+		bHasUnsavedVolumeChange = false;
 	}
-
-	OnSFXVolumeChanged.Broadcast(GetSFXVolumeScale());
 }
 
 float UPGGameUserSettings::GetCurrentMusicVolumeScale()

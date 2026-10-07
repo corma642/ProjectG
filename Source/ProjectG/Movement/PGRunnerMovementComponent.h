@@ -28,8 +28,19 @@ public:
 	/** 지면 상태와 쿨타임을 만족하면 수직 점프를 실행하고, 실제 점프가 시작된 경우에만 true를 반환합니다. */
 	bool RequestJump();
 
-	/** 이동형 위험 Actor의 cm/s 순간 충격을 Balance 속도에 더하고 MaxAbsVelocity 범위로 제한합니다. */
+	/**
+	 * 이동형 위험 Actor의 cm/s 순간 충격을 Balance 속도에 더합니다. 속도 제한은 다음 Tick에 적용됩니다.
+	 * MaxAbsVelocity가 그 시점의 일반 Balance 최대 속도 이하면 일반 상한까지만 밀리고,
+	 * 그보다 크면 MaxAbsVelocity까지 밀린 뒤 감쇠로 줄어들 때까지 초과 속도가 유지됩니다.
+	 */
 	void ApplyExternalBalanceImpulse(float ImpulseVelocity, float MaxAbsVelocity);
+
+	/**
+	 * 외부 충격 허용 상한(cm/s)을 반영해 Balance 속도를 제한하고, 다음 Tick에 넘길 허용 상한을 갱신합니다.
+	 * 허용 상한은 입력으로 다시 커지지 않습니다. 매 Tick 감쇠 속도만큼 줄고, 실제 속도가 그보다 낮으면 그 값으로 내려가며,
+	 * 속도가 일반 상한 안으로 돌아오면 0으로 해제됩니다. 감쇠가 0이면 실제 속도를 따라서만 내려갑니다.
+	 */
+	static float ClampBalanceVelocity(float Velocity, float NormalMaxSpeed, float DampingSpeed, float DeltaSeconds, float& InOutImpulseSpeedLimit);
 
 	/** 점프 성공 직후 -1~1 방향 부호에 따라 짧은 측면 이동 보정을 더합니다. */
 	void ApplyFlickLateralStep(float DirectionSign);
@@ -78,6 +89,8 @@ private:
 
 	float BalanceOffset = 0.0f;
 	float BalanceVelocity = 0.0f;
+	// 외부 충격 직후 일반 Balance 최대 속도를 넘겨도 되는 일시 상한(cm/s). 감쇠로 줄어들며 0이면 일반 상한만 적용합니다.
+	float ExternalImpulseSpeedLimit = 0.0f;
 	float BaseInstabilityInput = 0.0f;
 	float PlayerCorrectionInput = 0.0f;
 	float FlickLateralRemainingTime = 0.0f;
