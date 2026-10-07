@@ -58,11 +58,6 @@ int32 UPGUserDataSubsystem::GetReceiptBalance() const
 	return UserSaveGame ? FMath::Max(0, UserSaveGame->ReceiptBalance) : 0;
 }
 
-void UPGUserDataSubsystem::AddReceipts(int32 Amount, FName Reason)
-{
-	TryAddReceipts(Amount, Reason);
-}
-
 bool UPGUserDataSubsystem::TryAddReceipts(int32 Amount, FName Reason)
 {
 	if (Amount <= 0)
@@ -88,65 +83,9 @@ bool UPGUserDataSubsystem::TryAddReceipts(int32 Amount, FName Reason)
 	return false;
 }
 
-bool UPGUserDataSubsystem::CanSpendReceipts(int32 Amount) const
-{
-	return Amount > 0 && GetReceiptBalance() >= Amount;
-}
-
-bool UPGUserDataSubsystem::TrySpendReceipts(int32 Amount, FName Reason)
-{
-	if (!CanSpendReceipts(Amount))
-	{
-		return false;
-	}
-
-	UPGUserSaveGame* UserData = EnsureUserData();
-	if (!UserData)
-	{
-		return false;
-	}
-
-	const int32 PreviousBalance = UserData->ReceiptBalance;
-	UserData->ReceiptBalance = FMath::Max(0, UserData->ReceiptBalance - Amount);
-	if (!SaveUserData())
-	{
-		UserData->ReceiptBalance = PreviousBalance;
-		return false;
-	}
-
-	OnReceiptBalanceChanged.Broadcast(UserData->ReceiptBalance, Reason);
-	return true;
-}
-
 int32 UPGUserDataSubsystem::GetBestRunScore() const
 {
 	return UserSaveGame ? FMath::Max(0, UserSaveGame->BestRunScore) : 0;
-}
-
-bool UPGUserDataSubsystem::TryUpdateBestRunScore(int32 Score, FName Reason)
-{
-	const int32 SanitizedScore = FMath::Max(0, Score);
-	if (SanitizedScore <= GetBestRunScore())
-	{
-		return false;
-	}
-
-	UPGUserSaveGame* UserData = EnsureUserData();
-	if (!UserData)
-	{
-		return false;
-	}
-
-	const int32 PreviousBestScore = UserData->BestRunScore;
-	UserData->BestRunScore = SanitizedScore;
-	if (!SaveUserData())
-	{
-		UserData->BestRunScore = PreviousBestScore;
-		return false;
-	}
-
-	OnBestRunScoreChanged.Broadcast(UserData->BestRunScore, Reason);
-	return true;
 }
 
 bool UPGUserDataSubsystem::TrySettleRunRewards(int32 Receipts, int32 Score, FName Reason)

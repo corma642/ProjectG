@@ -27,6 +27,7 @@ constexpr float ShopReceiptStartXOffset = -260.0f;
 constexpr float ShopCloseStartXOffset = 180.0f;
 constexpr float ShopListStartYOffset = 260.0f;
 constexpr float ShopActionStartYOffset = 210.0f;
+// 진입 애니메이션 전체 알파(0~1) 안에서 각 패널이 움직이는 구간 길이. 초가 아니라 정규화 비율이며 Delay와 더해 1을 넘지 않는다.
 constexpr float ShopPanelAnimationDuration = 0.5f;
 constexpr float ShopElementAnimationDuration = 0.42f;
 
@@ -248,6 +249,7 @@ void UPGShopScreenWidget::HandleActionClicked()
 
 		ApplyActionResultFeedback(bSuccess, bWasPurchaseAction);
 		RefreshSelectedMapState();
+		LockActionButtonAfterPurchase(bSuccess && bWasPurchaseAction);
 		return;
 	}
 
@@ -278,6 +280,16 @@ void UPGShopScreenWidget::HandleActionClicked()
 
 	ApplyActionResultFeedback(bSuccess, bWasPurchaseAction);
 	RefreshSelectedCharacterState();
+	LockActionButtonAfterPurchase(bSuccess && bWasPurchaseAction);
+}
+
+void UPGShopScreenWidget::LockActionButtonAfterPurchase(bool bPurchased)
+{
+	// 구매 직후 같은 버튼이 곧바로 장착(맵은 레벨 이동)으로 바뀌므로, 피드백 펄스가 끝날 때까지 연타를 막는다.
+	if (bPurchased && ActionButton)
+	{
+		ActionButton->SetIsEnabled(false);
+	}
 }
 
 void UPGShopScreenWidget::HandleCharactersTabClicked()
@@ -545,7 +557,7 @@ void UPGShopScreenWidget::RebuildCharacterList()
 		const bool bEquipped = UserData->IsCharacterEquipped(SkinDefinition->SkinId);
 		const bool bSelected = Index == SelectedCharacterIndex;
 
-		// 리스트 위젯은 최초 구성 때만 만든다. 이후 선택/구매/장착 상태 변화는
+		// 리스트 위젯은 탭 전환이나 최초 구성 때만 만든다. 이후 선택/구매/장착 상태 변화는
 		// RefreshCharacterItems()에서 기존 카드의 상태만 갱신해 ScrollBox 관성 입력을 보존한다.
 		ItemWidget->SetCharacterSkin(SkinDefinition, bOwned, bEquipped, bSelected);
 		ItemWidget->OnCharacterSelected.AddUObject(this, &UPGShopScreenWidget::SelectCharacterById);
@@ -1061,5 +1073,15 @@ void UPGShopScreenWidget::ApplyActionFeedback(float DeltaSeconds)
 		TargetWidget->SetRenderScale(FVector2D(1.0f, 1.0f));
 		TargetWidget->SetRenderTranslation(FVector2D::ZeroVector);
 		ActionFeedbackTarget.Reset();
+
+		// 구매 직후 잠근 액션 버튼을 현재 보유/장착 상태 기준으로 다시 계산한다.
+		if (ActiveTab == EPGShopTab::Maps)
+		{
+			RefreshSelectedMapState();
+		}
+		else
+		{
+			RefreshSelectedCharacterState();
+		}
 	}
 }

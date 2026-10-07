@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Cargo/PGCargoStackComponent.h"
 #include "Components/ActorComponent.h"
 #include "Settings/PGGameSettings.h"
 #include "PGRunHUDComponent.generated.h"
@@ -32,7 +33,7 @@ public:
 	/** Controller, GameMode와 이미 Possess된 러너를 찾아 HUD 데이터 흐름을 연결합니다. */
 	virtual void BeginPlay() override;
 
-	/** 일시정지를 해제하고 모든 UI·delegate 참조를 수명 종료 전에 정리합니다. */
+	/** Pause/Settings 모달, HUD, delegate 참조를 수명 종료 전에 정리합니다. 일시정지 해제는 하지 않습니다. */
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	/** 활성 Cargo 카드의 남은 시간처럼 이벤트만으로 갱신할 수 없는 HUD 상태를 제한 주기로 새로 고칩니다. */
@@ -84,6 +85,7 @@ private:
 	void UpdateHUDInteractionState() const;
 	void RefreshHUDValues();
 	void RefreshCargoList();
+	void UpdateCargoDangerWarning();
 	void ShowPauseScreen();
 	void CleanupPauseScreen(bool bResumeGame);
 	void ShowSettingsScreen();
@@ -122,7 +124,14 @@ private:
 	FPGRunHUDSettings CachedRunHUDSettings;
 	FPGHomeFlowSettings CachedHomeFlowSettings;
 
+	// 주기 갱신마다 재사용하는 활성 적재물 스냅샷 버퍼입니다. 매번 새 배열을 만들지 않기 위해 멤버로 둡니다.
+	UPROPERTY(Transient)
+	TArray<FPGActiveCargoInfo> ActiveCargoInfoBuffer;
+
 	// 적재물 남은 시간/진행률은 매 프레임이 아니라 설정된 간격으로만 갱신합니다.
 	float CargoRefreshElapsed = 0.0f;
+	// Cargo > CargoDangerWarningRatio 복사본입니다. 손실 임박 경고를 켤 최대 수평 이탈 비율(0~1)입니다.
+	float CargoDangerWarningRatio = 1.0f;
+	bool bIsCargoDangerActive = false;
 	bool bIsBoundToGameMode = false;
 };

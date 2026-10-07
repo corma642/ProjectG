@@ -62,7 +62,7 @@ private:
 	// 릴리즈 입력에 필요한 에디터 지정 입력 에셋이 준비됐는지 확인합니다.
 	bool HasRequiredInputAssets() const;
 
-	// 화면 터치/Space 입력으로 점프를 요청합니다.
+	// 데스크톱 점프 키 입력으로 점프를 요청합니다. Android 터치 점프는 플릭 제스처가 담당합니다.
 	void HandleJumpStarted(const FInputActionValue& ActionValue);
 
 	// Q를 누르는 동안 왼쪽 중심 보정 입력을 유지합니다.
@@ -105,7 +105,7 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputMappingContext> DefaultMappingContext;
 
-	// 화면 터치/Space 점프 액션
+	// 데스크톱 테스트용 점프 액션. Android에서는 바인딩하지 않습니다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> JumpAction;
 
@@ -165,9 +165,6 @@ private:
 
 	// 터치 시작 화면 위치
 	FVector2D TouchStartLocation = FVector2D::ZeroVector;
-
-	// 마지막으로 처리한 터치 화면 위치
-	FVector2D TouchLastLocation = FVector2D::ZeroVector;
 
 	// 터치 시작 월드 시간
 	float TouchStartTimeSeconds = 0.0f;

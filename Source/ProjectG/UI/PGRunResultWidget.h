@@ -147,8 +147,6 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UWidget>> AnimatedButtons;
 
-	FName CachedFailureReason = NAME_None;
-	float CachedRunTimeSeconds = 0.0f;
 	float CachedDistanceMeters = 0.0f;
 	int32 CachedScore = 0;
 	int32 CachedReceipts = 0;

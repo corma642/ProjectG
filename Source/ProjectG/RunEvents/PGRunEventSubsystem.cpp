@@ -115,15 +115,13 @@ bool UPGRunEventSubsystem::IsTickable() const
 
 float UPGRunEventSubsystem::GetDifficultyAlpha() const
 {
-	return CachedRunEventSettings.DifficultyRampDuration > KINDA_SMALL_NUMBER
-		? FMath::Clamp(RunElapsedTime / CachedRunEventSettings.DifficultyRampDuration, 0.0f, 1.0f)
-		: 1.0f;
+	return CachedDifficultySettings.GetDifficultyAlpha(RunElapsedTime);
 }
 
 void UPGRunEventSubsystem::HandleRunStarted()
 {
 	// Retry/새 런 모두 이전 런의 예약/활성 이벤트를 완전히 비운 뒤 다시 스케줄한다.
-	// 적재물 드롭은 별도 CargoDeliverySubsystem이 관리하므로 여기서는 Wind/Snowstorm만 다룬다.
+	// 적재물 드롭은 별도 CargoDeliverySubsystem이 관리하므로 여기서는 Wind/Snowstorm/MovingHazard만 다룬다.
 	bIsRunActive = true;
 	RunElapsedTime = 0.0f;
 	TickAccumulator = 0.0f;
@@ -164,6 +162,7 @@ void UPGRunEventSubsystem::LoadSettings()
 	{
 		CachedRunEventSettings = Settings->RunEvent;
 		CachedMovingHazardSettings = Settings->MovingHazard;
+		CachedDifficultySettings = Settings->Difficulty;
 		LoadedEventSet = CachedRunEventSettings.DefaultRunEventSet.Get();
 	}
 }
@@ -376,7 +375,6 @@ void UPGRunEventSubsystem::TriggerPendingEvent()
 		return;
 	}
 
-	PendingEventState = EPGRunEventState::Triggered;
 	bool bTriggered = true;
 
 	switch (PendingEventType)
@@ -397,14 +395,19 @@ void UPGRunEventSubsystem::TriggerPendingEvent()
 		break;
 	}
 
-	if (bTriggered)
+	if (!bTriggered)
 	{
-		// 트리거가 성공한 이벤트만 쿨다운과 Active 상태에 기록한다.
-		// 실패한 예약까지 쿨다운에 넣으면 일정 시간 이벤트가 비는 문제가 생긴다.
-		LastTriggeredTimeByEvent.FindOrAdd(PendingEventType) = RunElapsedTime;
-		OnRunEventTriggered.Broadcast(PendingEventType, PendingEventRule.Duration, PendingEventDirection);
-		StartActiveEvent(PendingEventType, PendingEventRule.Duration);
+		// 발동에 실패한 예약은 전조 연출을 취소해 다음 전조까지 경고가 남지 않게 한다.
+		ClearPendingEvent(true);
+		return;
 	}
+
+	// 트리거가 성공한 이벤트만 쿨다운과 Active 상태에 기록한다.
+	// 실패한 예약까지 쿨다운에 넣으면 일정 시간 이벤트가 비는 문제가 생긴다.
+	PendingEventState = EPGRunEventState::Triggered;
+	LastTriggeredTimeByEvent.FindOrAdd(PendingEventType) = RunElapsedTime;
+	OnRunEventTriggered.Broadcast(PendingEventType, PendingEventRule.Duration, PendingEventDirection);
+	StartActiveEvent(PendingEventType, PendingEventRule.Duration);
 }
 
 void UPGRunEventSubsystem::ClearPendingEvent(bool bBroadcastCancel)
@@ -525,14 +528,11 @@ bool UPGRunEventSubsystem::SpawnMovingHazard()
 	const float Lifetime = CachedMovingHazardSettings.HazardLifetime > 0.0f
 		? CachedMovingHazardSettings.HazardLifetime
 		: FMath::Max(0.1f, PendingEventRule.Duration);
-	const float Strength = FMath::Max(0.0f, PendingEventRule.Strength);
-
 	HazardActor->InitializeMovingHazard(
+		CachedMovingHazardSettings,
 		MovementVelocity,
 		Lifetime,
-		CachedMovingHazardSettings.PushImpulseVelocity * Strength,
-		CachedMovingHazardSettings.MaxPushBalanceVelocity,
-		CachedMovingHazardSettings.RehitCooldown,
+		PendingEventRule.Strength,
 		PushDirectionSign);
 
 	ActiveMovingHazards.RemoveAll([](const TObjectPtr<APGMovingRunEventHazardActor>& ExistingHazard)

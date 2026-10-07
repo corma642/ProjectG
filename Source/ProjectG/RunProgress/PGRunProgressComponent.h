@@ -60,7 +60,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run")
 	int32 GetReceipts() const { return Receipts; }
 
-	/** 런 시작 이후 경과 시간을 초 단위로 반환하며, 정지 후에는 마지막 값을 유지합니다. */
+	/** 런 시작 이후 경과 시간을 초 단위로 반환합니다. 월드 시간 기준이라 정지 뒤에도 계속 증가합니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run")
 	float GetElapsedTimeSeconds() const;
 

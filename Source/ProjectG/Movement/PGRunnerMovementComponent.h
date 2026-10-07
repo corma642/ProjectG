@@ -11,7 +11,7 @@
  * 자동 전진, 수직 점프, 좌우 Balance 이동을 담당하는 러너 이동 컴포넌트입니다.
  *
  * 실제 이동 라인 인덱스는 사용하지 않습니다. 러너 시작 기준 전방/우측 축을 기준으로
- * 전진 거리를 보존하고, 기울임 입력과 외부 충격이 만든 BalanceOffset만 좌우 위치에 반영합니다.
+ * 전진 거리를 보존하고, Balance 입력과 외부 충격이 만든 BalanceOffset만 좌우 위치에 반영합니다.
  */
 UCLASS()
 class PROJECTG_API UPGRunnerMovementComponent : public UCharacterMovementComponent

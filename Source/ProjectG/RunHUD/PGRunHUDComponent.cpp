@@ -3,6 +3,7 @@
 #include "RunHUD/PGRunHUDComponent.h"
 
 #include "Blueprint/UserWidget.h"
+#include "Audio/PGAudioStatics.h"
 #include "Audio/PGMusicComponent.h"
 #include "Cargo/PGCargoStackComponent.h"
 #include "Character/PGRunnerCharacter.h"
@@ -77,6 +78,7 @@ void UPGRunHUDComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 		// 적재물 남은 시간/게이지는 계속 변하지만, 모바일 UI 비용을 줄이기 위해 설정 간격으로만 갱신한다.
 		CargoRefreshElapsed = 0.0f;
 		RefreshCargoList();
+		UpdateCargoDangerWarning();
 	}
 }
 
@@ -119,6 +121,13 @@ void UPGRunHUDComponent::HandleRunFailed(FName FailureReason)
 	UpdateHUDInteractionState();
 	SetComponentTickEnabled(false);
 	CargoRefreshElapsed = 0.0f;
+
+	// 결과 화면 뒤에 남는 HUD에서 손실 임박 경고가 계속 깜빡이지 않게 끈다.
+	bIsCargoDangerActive = false;
+	if (HUDWidget)
+	{
+		HUDWidget->SetCargoDangerWarningActive(false);
+	}
 }
 
 void UPGRunHUDComponent::HandleDisplayedDistanceChanged(float DisplayedDistanceMeters)
@@ -272,6 +281,7 @@ void UPGRunHUDComponent::LoadSettings()
 	{
 		CachedRunHUDSettings = Settings->RunHUD;
 		CachedHomeFlowSettings = Settings->HomeFlow;
+		CargoDangerWarningRatio = Settings->Cargo.CargoDangerWarningRatio;
 	}
 }
 
@@ -431,6 +441,7 @@ void UPGRunHUDComponent::CleanupHUD()
 {
 	SetComponentTickEnabled(false);
 	CargoRefreshElapsed = 0.0f;
+	bIsCargoDangerActive = false;
 
 	if (HUDWidget)
 	{
@@ -467,7 +478,33 @@ void UPGRunHUDComponent::RefreshCargoList()
 {
 	if (HUDWidget && BoundCargoStackComponent)
 	{
-		HUDWidget->RefreshCargoList(BoundCargoStackComponent->GetActiveCargoInfos());
+		BoundCargoStackComponent->GetActiveCargoInfos(ActiveCargoInfoBuffer);
+		HUDWidget->RefreshCargoList(ActiveCargoInfoBuffer);
+	}
+}
+
+void UPGRunHUDComponent::UpdateCargoDangerWarning()
+{
+	if (!HUDWidget || !BoundCargoStackComponent)
+	{
+		return;
+	}
+
+	// 경고 해제는 진입보다 낮은 비율에서 풀어 경계값 근처에서 깜빡임과 경고음 반복을 막는다.
+	constexpr float ExitHysteresis = 0.1f;
+	const float DangerRatio = BoundCargoStackComponent->GetCargoDangerRatio();
+	const float ThresholdRatio = bIsCargoDangerActive ? CargoDangerWarningRatio - ExitHysteresis : CargoDangerWarningRatio;
+	const bool bShouldWarn = CargoDangerWarningRatio < 1.0f - KINDA_SMALL_NUMBER && DangerRatio >= ThresholdRatio;
+	if (bShouldWarn == bIsCargoDangerActive)
+	{
+		return;
+	}
+
+	bIsCargoDangerActive = bShouldWarn;
+	HUDWidget->SetCargoDangerWarningActive(bShouldWarn);
+	if (bShouldWarn)
+	{
+		UPGAudioStatics::PlaySFX2D(this, CachedRunHUDSettings.CargoDangerWarningSound.Get());
 	}
 }
 

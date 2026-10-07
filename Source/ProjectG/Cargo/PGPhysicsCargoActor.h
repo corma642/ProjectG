@@ -29,9 +29,6 @@ public:
 	/** 물리 시뮬레이션과 충돌을 담당하는 StaticMeshComponent를 반환합니다. */
 	UStaticMeshComponent* GetCargoMeshComponent() const { return CargoMeshComponent; }
 
-	/** InitializeCargo에서 적용한 적재물 타입을 반환하며 초기화 전에는 null입니다. */
-	UPGCargoTypeDefinition* GetCargoType() const { return CargoType; }
-
 private:
 	// 물리 충돌 직후 과도한 위쪽 반발 속도와 회전 속도를 제한한다.
 	UFUNCTION()

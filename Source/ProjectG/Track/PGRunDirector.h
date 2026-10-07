@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Settings/PGGameSettings.h"
 #include "PGRunDirector.generated.h"
 
 class APGGameModeBase;
@@ -28,12 +29,6 @@ struct FPGActiveTrackSegment
 
 	UPROPERTY()
 	TObjectPtr<APGTrackSegment> Segment = nullptr;
-
-	UPROPERTY()
-	int32 EntryIndex = INDEX_NONE;
-
-	UPROPERTY()
-	float StartProgress = 0.0f;
 
 	UPROPERTY()
 	float EndProgress = 0.0f;
@@ -106,10 +101,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Run Director | Track", meta = (ClampMin = "0", UIMin = "0", UIMax = "20"))
 	int32 MaxPooledSegmentsPerClass = 8;
 
-	// 트랙 난이도가 1.0까지 도달하는 초 단위 시간이며 최소 1초로 clamp됩니다.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Run Director | Difficulty", meta = (ClampMin = "1.0", UIMin = "30.0", UIMax = "300.0"))
-	float DifficultyRampDuration = 180.0f;
-
 	// 같은 트랙 생성 순서를 재현할 때 사용하는 시드입니다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Run Director | Random")
 	int32 RandomSeed = 1337;
@@ -148,6 +139,8 @@ private:
 	TArray<FPGActiveTrackSegment> ActiveSegments;
 
 	TMap<TSubclassOf<APGTrackSegment>, FPGPooledTrackSegments> SegmentPoolByClass;
+	// 적재물·RunEvent와 같은 Project Settings 난이도 램프를 BeginPlay에서 캐시합니다.
+	FPGRunDifficultySettings CachedDifficultySettings;
 	FRandomStream RandomStream;
 	FVector RunOrigin = FVector::ZeroVector;
 	FVector RunForward = FVector::ForwardVector;

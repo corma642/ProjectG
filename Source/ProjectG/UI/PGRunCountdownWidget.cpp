@@ -28,7 +28,9 @@ void UPGRunCountdownWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
 		return;
 	}
 
-	CountdownElapsed += InDeltaTime;
+	// 실제 런 시작은 GameMode의 월드 타이머가 정하므로 같은 시계를 쓴다. Slate 델타는 히치 때 0.125초로 잘려 GO! 표시가 뒤처진다.
+	const UWorld* World = GetWorld();
+	CountdownElapsed += World ? World->GetDeltaSeconds() : InDeltaTime;
 	const float StepDuration = CountdownDuration > KINDA_SMALL_NUMBER ? CountdownDuration / 4.0f : 0.0f;
 	const int32 StepIndex = StepDuration > KINDA_SMALL_NUMBER
 		? FMath::Clamp(FMath::FloorToInt(CountdownElapsed / StepDuration), 0, 3)

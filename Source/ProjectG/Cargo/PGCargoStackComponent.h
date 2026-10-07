@@ -12,9 +12,9 @@ class UPGCargoTypeDefinition;
 class UStaticMeshComponent;
 class UTexture2D;
 
-/** 적재물 손실 개수가 확정돼 런 진행도 페널티를 적용할 때 발생합니다. */
+/** 적재물이 손실 범위를 벗어나 제거됐을 때 제거된 리스트 인덱스와 함께 발생합니다. */
 DECLARE_MULTICAST_DELEGATE_OneParam(FPGCargoLostSignature, int32);
-/** 배달 완료 시 적재물 ID, 기본 점수, 연쇄 보너스와 월드 위치를 HUD/진행도에 전달합니다. */
+/** 배달 완료 시 적재물 instance ID, 배달 점수, 영수증과 월드 위치를 HUD/진행도에 전달합니다. */
 DECLARE_MULTICAST_DELEGATE_FourParams(FPGCargoDeliveredSignature, int32, int32, int32, FVector);
 /** 활성 적재물 목록 또는 남은 배달 시간이 바뀌어 HUD 카드 동기화가 필요할 때 발생합니다. */
 DECLARE_MULTICAST_DELEGATE(FPGCargoListChangedSignature);
@@ -83,7 +83,7 @@ public:
 	/** 생성한 물리 적재물과 Hold 표시 컴포넌트를 월드 종료 전에 정리합니다. */
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	/** 배달 적재물이 플레이어 기준 손실 범위를 벗어나면 손실 개수와 함께 발생합니다. */
+	/** 배달 적재물이 플레이어 기준 손실 범위를 벗어나면 제거된 리스트 인덱스와 함께 발생합니다. */
 	FPGCargoLostSignature OnCargoLost;
 
 	/** 배달 완료 시 instance ID, 점수, 영수증과 월드 위치를 보상 처리 계층에 전달합니다. */
@@ -121,9 +121,16 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
 	bool HasPendingCargoDrop() const { return bHasPendingCargoDrop; }
 
-	/** HUD용 활성 적재물 스냅샷을 반환합니다. 남은 시간은 초, 진행률은 0~1 범위입니다. */
+	/** 가장 멀리 벗어난 적재물의 수평 이탈을 손실 거리 대비 0~1로 반환합니다. 적재물이 없으면 0입니다. */
+	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
+	float GetCargoDangerRatio() const { return CargoDangerRatio; }
+
+	/** 위험 Actor 피격처럼 외부 충격이 났을 때 모든 활성 적재물에 러너 우측 축 속도(cm/s)를 더합니다. */
+	void ApplyExternalLateralImpulse(float LateralVelocity);
+
+	/** HUD용 활성 적재물 스냅샷을 OutInfos에 채웁니다. 남은 시간은 초, 진행률은 0~1 범위이며 기존 내용은 비웁니다. */
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Cargo")
-	TArray<FPGActiveCargoInfo> GetActiveCargoInfos() const;
+	void GetActiveCargoInfos(TArray<FPGActiveCargoInfo>& OutInfos) const;
 
 private:
 	bool IsValidCargoTypeForSpawn(const UPGCargoTypeDefinition* CargoType, const TCHAR* Context) const;
@@ -139,7 +146,7 @@ private:
 	void UpdateAnchorMotion(float DeltaSeconds, bool bIsAirborne);
 	void ApplyAirborneCargoAssist();
 	FVector GetLossOriginLocation() const;
-	void CheckCargoLoss();
+	bool CheckCargoLoss();
 	void LoseCargoAt(int32 CargoIndex);
 	void CompleteCargoAt(int32 CargoIndex);
 	void CleanupInvalidCargoActors();
@@ -163,6 +170,8 @@ private:
 	FVector AnchorVelocity = FVector::ZeroVector;
 	float AirborneCargoAssistRemainingTime = 0.0f;
 	float CargoLossWorldZ = 0.0f;
+	// 직전 손실 판정에서 계산한 최대 수평 이탈 비율(0~1). HUD 손실 임박 경고가 읽습니다.
+	float CargoDangerRatio = 0.0f;
 	bool bWasAirborneLastFrame = false;
 	bool bHasPreviousAnchorLocation = false;
 	bool bHasCargoLossWorldZ = false;

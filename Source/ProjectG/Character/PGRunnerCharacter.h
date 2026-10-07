@@ -37,7 +37,7 @@ public:
 	/** 런 중 생성한 Bowl Actor와 delegate가 레벨 전환 또는 재시작 뒤 남지 않도록 정리합니다. */
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	/** 화면 입력 또는 Space 수직 점프를 요청하고, 현재 상태에서 점프 요청을 수락했는지 반환합니다. */
+	/** 위쪽 플릭 또는 데스크톱 점프 키의 수직 점프를 요청하고, 실제로 점프가 시작됐는지 반환합니다. */
 	bool RequestJump();
 
 	/** -1~1 방향 부호의 플릭 입력으로 점프와 짧은 측면 이동 보정을 함께 요청합니다. */
@@ -78,9 +78,6 @@ public:
 
 	/** 선택한 스킨의 메시·애님 클래스를 적용하고, 필수 에셋이 없으면 false를 반환합니다. */
 	bool ApplyCharacterSkin(const UPGCharacterSkinDefinition* SkinDefinition);
-
-	/** UserData에 저장된 장착 캐릭터 스킨을 현재 러너에 적용합니다. */
-	void ApplyEquippedCharacterSkin();
 
 	/** Home/Shop 프리뷰 회전과 분리해 실제 런 시작을 위치 유지와 yaw 0 기준으로 정렬합니다. */
 	void PrepareTransformForRunStart();
@@ -159,6 +156,9 @@ private:
 	// 직선 주행 중 자동으로 발생하는 좌우 중심 흔들림을 갱신한다.
 	void UpdateBaseInstability(float DeltaSeconds);
 
+	// 착지 직후 완화를 적용한 플레이어 중심 입력값을 반환한다. 입력 이벤트가 없는 프레임에도 완화가 적용·해제되도록 매 프레임 평가한다.
+	float GetLandingScaledBalanceInput() const;
+
 	// 기본 흔들림, 플레이어 입력, 환경 효과를 합산한 최종 중심 입력값을 반환한다.
 	float GetEffectiveBalanceInput() const;
 
@@ -198,7 +198,7 @@ private:
 	// 직선 주행 중 자동으로 발생하는 기본 좌우 중심 흔들림 입력값
 	float BaseInstabilityInput = 0.0f;
 
-	// 좌우 플릭 직후 몸 기울기 연출을 유지하기 위한 짧은 보조 입력값
+	// 좌우 플릭 직후 짧게 더하는 보조 중심 입력값. 이동 가속, 적재물 힘, 몸 기울기에 함께 반영된다.
 	float FlickBalanceInput = 0.0f;
 
 	// 좌우 플릭 보조 입력이 남아 있는 시간

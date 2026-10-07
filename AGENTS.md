@@ -1,6 +1,6 @@
 ﻿# AGENTS.md
 
-이 문서는 Codex가 `C:\Documents\GitHub\ProjectG`에서 작업할 때 따르는 프로젝트 기준 문서입니다.
+이 문서는 코딩 에이전트(Claude Code, Codex)가 `C:\Documents\GitHub\ProjectG`에서 작업할 때 따르는 프로젝트 기준 문서입니다.
 CLI 세션이 새로 시작되면 가장 먼저 이 문서를 읽고, 이후 필요한 정보는 아래에 지정된 Notion 페이지 범위 안에서만 확인합니다.
 
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
@@ -119,7 +119,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ## 3. Notion 접근 범위와 기준 문서
 
 ### 접근 허용 범위
-Codex는 반드시 아래 최상위 페이지와 그 하위 페이지까지만 접근한다.
+에이전트는 반드시 아래 최상위 페이지와 그 하위 페이지까지만 접근한다.
 
 - `Go Deliver! Development Hub`  
   ID: `34aea150-fa75-80c9-9553-fb0762201bab`
@@ -218,7 +218,7 @@ Codex는 반드시 아래 최상위 페이지와 그 하위 페이지까지만 �
 - C++ 로직에 필요한 BindWidget은 필수로 간주한다. 미할당 가능성을 fallback UI로 처리하지 않으며, 반복적인 수동 검증 로그도 추가하지 않는다.
 - 새 위젯에서 `WidgetTree->ConstructWidget()`로 전체 화면 구조를 C++에서 생성하지 않는다.
 - 불필요한 스타일/레이아웃 튜닝값을 C++ 설정으로 노출하지 않는다. 디자인 조정은 Widget Blueprint의 슬롯, 앵커, Safe Zone, ScaleBox, 폰트, 브러시에서 처리한다.
-- Codex는 위젯 구현 시 필요한 BindWidget 이름, 추천 레이아웃, 모바일 해상도 대응 방법, 주의할 점을 사용자에게 함께 안내한다.
+- 에이전트는 위젯 구현 시 필요한 BindWidget 이름, 추천 레이아웃, 모바일 해상도 대응 방법, 주의할 점을 사용자에게 함께 안내한다.
 - 기존 위젯을 리팩터링할 때도 같은 BP 레이아웃/C++ 로직 분리 기준을 적용한다.
 
 ### 주석 작성 원칙
@@ -241,7 +241,6 @@ Codex는 반드시 아래 최상위 페이지와 그 하위 페이지까지만 �
 ### 피해야 할 방향
 - 단순 속도 상승만으로 난이도를 만드는 방식
 - 적재물 실패 원인이 보이지 않는 불합리한 연출
-- 자이로와 터치 입력이 서로 싸우는 구조
 - 프로토타입 범위를 넘어선 과도한 시스템 확장
 - 에디터 수작업 의존도가 높은데 문서화되지 않은 워크플로우
 

@@ -9,9 +9,9 @@
 
 /** FPS 오버레이 설정이 바뀌어 표시 컴포넌트가 위젯 수명을 갱신할 때 발생합니다. */
 DECLARE_MULTICAST_DELEGATE_OneParam(FPGShowFPSDisplayChangedSignature, bool);
-/** 0~1 음악 볼륨이 바뀌어 활성 음악 컴포넌트가 믹스를 갱신할 때 발생합니다. */
+/** 0~1.5 음악 볼륨 배율이 바뀌어 활성 음악 컴포넌트가 믹스를 갱신할 때 발생합니다. */
 DECLARE_MULTICAST_DELEGATE_OneParam(FPGMusicVolumeChangedSignature, float);
-/** 0~1 효과음 볼륨이 바뀌어 이후 UI와 게임 SFX에 반영될 때 발생합니다. */
+/** 0~1.5 효과음 볼륨 배율이 바뀌어 이후 UI와 게임 SFX에 반영될 때 발생합니다. */
 DECLARE_MULTICAST_DELEGATE_OneParam(FPGSFXVolumeChangedSignature, float);
 
 /**
@@ -30,9 +30,9 @@ public:
 
 	/** FPS 표시 설정 변경을 런타임 오버레이 소유 컴포넌트에 전달합니다. */
 	FPGShowFPSDisplayChangedSignature OnShowFPSDisplayChanged;
-	/** 0~1 음악 배율 변경을 활성 음악 컴포넌트에 전달합니다. */
+	/** 0~1.5 음악 배율 변경을 활성 음악 컴포넌트에 전달합니다. */
 	FPGMusicVolumeChangedSignature OnMusicVolumeChanged;
-	/** 0~1 효과음 배율 변경을 이후 SFX 재생 경로에 전달합니다. */
+	/** 0~1.5 효과음 배율 변경을 이후 SFX 재생 경로에 전달합니다. */
 	FPGSFXVolumeChangedSignature OnSFXVolumeChanged;
 
 	/** 엔진 기본 reset 이후 Project Settings의 모바일 기본값을 사용자 설정에 복사합니다. */

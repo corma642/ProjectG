@@ -157,7 +157,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UButton> ActionButton;
 
-	/** 액션 버튼의 BUY/EQUIP/EQUIPPED 문구를 표시하는 필수 텍스트입니다. */
+	/** 액션 버튼 문구를 표시하는 필수 텍스트입니다. 캐릭터는 BUY/EQUIP/EQUIPPED, 맵은 BUY/HOLDED/SELECTED입니다. */
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UTextBlock> ActionButtonText;
 
@@ -173,6 +173,8 @@ private:
 
 	UFUNCTION()
 	void HandleActionClicked();
+
+	void LockActionButtonAfterPurchase(bool bPurchased);
 
 	UFUNCTION()
 	void HandleCharactersTabClicked();

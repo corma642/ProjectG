@@ -2,8 +2,12 @@
 
 #include "RunEvents/PGMovingRunEventHazardActor.h"
 
+#include "Audio/PGAudioStatics.h"
+#include "Camera/CameraShakeBase.h"
+#include "Cargo/PGCargoStackComponent.h"
 #include "Character/PGRunnerCharacter.h"
 #include "Components/BoxComponent.h"
+#include "GameFramework/PlayerController.h"
 #include "GameModes/PGGameModeBase.h"
 #include "Movement/PGRunnerMovementComponent.h"
 
@@ -24,13 +28,12 @@ APGMovingRunEventHazardActor::APGMovingRunEventHazardActor()
 	OverlapBox->SetGenerateOverlapEvents(true);
 }
 
-void APGMovingRunEventHazardActor::InitializeMovingHazard(const FVector& InMovementVelocity, float InLifetime, float InPushImpulseVelocity, float InMaxPushBalanceVelocity, float InRehitCooldown, float InPushDirectionSign)
+void APGMovingRunEventHazardActor::InitializeMovingHazard(const FPGMovingHazardSettings& InSettings, const FVector& InMovementVelocity, float InLifetime, float InStrength, float InPushDirectionSign)
 {
+	CachedSettings = InSettings;
 	MovementVelocity = InMovementVelocity;
 	RemainingLifetime = FMath::Max(0.1f, InLifetime);
-	PushImpulseVelocity = FMath::Max(0.0f, InPushImpulseVelocity);
-	MaxPushBalanceVelocity = FMath::Max(0.0f, InMaxPushBalanceVelocity);
-	RehitCooldown = FMath::Max(0.0f, InRehitCooldown);
+	Strength = FMath::Max(0.0f, InStrength);
 	PushDirectionSign = FMath::IsNearlyZero(InPushDirectionSign) ? 0.0f : FMath::Sign(InPushDirectionSign);
 	LastHitWorldTime = -FLT_MAX;
 }
@@ -77,6 +80,7 @@ void APGMovingRunEventHazardActor::Tick(float DeltaSeconds)
 void APGMovingRunEventHazardActor::HandleHazardOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	APGRunnerCharacter* RunnerCharacter = Cast<APGRunnerCharacter>(OtherActor);
+	const float PushImpulseVelocity = FMath::Max(0.0f, CachedSettings.PushImpulseVelocity) * Strength;
 	if (!RunnerCharacter || PushImpulseVelocity <= 0.0f)
 	{
 		return;
@@ -95,7 +99,7 @@ void APGMovingRunEventHazardActor::HandleHazardOverlap(UPrimitiveComponent* Over
 	}
 
 	const float CurrentTime = World->GetTimeSeconds();
-	if (CurrentTime - LastHitWorldTime < RehitCooldown)
+	if (CurrentTime - LastHitWorldTime < FMath::Max(0.0f, CachedSettings.RehitCooldown))
 	{
 		return;
 	}
@@ -113,7 +117,28 @@ void APGMovingRunEventHazardActor::HandleHazardOverlap(UPrimitiveComponent* Over
 	}
 
 	LastHitWorldTime = CurrentTime;
-	RunnerMovement->ApplyExternalBalanceImpulse(DirectionSign * PushImpulseVelocity, MaxPushBalanceVelocity);
+	RunnerMovement->ApplyExternalBalanceImpulse(DirectionSign * PushImpulseVelocity, FMath::Max(0.0f, CachedSettings.MaxPushBalanceVelocity));
+	PlayHitFeedback(*RunnerCharacter, DirectionSign);
+}
+
+void APGMovingRunEventHazardActor::PlayHitFeedback(APGRunnerCharacter& RunnerCharacter, float DirectionSign) const
+{
+	// 소프트 참조는 Run 예열 그룹이 미리 로드하므로 여기서는 동기 로드 없이 Get만 사용한다.
+	UPGAudioStatics::PlaySFX2D(this, CachedSettings.HitSound.Get());
+
+	if (TSubclassOf<UCameraShakeBase> CameraShakeClass = CachedSettings.HitCameraShake.Get())
+	{
+		if (APlayerController* PlayerController = Cast<APlayerController>(RunnerCharacter.GetController()))
+		{
+			PlayerController->ClientStartCameraShake(CameraShakeClass);
+		}
+	}
+
+	if (UPGCargoStackComponent* CargoStackComponent = RunnerCharacter.GetCargoStackComponent())
+	{
+		// 적재물도 러너와 같은 방향으로 밀어 '맞아서 흔들렸다'는 인과가 보이게 한다.
+		CargoStackComponent->ApplyExternalLateralImpulse(DirectionSign * FMath::Max(0.0f, CachedSettings.HitCargoImpulseVelocity) * Strength);
+	}
 }
 
 float APGMovingRunEventHazardActor::ResolvePushDirectionSign(const AActor& RunnerActor) const

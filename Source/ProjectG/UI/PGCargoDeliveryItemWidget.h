@@ -37,9 +37,6 @@ public:
 	/** 카드 제거 전에 퇴장 애니메이션을 시작하고 완료 delegate를 발생시킵니다. */
 	void PlayExitAnimation();
 
-	/** HUD가 적재물 상태와 카드를 대응시키는 런타임 instance ID를 반환합니다. */
-	int32 GetCargoInstanceId() const { return CargoInstanceId; }
-
 protected:
 	/** BP 카드의 초기 투명도를 진입 전 상태로 맞춥니다. */
 	virtual void NativeConstruct() override;
@@ -67,6 +64,9 @@ private:
 	void ApplyAnimationState(float Alpha, bool bExiting);
 
 	int32 CargoInstanceId = INDEX_NONE;
+	// 짧은 주기 갱신에서 같은 값을 다시 그리지 않기 위한 마지막 표시 상태입니다.
+	int32 LastDisplayedRemainingSeconds = INDEX_NONE;
+	TWeakObjectPtr<UTexture2D> LastDisplayedThumbnail;
 	bool bIsEntering = false;
 	bool bIsExiting = false;
 	float AnimationElapsed = 0.0f;

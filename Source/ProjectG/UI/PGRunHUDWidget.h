@@ -8,6 +8,7 @@
 
 class UButton;
 class UCanvasPanel;
+class UImage;
 class UPanelWidget;
 class UPGCargoDeliveryItemWidget;
 class UPGCargoScoreIndicatorWidget;
@@ -55,20 +56,23 @@ public:
 	/** 지정 적재물 카드 위치에 배달 보너스 점수 인디케이터를 표시합니다. */
 	void ShowCargoScoreIndicator(int32 CargoInstanceId, int32 Score);
 
+	/** 적재물 손실 임박 경고 오버레이를 켜거나 끕니다. 켜진 동안 NativeTick에서 펄스로 깜빡입니다. */
+	void SetCargoDangerWarningActive(bool bActive);
+
 	/** 런 HUD 진입 애니메이션을 시작합니다. */
 	void PlayEnterAnimation();
 
-	/** 실패 또는 Home 이동 전 HUD 퇴장 애니메이션을 시작합니다. */
+	/** HUD 컴포넌트가 정리될 때(레벨 종료·Home 전환) 퇴장 애니메이션을 재생한 뒤 스스로 제거합니다. */
 	void PlayExitAnimation();
 
 protected:
 	/** Pause 버튼 delegate를 연결합니다. */
 	virtual void NativeConstruct() override;
 
-	/** Pause 버튼과 풀링 카드 delegate를 위젯 제거 전에 해제합니다. */
+	/** Pause 버튼 delegate를 위젯 제거 전에 해제합니다. 카드 delegate는 약한 참조라 함께 소멸합니다. */
 	virtual void NativeDestruct() override;
 
-	/** HUD 진입 또는 퇴장 애니메이션 동안에만 표현 상태를 갱신합니다. */
+	/** HUD 진입/퇴장 애니메이션과 손실 임박 경고 펄스가 켜진 동안에만 표현 상태를 갱신합니다. */
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	// HUD 전체 루트 패널입니다.
@@ -99,11 +103,16 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UCanvasPanel> CargoScoreIndicatorLayer;
 
+	// 적재물 손실 임박 시 깜빡이는 경고 오버레이입니다. BP에 없으면 경고음만 재생됩니다.
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidgetOptional), Category = "UI")
+	TObjectPtr<UImage> CargoDangerImage;
+
 private:
 	UFUNCTION()
 	void HandlePauseClicked();
 
 	void ApplyAnimationState(float Alpha, bool bExiting);
+	void UpdateCargoDangerPulse(float InDeltaTime);
 	UPGCargoDeliveryItemWidget* AcquireCargoItemWidget();
 	FVector2D ResolveCargoIndicatorPosition(int32 CargoInstanceId) const;
 	void HandleCargoItemExitFinished(UPGCargoDeliveryItemWidget* ItemWidget);
@@ -122,6 +131,8 @@ private:
 
 	bool bIsEntering = false;
 	bool bIsExiting = false;
+	bool bIsCargoDangerActive = false;
 	float AnimationElapsed = 0.0f;
 	float AnimationDuration = 0.22f;
+	float CargoDangerPulseElapsed = 0.0f;
 };

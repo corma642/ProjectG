@@ -197,11 +197,13 @@ void UPGGameUserSettings::ApplySavedMobileQualityToEngine()
 	ScalabilityQuality.SetPostProcessQuality(ClampScalabilityQuality(PostProcessQuality));
 	ScalabilityQuality.SetEffectsQuality(ClampScalabilityQuality(EffectsQuality));
 	ScalabilityQuality.SetViewDistanceQuality(ClampScalabilityQuality(ViewDistanceQuality));
-	Scalability::SetQualityLevels(ScalabilityQuality, true);
+	// 해상도 슬라이더는 드래그마다 이 경로를 타므로, 값이 바뀐 그룹만 적용해 텍스처·그림자 재설정을 피한다.
+	Scalability::SetQualityLevels(ScalabilityQuality);
 
 	SetConsoleVariableInt(TEXT("r.MaxAnisotropy"), MaxAnisotropy);
 
-	ApplySettings(false);
+	// 엔진 ApplySettings()는 매번 설정을 디스크에 저장하므로 쓰지 않는다. 저장은 호출자의 bSaveAfterApply가 결정한다.
+	SetFrameRateLimitCVar(GetEffectiveFrameRateLimit());
 }
 
 const FPGMobileQualityPresetSettings& UPGGameUserSettings::GetPresetSettings(EPGMobileQualityPreset Preset) const

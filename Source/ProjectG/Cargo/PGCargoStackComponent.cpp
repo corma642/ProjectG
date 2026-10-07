@@ -117,7 +117,11 @@ void UPGCargoStackComponent::UpdateCargoReaction(float DeltaSeconds, float Balan
 		}
 	}
 
-	CheckCargoLoss();
+	// 손실이 나면 같은 프레임에 런이 실패하고 보상이 정산된다. 이후 배달 완료가 점수를 더하면 정산 뒤 점수가 바뀌므로 건너뛴다.
+	if (CheckCargoLoss())
+	{
+		return;
+	}
 	UpdateCargoDeliveries(DeltaSeconds);
 }
 
@@ -126,10 +130,10 @@ bool UPGCargoStackComponent::AddCargoByType(UPGCargoTypeDefinition* CargoType)
 	return StartCargoDropHold(CargoType);
 }
 
-TArray<FPGActiveCargoInfo> UPGCargoStackComponent::GetActiveCargoInfos() const
+void UPGCargoStackComponent::GetActiveCargoInfos(TArray<FPGActiveCargoInfo>& OutInfos) const
 {
-	TArray<FPGActiveCargoInfo> Infos;
-	Infos.Reserve(CargoInstances.Num());
+	// HUD가 짧은 주기로 호출하므로 호출자가 가진 배열을 재사용해 매번 새 할당을 만들지 않는다.
+	OutInfos.Reset(CargoInstances.Num());
 
 	for (const FPGRuntimeCargoInstance& CargoInstance : CargoInstances)
 	{
@@ -148,10 +152,8 @@ TArray<FPGActiveCargoInfo> UPGCargoStackComponent::GetActiveCargoInfos() const
 		Info.DeliveryProgress = DeliveryDuration > KINDA_SMALL_NUMBER
 			? FMath::Clamp(CargoInstance.DeliveryElapsedTime / DeliveryDuration, 0.0f, 1.0f)
 			: 1.0f;
-		Infos.Add(Info);
+		OutInfos.Add(Info);
 	}
-
-	return Infos;
 }
 
 bool UPGCargoStackComponent::StartCargoDropHold(UPGCargoTypeDefinition* CargoType)
@@ -420,8 +422,10 @@ void UPGCargoStackComponent::ApplyAirborneCargoAssist()
 	}
 }
 
-void UPGCargoStackComponent::CheckCargoLoss()
+bool UPGCargoStackComponent::CheckCargoLoss()
 {
+	bool bAnyCargoLost = false;
+	float MaxHorizontalDistanceSquared = 0.0f;
 	const FVector LossOriginLocation = GetLossOriginLocation();
 	const float LossDistanceSquared = FMath::Square(CachedCargoSettings.CargoLossHorizontalDistance);
 	if (!bHasCargoLossWorldZ && !bWarnedMissingCargoLossWorldZ)
@@ -448,6 +452,36 @@ void UPGCargoStackComponent::CheckCargoLoss()
 		if (bBelowLossWorldZ || HorizontalDistanceSquared > LossDistanceSquared)
 		{
 			LoseCargoAt(CargoIndex);
+			bAnyCargoLost = true;
+			continue;
+		}
+
+		MaxHorizontalDistanceSquared = FMath::Max(MaxHorizontalDistanceSquared, HorizontalDistanceSquared);
+	}
+
+	// 손실 임박 경고는 수평 이탈만 본다. 수직 낙하는 이미 Bowl을 벗어난 뒤라 경고할 여지가 없다.
+	CargoDangerRatio = LossDistanceSquared > KINDA_SMALL_NUMBER
+		? FMath::Clamp(FMath::Sqrt(MaxHorizontalDistanceSquared / LossDistanceSquared), 0.0f, 1.0f)
+		: 0.0f;
+
+	return bAnyCargoLost;
+}
+
+void UPGCargoStackComponent::ApplyExternalLateralImpulse(float LateralVelocity)
+{
+	if (FMath::IsNearlyZero(LateralVelocity))
+	{
+		return;
+	}
+
+	const FVector Impulse = GetRightVector() * LateralVelocity;
+	for (const FPGRuntimeCargoInstance& CargoInstance : CargoInstances)
+	{
+		UStaticMeshComponent* CargoMeshComponent = CargoInstance.CargoActor ? CargoInstance.CargoActor->GetCargoMeshComponent() : nullptr;
+		if (CargoMeshComponent)
+		{
+			// 질량이 적재물마다 달라도 같은 속도만큼 밀리도록 속도 변화로 더한다.
+			CargoMeshComponent->AddImpulse(Impulse, NAME_None, true);
 		}
 	}
 }

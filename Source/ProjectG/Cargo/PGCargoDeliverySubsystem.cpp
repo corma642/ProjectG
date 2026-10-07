@@ -89,9 +89,7 @@ bool UPGCargoDeliverySubsystem::IsTickable() const
 
 float UPGCargoDeliverySubsystem::GetDifficultyAlpha() const
 {
-	return CachedDeliverySettings.DifficultyRampDuration > KINDA_SMALL_NUMBER
-		? FMath::Clamp(RunElapsedTime / CachedDeliverySettings.DifficultyRampDuration, 0.0f, 1.0f)
-		: 1.0f;
+	return CachedDifficultySettings.GetDifficultyAlpha(RunElapsedTime);
 }
 
 void UPGCargoDeliverySubsystem::HandleRunStarted()
@@ -133,6 +131,7 @@ void UPGCargoDeliverySubsystem::LoadSettings()
 	if (const UPGGameSettings* Settings = GetDefault<UPGGameSettings>())
 	{
 		CachedDeliverySettings = Settings->CargoDelivery;
+		CachedDifficultySettings = Settings->Difficulty;
 	}
 }
 

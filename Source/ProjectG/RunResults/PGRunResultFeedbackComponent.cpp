@@ -15,9 +15,8 @@
 #include "Settings/PGGameSettings.h"
 #include "Settings/PGGameUserSettings.h"
 #include "Sound/SoundBase.h"
+#include "TimerManager.h"
 #include "UI/PGRunResultWidget.h"
-
-DEFINE_LOG_CATEGORY_STATIC(LogPGRunResultFeedback, Log, All);
 
 UPGRunResultFeedbackComponent::UPGRunResultFeedbackComponent()
 {
@@ -34,6 +33,7 @@ void UPGRunResultFeedbackComponent::BeginPlay()
 void UPGRunResultFeedbackComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	UnbindGameMode();
+	RestoreTimeDilation();
 	CleanupResultWidget();
 
 	Super::EndPlay(EndPlayReason);
@@ -42,6 +42,7 @@ void UPGRunResultFeedbackComponent::EndPlay(const EEndPlayReason::Type EndPlayRe
 void UPGRunResultFeedbackComponent::HandleRunFailed(FName FailureReason)
 {
 	CleanupResultWidget();
+	RestoreTimeDilation();
 
 	if (!AreRuntimeResourcesReady())
 	{
@@ -61,36 +62,15 @@ void UPGRunResultFeedbackComponent::HandleRunFailed(FName FailureReason)
 	}
 
 	const APGRunnerCharacter* RunnerCharacter = GetRunnerCharacter();
-	const float RunTimeSeconds = RunnerCharacter ? RunnerCharacter->GetRunElapsedTime() : 0.0f;
-	const float DistanceMeters = RunnerCharacter ? RunnerCharacter->GetRunDistanceMeters() : 0.0f;
-	const int32 Score = RunnerCharacter ? RunnerCharacter->GetRunScore() : 0;
-	const int32 Receipts = RunnerCharacter ? RunnerCharacter->GetRunReceipts() : 0;
-	const int32 OrdersDelivered = RunnerCharacter ? RunnerCharacter->GetDeliveredCargoCount() : 0;
+	const FPGRunResultSettings& ResultSettings = Settings->RunResult;
 
-	TSubclassOf<UPGRunResultWidget> WidgetClass = Settings->RunResult.GameOverWidgetClass.Get();
-	if (WidgetClass)
-	{
-		ResultWidget = CreateWidget<UPGRunResultWidget>(PlayerController, WidgetClass);
-		if (ResultWidget)
-		{
-			ResultWidget->AddToViewport(100);
-
-			if (UPGRunResultWidget* RunResultWidget = Cast<UPGRunResultWidget>(ResultWidget))
-			{
-				RunResultWidget->ConfigureRunResult(FailureReason, RunTimeSeconds, DistanceMeters, Score, Receipts, OrdersDelivered);
-			}
-
-			PlayerController->SetInputMode(FInputModeUIOnly());
-			PlayerController->SetShowMouseCursor(true);
-		}
-	}
-
-	if (USoundBase* GameOverSound = Settings->RunResult.GameOverSound.Get())
+	// 실패 체감 피드백은 슬로모션과 무관하게 충돌 순간에 바로 재생한다.
+	if (USoundBase* GameOverSound = ResultSettings.GameOverSound.Get())
 	{
 		UGameplayStatics::PlaySound2D(PlayerController, GameOverSound, UPGGameUserSettings::GetCurrentSFXVolumeScale());
 	}
 
-	if (UNiagaraSystem* GameOverVFX = Settings->RunResult.GameOverVFX.Get())
+	if (UNiagaraSystem* GameOverVFX = ResultSettings.GameOverVFX.Get())
 	{
 		const APlayerCameraManager* CameraManager = PlayerController->PlayerCameraManager;
 		const FVector VFXLocation = RunnerCharacter ? RunnerCharacter->GetActorLocation() : (CameraManager ? CameraManager->GetCameraLocation() : FVector::ZeroVector);
@@ -98,9 +78,84 @@ void UPGRunResultFeedbackComponent::HandleRunFailed(FName FailureReason)
 		UNiagaraFunctionLibrary::SpawnSystemAtLocation(PlayerController, GameOverVFX, VFXLocation, VFXRotation);
 	}
 
-	if (TSubclassOf<UCameraShakeBase> CameraShakeClass = Settings->RunResult.GameOverCameraShake.Get())
+	if (TSubclassOf<UCameraShakeBase> CameraShakeClass = ResultSettings.GameOverCameraShake.Get())
 	{
 		PlayerController->ClientStartCameraShake(CameraShakeClass);
+	}
+
+	UWorld* World = GetWorld();
+	const bool bUseSlowMotion = World
+		&& ResultSettings.FailureSlowMotionDuration > KINDA_SMALL_NUMBER
+		&& ResultSettings.FailureSlowMotionTimeDilation < 1.0f - KINDA_SMALL_NUMBER;
+	if (!bUseSlowMotion)
+	{
+		ShowResultWidget(FailureReason);
+		return;
+	}
+
+	// 적재물이 쏟아지는 실패 원인을 플레이어가 볼 수 있게 잠시 느리게 보여준 뒤 결과 화면을 띄운다.
+	PendingFailureReason = FailureReason;
+	bIsSlowMotionActive = true;
+	UGameplayStatics::SetGlobalTimeDilation(World, ResultSettings.FailureSlowMotionTimeDilation);
+
+	// 월드 타이머는 느려진 게임 시간으로 흐르므로 실제 시간(Duration)에 배율을 곱해 예약한다.
+	World->GetTimerManager().SetTimer(
+		SlowMotionTimerHandle,
+		this,
+		&UPGRunResultFeedbackComponent::HandleSlowMotionFinished,
+		ResultSettings.FailureSlowMotionDuration * ResultSettings.FailureSlowMotionTimeDilation,
+		false);
+}
+
+void UPGRunResultFeedbackComponent::HandleSlowMotionFinished()
+{
+	RestoreTimeDilation();
+	ShowResultWidget(PendingFailureReason);
+}
+
+void UPGRunResultFeedbackComponent::ShowResultWidget(FName FailureReason)
+{
+	APlayerController* PlayerController = GetOwningPlayerController();
+	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
+	TSubclassOf<UPGRunResultWidget> WidgetClass = Settings ? Settings->RunResult.GameOverWidgetClass.Get() : nullptr;
+	if (!PlayerController || !WidgetClass)
+	{
+		return;
+	}
+
+	// 러너 통계는 실패 시 StopRunProgress로 고정되므로 슬로모션 뒤에 읽어도 실패 순간 값과 같다.
+	const APGRunnerCharacter* RunnerCharacter = GetRunnerCharacter();
+	const float RunTimeSeconds = RunnerCharacter ? RunnerCharacter->GetRunElapsedTime() : 0.0f;
+	const float DistanceMeters = RunnerCharacter ? RunnerCharacter->GetRunDistanceMeters() : 0.0f;
+	const int32 Score = RunnerCharacter ? RunnerCharacter->GetRunScore() : 0;
+	const int32 Receipts = RunnerCharacter ? RunnerCharacter->GetRunReceipts() : 0;
+	const int32 OrdersDelivered = RunnerCharacter ? RunnerCharacter->GetDeliveredCargoCount() : 0;
+
+	UPGRunResultWidget* RunResultWidget = CreateWidget<UPGRunResultWidget>(PlayerController, WidgetClass);
+	if (!RunResultWidget)
+	{
+		return;
+	}
+
+	ResultWidget = RunResultWidget;
+	RunResultWidget->AddToViewport(100);
+	RunResultWidget->ConfigureRunResult(FailureReason, RunTimeSeconds, DistanceMeters, Score, Receipts, OrdersDelivered);
+	PlayerController->SetInputMode(FInputModeUIOnly());
+	PlayerController->SetShowMouseCursor(true);
+}
+
+void UPGRunResultFeedbackComponent::RestoreTimeDilation()
+{
+	if (!bIsSlowMotionActive)
+	{
+		return;
+	}
+
+	bIsSlowMotionActive = false;
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(SlowMotionTimerHandle);
+		UGameplayStatics::SetGlobalTimeDilation(World, 1.0f);
 	}
 }
 

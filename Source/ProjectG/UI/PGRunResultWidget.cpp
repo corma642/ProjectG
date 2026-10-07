@@ -110,8 +110,6 @@ void UPGRunResultWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTi
 
 void UPGRunResultWidget::ConfigureRunResult(FName FailureReason, float RunTimeSeconds, float DistanceMeters, int32 Score, int32 Receipts, int32 OrdersDelivered)
 {
-	CachedFailureReason = FailureReason;
-	CachedRunTimeSeconds = RunTimeSeconds;
 	CachedDistanceMeters = DistanceMeters;
 	CachedScore = Score;
 	CachedReceipts = Receipts;

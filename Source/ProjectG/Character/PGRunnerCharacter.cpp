@@ -186,12 +186,12 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 
 	if (RunnerEnvironmentComponent)
 	{
-		RunnerEnvironmentComponent->UpdateEnvironment(DeltaSeconds, BalanceInput);
+		RunnerEnvironmentComponent->UpdateEnvironment(DeltaSeconds, GetLandingScaledBalanceInput());
 	}
 	if (RunnerMovementComponent)
 	{
 		// 환경 효과는 플레이어 보정 입력만 가공한다. 기본 불안정성은 별도 축으로 유지해 눈바람이 자동 실패를 만들지 않게 한다.
-		const float PlayerCorrectionInput = (RunnerEnvironmentComponent ? RunnerEnvironmentComponent->GetProcessedBalanceInput() : BalanceInput) + FlickBalanceInput;
+		const float PlayerCorrectionInput = (RunnerEnvironmentComponent ? RunnerEnvironmentComponent->GetProcessedBalanceInput() : GetLandingScaledBalanceInput()) + FlickBalanceInput;
 		RunnerMovementComponent->SetBalanceMovementInput(BaseInstabilityInput, PlayerCorrectionInput);
 	}
 
@@ -253,13 +253,15 @@ void APGRunnerCharacter::SetBalanceInput(float InBalanceInput)
 	}
 
 	const float MaxBalanceInput = FMath::Max(0.0f, CachedTouchControlSettings.MaxBalanceInput);
-	const float ClampedInput = FMath::Clamp(InBalanceInput, -MaxBalanceInput, MaxBalanceInput);
+	BalanceInput = FMath::Clamp(InBalanceInput, -MaxBalanceInput, MaxBalanceInput);
+}
 
+float APGRunnerCharacter::GetLandingScaledBalanceInput() const
+{
 	// 착지 직후에만 조작 영향력을 잠깐 줄여 급격한 흔들림을 완화한다.
+	// 손가락을 멈춘 채 착지하면 입력 이벤트가 오지 않으므로, 입력 시점이 아니라 사용하는 프레임마다 적용한다.
 	const bool bIsLandingStabilizing = RunnerMovementComponent && RunnerMovementComponent->GetLandingStabilizeRemainingTime() > 0.0f;
-	const float LandingScale = bIsLandingStabilizing ? 0.5f : 1.0f;
-
-	BalanceInput = ClampedInput * LandingScale;
+	return BalanceInput * (bIsLandingStabilizing ? 0.5f : 1.0f);
 }
 
 float APGRunnerCharacter::GetRunElapsedTime() const
@@ -321,16 +323,6 @@ bool APGRunnerCharacter::ApplyCharacterSkin(const UPGCharacterSkinDefinition* Sk
 	InitialMeshRelativeRotation = MeshComponent->GetRelativeRotation();
 	CurrentBodyRoll = 0.0f;
 	return true;
-}
-
-void APGRunnerCharacter::ApplyEquippedCharacterSkin()
-{
-	UGameInstance* GameInstance = GetGameInstance();
-	UPGUserDataSubsystem* UserDataSubsystem = GameInstance ? GameInstance->GetSubsystem<UPGUserDataSubsystem>() : nullptr;
-	if (UserDataSubsystem)
-	{
-		UserDataSubsystem->RestoreEquippedCharacter();
-	}
 }
 
 void APGRunnerCharacter::PrepareTransformForRunStart()
@@ -706,7 +698,7 @@ void APGRunnerCharacter::UpdateBaseInstability(float DeltaSeconds)
 
 float APGRunnerCharacter::GetEffectiveBalanceInput() const
 {
-	const float EnvironmentBalanceInput = RunnerEnvironmentComponent ? RunnerEnvironmentComponent->GetProcessedBalanceInput() : BalanceInput;
+	const float EnvironmentBalanceInput = RunnerEnvironmentComponent ? RunnerEnvironmentComponent->GetProcessedBalanceInput() : GetLandingScaledBalanceInput();
 	const float FinalBalanceInput = BaseInstabilityInput + EnvironmentBalanceInput + FlickBalanceInput;
 
 	const float MaxBalanceInput = FMath::Max(0.0f, CachedTouchControlSettings.MaxBalanceInput);

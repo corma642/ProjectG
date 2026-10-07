@@ -33,9 +33,6 @@ public:
 	/** 상위 상점의 전환·모달 상태에 맞춰 카드 선택 입력을 잠급니다. */
 	void SetSelectionEnabled(bool bEnabled) const;
 
-	/** 현재 카드가 나타내는 상품의 SkinId를 반환합니다. */
-	FName GetSkinId() const { return SkinId; }
-
 protected:
 	/** BP 선택 버튼 delegate를 연결합니다. */
 	virtual void NativeConstruct() override;

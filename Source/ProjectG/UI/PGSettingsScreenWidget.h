@@ -87,7 +87,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
 	TObjectPtr<UCheckBox> ShowFPSCheckBox;
 
-	/** 음악 볼륨을 0~1 범위로 조절하는 필수 슬라이더입니다. */
+	/** 음악 볼륨을 0~150% 범위로 조절하는 필수 슬라이더입니다. */
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
 	TObjectPtr<USlider> MusicVolumeSlider;
 
@@ -95,7 +95,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
 	TObjectPtr<UTextBlock> MusicVolumeValueText;
 
-	/** 효과음 볼륨을 0~1 범위로 조절하는 필수 슬라이더입니다. */
+	/** 효과음 볼륨을 0~150% 범위로 조절하는 필수 슬라이더입니다. */
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
 	TObjectPtr<USlider> SFXVolumeSlider;
 

@@ -40,6 +40,7 @@ void APGRunDirector::BeginPlay()
 
 	const int32 Seed = bUseRandomSeedEachRun ? FMath::Rand() : RandomSeed;
 	RandomStream.Initialize(Seed);
+	CachedDifficultySettings = GetDefault<UPGGameSettings>()->Difficulty;
 
 	InitializeRunnerReference();
 	InitializeInitialSegment();
@@ -103,7 +104,7 @@ void APGRunDirector::Tick(float DeltaSeconds)
 
 float APGRunDirector::GetDifficultyAlpha() const
 {
-	return DifficultyRampDuration > KINDA_SMALL_NUMBER ? FMath::Clamp(RunElapsedTime / DifficultyRampDuration, 0.0f, 1.0f) : 1.0f;
+	return CachedDifficultySettings.GetDifficultyAlpha(RunElapsedTime);
 }
 
 void APGRunDirector::HandleRunCountdownStarted(float Duration)
@@ -139,12 +140,8 @@ void APGRunDirector::InitializeRunnerReference()
 
 void APGRunDirector::InitializeInitialSegment()
 {
-	if (!InitialSegment)
-	{
-		// START는 맵 계약 검증에서 차단되지만 BeginPlay 초기화 자체는 안전하게 끝냅니다.
-		// 임의 TrackSegment fallback은 잘못 구성된 신규 맵을 숨기므로 사용하지 않습니다.
-	}
-
+	// InitialSegment가 없으면 START는 맵 계약 검증에서 차단된다. 임의 TrackSegment fallback은 잘못 구성된
+	// 신규 맵을 숨기므로 두지 않고, BeginPlay 초기화만 Actor 위치 기준으로 안전하게 끝낸다.
 	if (InitialSegment)
 	{
 		RunOrigin = InitialSegment->GetSegmentStartWorldLocation();
@@ -152,8 +149,6 @@ void APGRunDirector::InitializeInitialSegment()
 
 		FPGActiveTrackSegment ActiveSegment;
 		ActiveSegment.Segment = InitialSegment;
-		ActiveSegment.EntryIndex = INDEX_NONE;
-		ActiveSegment.StartProgress = GetProgressAtLocation(InitialSegment->GetSegmentStartWorldLocation());
 		ActiveSegment.EndProgress = GetProgressAtLocation(InitialSegment->GetSegmentEndWorldLocation());
 		ActiveSegment.bPlacedInLevel = true;
 		ActiveSegments.Add(ActiveSegment);
@@ -282,8 +277,6 @@ bool APGRunDirector::SpawnNextSegment()
 
 	FPGActiveTrackSegment ActiveSegment;
 	ActiveSegment.Segment = SpawnedSegment;
-	ActiveSegment.EntryIndex = SegmentEntry ? EntryIndex : INDEX_NONE;
-	ActiveSegment.StartProgress = GetProgressAtLocation(SpawnedSegment->GetSegmentStartWorldLocation());
 	ActiveSegment.EndProgress = GetProgressAtLocation(SpawnedSegment->GetSegmentEndWorldLocation());
 	ActiveSegment.bPlacedInLevel = false;
 	ActiveSegments.Add(ActiveSegment);
@@ -296,6 +289,13 @@ bool APGRunDirector::SpawnNextSegment()
 	{
 		LastSelectedEntryIndex = EntryIndex;
 		ConsecutiveEntryCount = 1;
+	}
+	else
+	{
+		// fallback 세그먼트가 끼어들면 연속 등장이 끊긴 것이므로 카운터를 비운다.
+		// 비우지 않으면 유효 후보가 하나뿐인 구간에서 그 후보가 계속 제외돼 fallback만 반복된다.
+		LastSelectedEntryIndex = INDEX_NONE;
+		ConsecutiveEntryCount = 0;
 	}
 
 	if (SegmentEntry)

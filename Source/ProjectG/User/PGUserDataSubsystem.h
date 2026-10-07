@@ -42,23 +42,11 @@ public:
 	/** 저장된 영수증 잔액을 0 이상으로 보정해 반환합니다. */
 	int32 GetReceiptBalance() const;
 
-	/** 양수 영수증을 추가하고 저장합니다. 실패 여부가 필요하면 TryAddReceipts를 사용합니다. */
-	void AddReceipts(int32 Amount, FName Reason);
-
 	/** 양수 영수증을 추가해 저장까지 성공하면 true를 반환하고 잔액 delegate를 발생시킵니다. */
 	bool TryAddReceipts(int32 Amount, FName Reason);
 
-	/** 현재 잔액으로 Amount를 지불할 수 있는지 확인합니다. Amount는 0 이상이어야 합니다. */
-	bool CanSpendReceipts(int32 Amount) const;
-
-	/** 영수증 차감과 저장을 한 트랜잭션으로 처리하며 실패하면 잔액을 rollback합니다. */
-	bool TrySpendReceipts(int32 Amount, FName Reason);
-
 	/** Home과 결과 화면에서 사용하는 저장된 최고 런 점수를 반환합니다. */
 	int32 GetBestRunScore() const;
-
-	/** 기존 기록보다 높은 점수만 저장하고 실제 갱신 여부를 반환합니다. */
-	bool TryUpdateBestRunScore(int32 Score, FName Reason);
 
 	/** 현재 런의 영수증과 최고 점수를 하나의 SaveGame 트랜잭션으로 확정합니다. */
 	bool TrySettleRunRewards(int32 Receipts, int32 Score, FName Reason);
@@ -131,7 +119,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | User")
 	bool PurchaseCharacter(FName SkinId);
 
-	/** 보유 캐릭터를 장착하고 저장·러너 적용 요청까지 성공하면 true를 반환합니다. */
+	/** 보유 캐릭터를 장착해 저장까지 성공하면 true를 반환하고, 프리뷰 러너에 비동기 적용을 요청합니다. */
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | User")
 	bool EquipCharacter(FName SkinId);
 

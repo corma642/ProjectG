@@ -124,6 +124,7 @@ private:
 	TObjectPtr<APGGameModeBase> BoundGameMode;
 
 	FPGRunEventSettings CachedRunEventSettings;
+	FPGRunDifficultySettings CachedDifficultySettings;
 	FPGMovingHazardSettings CachedMovingHazardSettings;
 	FRandomStream RandomStream;
 	TMap<EPGRunEventType, float> LastTriggeredTimeByEvent;

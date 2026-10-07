@@ -41,7 +41,7 @@ public:
 	/** Unreal Tick 통계에 CargoDeliverySubsystem 식별자를 제공합니다. */
 	virtual TStatId GetStatId() const override;
 
-	/** Running 상태이고 GameMode가 연결된 동안에만 WorldSubsystem Tick을 허용합니다. */
+	/** Running 중이거나 GameMode 바인딩을 아직 못 한 동안 Tick을 허용합니다. 미바인딩 Tick은 바인딩 재시도용입니다. */
 	virtual bool IsTickable() const override;
 
 	/** 현재 런 시간이 설정된 난이도 상승 시간에서 차지하는 0~1 비율을 반환합니다. */
@@ -78,6 +78,7 @@ private:
 	TObjectPtr<UPGCargoDropSet> LoadedDropSet;
 
 	FPGCargoDeliverySettings CachedDeliverySettings;
+	FPGRunDifficultySettings CachedDifficultySettings;
 	FRandomStream RandomStream;
 	float RunElapsedTime = 0.0f;
 	float NextDropTime = 0.0f;

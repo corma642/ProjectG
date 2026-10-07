@@ -66,7 +66,7 @@ struct FPGBalanceSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Balance", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2000.0"))
 	float BalanceDriftAcceleration = 420.0f;
 
-	// 플레이어의 기울임/QE 입력이 좌우 이동을 보정하기 위해 적용하는 가속도
+	// 플레이어의 터치 드래그/QE 입력이 좌우 이동을 보정하기 위해 적용하는 가속도
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Balance", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3000.0"))
 	float PlayerCorrectionAcceleration = 720.0f;
 
@@ -81,7 +81,7 @@ struct FPGBalanceSettings
 };
 
 /**
- * 화면 터치/Space 입력으로 실행하는 수직 점프 설정
+ * 위쪽 플릭 또는 데스크톱 점프 키로 실행하는 수직 점프 설정
  */
 USTRUCT(BlueprintType)
 struct FPGJumpSettings
@@ -201,6 +201,25 @@ struct FPGRunProgressSettings
 };
 
 /**
+ * 러닝 시간 기반 난이도 램프 설정. 적재물 드롭 간격, RunEvent 예약 간격과 가중치, 트랙 세그먼트 선택이 같은 알파를 공유한다.
+ */
+USTRUCT(BlueprintType)
+struct FPGRunDifficultySettings
+{
+	GENERATED_BODY()
+
+	// 난이도 알파가 0에서 1까지 오르는 데 걸리는 러닝 시간(초). 짧을수록 적재물 드롭·이벤트·어려운 세그먼트가 빨리 조여든다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run | Difficulty", meta = (ClampMin = "1.0", UIMin = "30.0", UIMax = "300.0"))
+	float DifficultyRampDuration = 120.0f;
+
+	/** 러닝 경과 시간(초)을 0~1 난이도 알파로 변환합니다. */
+	float GetDifficultyAlpha(float RunElapsedTime) const
+	{
+		return DifficultyRampDuration > KINDA_SMALL_NUMBER ? FMath::Clamp(RunElapsedTime / DifficultyRampDuration, 0.0f, 1.0f) : 1.0f;
+	}
+};
+
+/**
  * 러닝 중 HUD, Pause 화면, 적재물 리스트 표시 설정입니다.
  */
 
@@ -232,6 +251,10 @@ struct FPGRunHUDSettings
 	// 적재물 배달 완료 시 적재물 월드 위치에 한 번 재생할 공통 사운드
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | HUD")
 	TSoftObjectPtr<USoundBase> CargoDeliveredSound;
+
+	// 적재물 이탈이 Cargo > CargoDangerWarningRatio를 넘는 순간 한 번 재생할 경고음. 비어 있으면 재생하지 않는다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | HUD")
+	TSoftObjectPtr<USoundBase> CargoDangerWarningSound;
 
 	// 적재물 남은 시간과 진행 바를 갱신하는 간격
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | HUD", meta = (ClampMin = "0.03", UIMin = "0.03", UIMax = "0.5"))
@@ -587,6 +610,14 @@ struct FPGRunResultSettings
 	// 런 실패 시 로컬 플레이어 카메라에 적용할 카메라 쉐이크
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Result")
 	TSoftClassPtr<UCameraShakeBase> GameOverCameraShake;
+
+	// 실패 순간 월드 시간 배율(0.05~1). 적재물이 쏟아지는 실패 원인을 잠시 느리게 보여준다. 1이면 슬로모션 없이 바로 결과 화면을 띄운다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Result | Slow Motion", meta = (ClampMin = "0.05", ClampMax = "1.0", UIMin = "0.1", UIMax = "1.0"))
+	float FailureSlowMotionTimeDilation = 0.3f;
+
+	// 슬로모션을 유지할 실제 시간(초). 이 시간이 지나면 시간 배율을 복구하고 결과 화면을 띄운다. 0이면 슬로모션을 끈다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Result | Slow Motion", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2.0"))
+	float FailureSlowMotionDuration = 0.35f;
 };
 
 /**
@@ -633,6 +664,10 @@ struct FPGCargoSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Loss", meta = (ClampMin = "10.0", UIMin = "50.0", UIMax = "500.0"))
 	float CargoLossHorizontalDistance = 180.0f;
 
+	// 가장 멀리 벗어난 적재물의 수평 이탈이 손실 거리의 이 비율(0~1)을 넘으면 HUD 경고와 경고음을 낸다. 1이면 경고를 쓰지 않는다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Loss", meta = (ClampMin = "0.1", ClampMax = "1.0", UIMin = "0.3", UIMax = "1.0"))
+	float CargoDangerWarningRatio = 0.7f;
+
 };
 
 /**
@@ -654,10 +689,6 @@ struct FPGCargoDeliverySettings
 	// 난이도 1일 때 적재물 드롭 간격
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Delivery", meta = (ClampMin = "0.5", UIMin = "1.0", UIMax = "30.0"))
 	float MinDropInterval = 6.0f;
-
-	// 적재물 드롭 간격이 최소값에 가까워지는 시간
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Delivery", meta = (ClampMin = "1.0", UIMin = "30.0", UIMax = "300.0"))
-	float DifficultyRampDuration = 180.0f;
 
 	// 같은 적재물 드롭 순서를 재현할 때 사용하는 시드
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Delivery")
@@ -681,7 +712,7 @@ struct FPGEnvironmentSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event | Wind", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "1.0"))
 	float WindBalanceBiasScale = 0.35f;
 
-	// 눈바람 중 플레이어 기울임 입력을 증폭하는 비율. 입력이 0이면 추가 효과도 없다.
+	// 눈바람 중 플레이어 Balance 입력을 증폭하는 비율. 입력이 0이면 추가 효과도 없다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event | Snowstorm", meta = (ClampMin = "1.0", UIMin = "1.0", UIMax = "6.0"))
 	float SnowstormInputSensitivityScale = 2.5f;
 
@@ -732,6 +763,18 @@ struct FPGMovingHazardSettings
 	// 같은 러너가 너무 빠르게 여러 번 맞지 않도록 막는 최소 간격입니다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event | Moving Hazard", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3.0"))
 	float RehitCooldown = 0.75f;
+
+	// 러너가 위험 Actor에 맞은 순간 재생할 2D 효과음입니다. 비어 있으면 재생하지 않습니다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event | Moving Hazard | Hit Feedback")
+	TSoftObjectPtr<USoundBase> HitSound;
+
+	// 피격 순간 재생할 카메라 쉐이크 클래스입니다. 비어 있으면 재생하지 않습니다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event | Moving Hazard | Hit Feedback")
+	TSoftClassPtr<UCameraShakeBase> HitCameraShake;
+
+	// 피격 시 모든 활성 적재물에 밀리는 방향으로 더하는 속도(cm/s)입니다. 0이면 적재물은 영향을 받지 않습니다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event | Moving Hazard | Hit Feedback", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "300.0"))
+	float HitCargoImpulseVelocity = 40.0f;
 };
 
 /**
@@ -749,10 +792,6 @@ struct FPGRunEventSettings
 	// 이벤트별 UI/VFX/SFX 리소스를 담은 기본 연출 DataAsset
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event | Assets")
 	TSoftObjectPtr<UPGRunEventPresentationSet> DefaultPresentationSet;
-
-	// 이벤트 난이도가 1.0까지 도달하는 시간
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event | Difficulty", meta = (ClampMin = "1.0", UIMin = "30.0", UIMax = "300.0"))
-	float DifficultyRampDuration = 180.0f;
 
 	// 시작 후 이 시간 동안은 자동 이벤트를 예약하지 않는다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event | Schedule", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "60.0"))
@@ -800,7 +839,7 @@ public:
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player")
 	FPGBalanceSettings Balance;
 
-	// 화면 터치/Space 수직 점프 설정
+	// 플릭/데스크톱 키 수직 점프 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player")
 	FPGJumpSettings Jump;
 
@@ -839,6 +878,10 @@ public:
 	// 러닝 중 거리와 점수 진행 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run")
 	FPGRunProgressSettings RunProgress;
+
+	// 적재물 드롭, RunEvent, 트랙 세그먼트가 함께 쓰는 러닝 시간 기반 난이도 램프 설정
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run")
+	FPGRunDifficultySettings Difficulty;
 
 	// 러닝 중 HUD와 Pause 화면 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI")

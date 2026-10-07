@@ -98,12 +98,6 @@ bool UPGRuntimePreloadSubsystem::IsGroupReady(EPGRuntimePreloadGroup Group) cons
 	return GroupState && GroupState->bIsReady;
 }
 
-bool UPGRuntimePreloadSubsystem::IsGroupPreloading(EPGRuntimePreloadGroup Group) const
-{
-	const FPGPreloadGroupState* GroupState = FindGroupState(Group);
-	return GroupState && GroupState->bIsPreloading;
-}
-
 bool UPGRuntimePreloadSubsystem::IsReadyForRun() const
 {
 	return IsGroupReady(EPGRuntimePreloadGroup::Run)
@@ -165,6 +159,7 @@ void UPGRuntimePreloadSubsystem::CollectPrimaryResourcePaths(EPGRuntimePreloadGr
 		AddUniquePath(OutPaths, Settings->RunHUD.CargoScoreIndicatorWidgetClass.ToSoftObjectPath());
 		AddUniquePath(OutPaths, Settings->RunHUD.CargoDeliveredVFX.ToSoftObjectPath());
 		AddUniquePath(OutPaths, Settings->RunHUD.CargoDeliveredSound.ToSoftObjectPath());
+		AddUniquePath(OutPaths, Settings->RunHUD.CargoDangerWarningSound.ToSoftObjectPath());
 		AddUniquePath(OutPaths, Settings->RunResult.GameOverWidgetClass.ToSoftObjectPath());
 		AddUniquePath(OutPaths, Settings->RunResult.GameOverSound.ToSoftObjectPath());
 		AddUniquePath(OutPaths, Settings->RunResult.GameOverVFX.ToSoftObjectPath());
@@ -172,6 +167,8 @@ void UPGRuntimePreloadSubsystem::CollectPrimaryResourcePaths(EPGRuntimePreloadGr
 		AddUniquePath(OutPaths, Settings->RunEvent.DefaultRunEventSet.ToSoftObjectPath());
 		AddUniquePath(OutPaths, Settings->RunEvent.DefaultPresentationSet.ToSoftObjectPath());
 		AddUniquePath(OutPaths, Settings->MovingHazard.HazardActorClass.ToSoftObjectPath());
+		AddUniquePath(OutPaths, Settings->MovingHazard.HitSound.ToSoftObjectPath());
+		AddUniquePath(OutPaths, Settings->MovingHazard.HitCameraShake.ToSoftObjectPath());
 		AddUniquePath(OutPaths, Settings->Shop.MapShopCatalog.ToSoftObjectPath());
 		AddUniquePath(OutPaths, Settings->Music.RunMusic.ToSoftObjectPath());
 		AddUniquePath(OutPaths, Settings->SFX.CountdownTickSound.ToSoftObjectPath());

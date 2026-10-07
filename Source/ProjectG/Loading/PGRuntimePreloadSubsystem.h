@@ -46,9 +46,6 @@ public:
 	/** 지정한 화면 흐름의 예열 완료 여부를 반환합니다. */
 	bool IsGroupReady(EPGRuntimePreloadGroup Group) const;
 
-	/** 지정한 화면 흐름의 예열 진행 여부를 반환합니다. */
-	bool IsGroupPreloading(EPGRuntimePreloadGroup Group) const;
-
 	/** 카운트다운을 시작하기 전에 Run 리소스와 현재 맵 적재물 후보가 모두 준비됐는지 확인합니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runtime Preload")
 	bool IsReadyForRun() const;

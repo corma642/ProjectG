@@ -7,6 +7,7 @@
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/Image.h"
 #include "Components/PanelWidget.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
@@ -21,6 +22,12 @@ void UPGRunHUDWidget::NativeConstruct()
 	if (PauseButton)
 	{
 		PauseButton->OnClicked.AddDynamic(this, &UPGRunHUDWidget::HandlePauseClicked);
+	}
+
+	// 디자이너가 BP에서 보이게 둬도 경고는 런타임 판정으로만 켠다.
+	if (CargoDangerImage)
+	{
+		CargoDangerImage->SetVisibility(ESlateVisibility::Collapsed);
 	}
 }
 
@@ -37,6 +44,11 @@ void UPGRunHUDWidget::NativeDestruct()
 void UPGRunHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	if (bIsCargoDangerActive)
+	{
+		UpdateCargoDangerPulse(InDeltaTime);
+	}
 
 	if (!bIsEntering && !bIsExiting)
 	{
@@ -112,7 +124,26 @@ void UPGRunHUDWidget::RefreshCargoList(const TArray<FPGActiveCargoInfo>& ActiveC
 		return;
 	}
 
-	TSet<int32> SeenInstanceIds;
+	// 활성 적재물은 몇 개 수준이라 선형 탐색으로 충분하다. 짧은 주기로 호출되므로 임시 Set/Array 할당을 두지 않는다.
+	for (auto ItemIt = ActiveItemWidgets.CreateIterator(); ItemIt; ++ItemIt)
+	{
+		const int32 InstanceId = ItemIt.Key();
+		const bool bStillActive = ActiveCargoInfos.ContainsByPredicate([InstanceId](const FPGActiveCargoInfo& CargoInfo)
+		{
+			return CargoInfo.InstanceId == InstanceId;
+		});
+		if (bStillActive)
+		{
+			continue;
+		}
+
+		if (UPGCargoDeliveryItemWidget* RemovedWidget = ItemIt.Value())
+		{
+			RemovedWidget->PlayExitAnimation();
+		}
+		ItemIt.RemoveCurrent();
+	}
+
 	for (const FPGActiveCargoInfo& CargoInfo : ActiveCargoInfos)
 	{
 		if (CargoInfo.InstanceId == INDEX_NONE)
@@ -120,7 +151,6 @@ void UPGRunHUDWidget::RefreshCargoList(const TArray<FPGActiveCargoInfo>& ActiveC
 			continue;
 		}
 
-		SeenInstanceIds.Add(CargoInfo.InstanceId);
 		UPGCargoDeliveryItemWidget* ItemWidget = ActiveItemWidgets.FindRef(CargoInfo.InstanceId);
 		if (!ItemWidget)
 		{
@@ -136,24 +166,6 @@ void UPGRunHUDWidget::RefreshCargoList(const TArray<FPGActiveCargoInfo>& ActiveC
 		}
 
 		ItemWidget->ConfigureCargoItem(CargoInfo);
-	}
-
-	TArray<int32> RemovedInstanceIds;
-	for (const TPair<int32, TObjectPtr<UPGCargoDeliveryItemWidget>>& Pair : ActiveItemWidgets)
-	{
-		if (!SeenInstanceIds.Contains(Pair.Key))
-		{
-			RemovedInstanceIds.Add(Pair.Key);
-		}
-	}
-
-	for (const int32 RemovedInstanceId : RemovedInstanceIds)
-	{
-		if (UPGCargoDeliveryItemWidget* RemovedWidget = ActiveItemWidgets.FindRef(RemovedInstanceId))
-		{
-			RemovedWidget->PlayExitAnimation();
-		}
-		ActiveItemWidgets.Remove(RemovedInstanceId);
 	}
 }
 
@@ -179,6 +191,21 @@ void UPGRunHUDWidget::ShowCargoScoreIndicator(int32 CargoInstanceId, int32 Score
 	}
 
 	IndicatorWidget->PlayScoreIndicator(Score);
+}
+
+void UPGRunHUDWidget::SetCargoDangerWarningActive(bool bActive)
+{
+	if (bIsCargoDangerActive == bActive)
+	{
+		return;
+	}
+
+	bIsCargoDangerActive = bActive;
+	CargoDangerPulseElapsed = 0.0f;
+	if (CargoDangerImage)
+	{
+		CargoDangerImage->SetVisibility(bActive ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
 }
 
 void UPGRunHUDWidget::PlayEnterAnimation()
@@ -209,6 +236,19 @@ void UPGRunHUDWidget::ApplyAnimationState(float Alpha, bool bExiting)
 	const float YOffset = bExiting ? -60.0f * Alpha : -60.0f * (1.0f - Alpha);
 	SetRenderOpacity(Opacity);
 	SetRenderTranslation(FVector2D(0.0f, YOffset));
+}
+
+void UPGRunHUDWidget::UpdateCargoDangerPulse(float InDeltaTime)
+{
+	if (!CargoDangerImage)
+	{
+		return;
+	}
+
+	// 초당 2.5회 사인 펄스. 완전히 꺼지지 않도록 하한을 둬 경고가 끊겨 보이지 않게 한다.
+	CargoDangerPulseElapsed += InDeltaTime;
+	const float Pulse = 0.5f + 0.5f * FMath::Sin(CargoDangerPulseElapsed * 2.0f * PI * 2.5f);
+	CargoDangerImage->SetRenderOpacity(FMath::Lerp(0.25f, 1.0f, Pulse));
 }
 
 UPGCargoDeliveryItemWidget* UPGRunHUDWidget::AcquireCargoItemWidget()

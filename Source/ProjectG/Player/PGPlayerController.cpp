@@ -247,7 +247,6 @@ void APGPlayerController::BeginTouchGesture(uint32 Handle, const FVector2D& Touc
 	bHasActiveTouchGesture = true;
 	ActiveTouchHandle = Handle;
 	TouchStartLocation = TouchLocation;
-	TouchLastLocation = TouchLocation;
 	TouchStartTimeSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 
 	if (APGRunnerCharacter* RunnerCharacter = CachedRunnerCharacter.Get())
@@ -262,8 +261,6 @@ void APGPlayerController::UpdateTouchGesture(uint32 Handle, const FVector2D& Tou
 	{
 		return;
 	}
-
-	TouchLastLocation = TouchLocation;
 
 	const float DragDeltaX = TouchLocation.X - TouchStartLocation.X;
 	const float DeadZone = FMath::Max(0.0f, CachedTouchControlSettings.TouchDragDeadZone);
@@ -299,7 +296,6 @@ void APGPlayerController::ResetTouchGesture()
 	bHasActiveTouchGesture = false;
 	ActiveTouchHandle = 0;
 	TouchStartLocation = FVector2D::ZeroVector;
-	TouchLastLocation = FVector2D::ZeroVector;
 	TouchStartTimeSeconds = 0.0f;
 
 	if (APGRunnerCharacter* RunnerCharacter = CachedRunnerCharacter.Get())
