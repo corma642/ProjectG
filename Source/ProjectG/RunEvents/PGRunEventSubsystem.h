@@ -72,6 +72,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run Event")
 	float GetTimeUntilPendingEvent() const { return PendingEventType == EPGRunEventType::None ? 0.0f : FMath::Max(0.0f, PendingEventFireTime - RunElapsedTime); }
 
+#if !UE_BUILD_SHIPPING
+	/**
+	 * 개발 빌드 전용: 쇼케이스 녹화에서 지정한 종류의 이벤트를 지금 전조부터 시작하도록 예약합니다.
+	 * 세기와 지속 시간은 이벤트 세트에 등록된 그 종류의 첫 규칙을 따릅니다. 런 중이 아니거나 규칙이 없으면 false를 반환합니다.
+	 */
+	bool DebugScheduleEvent(EPGRunEventType EventType, float Direction);
+#endif
+
 	/** 이벤트 예고가 시작되면 종류, 발동까지 남은 초와 -1~1 방향을 연출 계층에 전달합니다. */
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run Event")
 	FPGRunEventPreviewStartedSignature OnRunEventPreviewStarted;

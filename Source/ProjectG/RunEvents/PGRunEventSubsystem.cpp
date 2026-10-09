@@ -289,6 +289,41 @@ void UPGRunEventSubsystem::ScheduleNextEvent()
 	PendingEventFireTime = RunElapsedTime + FMath::Lerp(StartInterval, EndInterval, DifficultyAlpha);
 }
 
+#if !UE_BUILD_SHIPPING
+bool UPGRunEventSubsystem::DebugScheduleEvent(EPGRunEventType EventType, float Direction)
+{
+	if (!BoundGameMode || BoundGameMode->GetRunState() != EPGRunState::Running)
+	{
+		return false;
+	}
+
+	const FPGRunEventRule* Rule = GetEffectiveEventRules().FindByPredicate([EventType](const FPGRunEventRule& Candidate)
+	{
+		return Candidate.EventType == EventType;
+	});
+	if (!Rule)
+	{
+		return false;
+	}
+
+	// 진행 중인 이벤트와 겹치면 연출이 섞이므로 먼저 끝내고, 전조 시간이 지난 뒤 발동하도록 예약한다.
+	// FinishActiveEvent는 연출만 정리하므로 남은 바람/눈바람 효과도 함께 해제해, 화면에 원인이 보이지 않는 밀림이 남지 않게 한다.
+	FinishActiveEvent();
+	if (RunnerEnvironmentComponent)
+	{
+		RunnerEnvironmentComponent->ClearEnvironmentEffects();
+	}
+	ClearPendingEvent(true);
+	PendingEventRule = *Rule;
+	PendingEventType = EventType;
+	PendingEventState = EPGRunEventState::Scheduled;
+	// 바람은 방향이 0이면 효과 없이 연출만 나오므로 일반 예약처럼 항상 좌우 한쪽(-1/1)으로 맞춘다.
+	PendingEventDirection = EventType == EPGRunEventType::Wind ? (Direction < 0.0f ? -1.0f : 1.0f) : FMath::Clamp(Direction, -1.0f, 1.0f);
+	PendingEventFireTime = RunElapsedTime + FMath::Max(0.0f, CachedRunEventSettings.PreviewLeadTime);
+	return true;
+}
+#endif
+
 bool UPGRunEventSubsystem::SelectEventRule(FPGRunEventRule& OutRule)
 {
 	const TArray<FPGRunEventRule>& Rules = GetEffectiveEventRules();

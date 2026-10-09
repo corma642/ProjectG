@@ -20,6 +20,8 @@ APGPhysicsCargoActor::APGPhysicsCargoActor()
 	CargoMeshComponent->SetNotifyRigidBodyCollision(true);
 	CargoMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	CargoMeshComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	// 머리 위에서 튕겨 나간 적재물이 카메라 붐을 가로지르면 붐이 장애물로 보고 카메라를 캐릭터 안으로 당긴다. 적재물은 카메라를 가리지 않는 것으로 둔다.
+	CargoMeshComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	CargoMeshComponent->OnComponentHit.AddDynamic(this, &APGPhysicsCargoActor::HandleCargoMeshHit);
 }
 
@@ -40,7 +42,9 @@ void APGPhysicsCargoActor::InitializeCargo(UPGCargoTypeDefinition* InCargoType, 
 		CargoMeshComponent->SetCollisionProfileName(CollisionProfileName);
 	}
 
+	// 프로파일을 다시 적용하면 채널 응답이 초기화되므로 캐릭터와 카메라 붐 무시를 다시 건다.
 	CargoMeshComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	CargoMeshComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	CargoMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	CargoMeshComponent->SetNotifyRigidBodyCollision(true);
 	CargoMeshComponent->SetLinearDamping(FMath::Max(0.0f, CargoType->LinearDamping));

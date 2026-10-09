@@ -66,6 +66,11 @@ void APGRunnerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// 바구니는 머리 소켓에 붙어 있어 이번 프레임 위치가 애니메이션 평가 뒤에야 정해진다.
+	// 적재물 속도를 바구니의 이번 프레임 이동량에 정확히 맞추려면 러너 Tick이 그 뒤에 돌아야 한다.
+	// 이때 애니메이션이 물리 계산 전에 끝나야 속도가 같은 프레임 물리에 반영되므로 DefaultEngine.ini의 tick.AnimationDelaysEndGroup=0과 짝을 이룬다.
+	AddTickPrerequisiteComponent(GetMesh());
+
 	ApplyGameSettings();
 	HomePreviewTransform = GetActorTransform();
 	bHasHomePreviewTransform = true;
@@ -196,12 +201,14 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 	}
 
 	UpdateForwardMovement();
+
+	// 몸 기울기는 메시를 돌려 바구니까지 옮기므로, 적재물이 바구니의 최종 위치를 보도록 먼저 갱신한다.
+	UpdateBodyLean(DeltaSeconds);
 	if (CargoStackComponent)
 	{
 		const bool bIsAirborne = RunnerMovementComponent && RunnerMovementComponent->IsFalling();
 		CargoStackComponent->UpdateCargoReaction(DeltaSeconds, GetCargoBalanceInputForPhysics(), bIsAirborne);
 	}
-	UpdateBodyLean(DeltaSeconds);
 }
 
 bool APGRunnerCharacter::RequestJump()
@@ -642,6 +649,12 @@ void APGRunnerCharacter::AttachBowlForRun()
 		BowlSocketName);
 	NewBowlActor->SetActorEnableCollision(true);
 	AttachedBowlActor = NewBowlActor;
+
+	if (CargoStackComponent)
+	{
+		// 적재물 속도 보정이 캡슐이 아니라 실제로 적재물을 받치는 바구니의 움직임을 따르게 한다.
+		CargoStackComponent->SetSupportComponent(NewBowlActor->GetRootComponent());
+	}
 }
 
 void APGRunnerCharacter::DetachAndDestroyBowl()
@@ -650,6 +663,11 @@ void APGRunnerCharacter::DetachAndDestroyBowl()
 	{
 		AttachedBowlActor = nullptr;
 		return;
+	}
+
+	if (CargoStackComponent)
+	{
+		CargoStackComponent->SetSupportComponent(nullptr);
 	}
 
 	AttachedBowlActor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);

@@ -24,10 +24,10 @@ void UPGRunHUDWidget::NativeConstruct()
 		PauseButton->OnClicked.AddDynamic(this, &UPGRunHUDWidget::HandlePauseClicked);
 	}
 
-	// 디자이너가 BP에서 보이게 둬도 경고는 런타임 판정으로만 켠다.
+	// 디자이너가 BP에서 보이게 둬도 경고는 런타임 상태로만 켠다. Slate 위젯이 다시 만들어져도 현재 상태를 그대로 반영한다.
 	if (CargoDangerImage)
 	{
-		CargoDangerImage->SetVisibility(ESlateVisibility::Collapsed);
+		CargoDangerImage->SetVisibility(bIsCargoDangerActive ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	}
 }
 

@@ -57,6 +57,7 @@ public:
 	void ShowCargoScoreIndicator(int32 CargoInstanceId, int32 Score);
 
 	/** 적재물 손실 임박 경고 오버레이를 켜거나 끕니다. 켜진 동안 NativeTick에서 펄스로 깜빡입니다. */
+	UFUNCTION(BlueprintCallable, Category = "UI")
 	void SetCargoDangerWarningActive(bool bActive);
 
 	/** 런 HUD 진입 애니메이션을 시작합니다. */
@@ -66,7 +67,7 @@ public:
 	void PlayExitAnimation();
 
 protected:
-	/** Pause 버튼 delegate를 연결합니다. */
+	/** Pause 버튼 delegate를 연결하고, 손실 임박 경고 오버레이를 현재 경고 상태에 맞춰 표시하거나 숨깁니다. */
 	virtual void NativeConstruct() override;
 
 	/** Pause 버튼 delegate를 위젯 제거 전에 해제합니다. 카드 delegate는 약한 참조라 함께 소멸합니다. */
@@ -103,8 +104,8 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UCanvasPanel> CargoScoreIndicatorLayer;
 
-	// 적재물 손실 임박 시 깜빡이는 경고 오버레이입니다. BP에 없으면 경고음만 재생됩니다.
-	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidgetOptional), Category = "UI")
+	// 적재물 손실 임박 시 화면 가장자리에서 깜빡이는 경고 오버레이입니다.
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UImage> CargoDangerImage;
 
 private:

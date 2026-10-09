@@ -93,6 +93,14 @@ void UPGCargoStackComponent::InitializeCargoStack(const FPGCargoSettings& InCarg
 	OnCargoListChanged.Broadcast();
 }
 
+void UPGCargoStackComponent::SetSupportComponent(const USceneComponent* InSupportComponent)
+{
+	SupportComponent = InSupportComponent;
+
+	// 바구니가 바뀐 프레임에는 비교할 지난 자세가 없으므로 다음 갱신에서 속도를 다시 잡는다.
+	bHasLatestSupportTransform = false;
+}
+
 void UPGCargoStackComponent::SetCargoLossWorldZ(float InCargoLossWorldZ)
 {
 	CargoLossWorldZ = InCargoLossWorldZ;
@@ -369,6 +377,22 @@ void UPGCargoStackComponent::UpdateAnchorMotion(float DeltaSeconds, bool bIsAirb
 
 	PreviousAnchorLocation = CurrentAnchorLocation;
 
+	// 바구니는 머리 소켓에 붙어 있어 점프 직후 애니메이션만큼 캡슐보다 초속 1~2m 빠르게 솟고 착지 때는 더 깊이 꺼진다.
+	// 담긴 적재물의 속도를 캡슐 기준으로 묶으면 바구니가 적재물을 뚫고 지나가므로 바구니 자체의 이동 속도를 따로 구한다.
+	SupportVelocity = AnchorVelocity;
+	if (const USceneComponent* Support = SupportComponent.Get())
+	{
+		// 적재물 위치는 지난 물리 스텝의 결과다. 바구니 안에 있는지는 그때의 바구니 자세와 비교해야 하므로 이번 프레임 자세로 바꾸기 전에 보관한다.
+		const FTransform CurrentSupportTransform = Support->GetComponentTransform();
+		SupportTransformAtLastStep = bHasLatestSupportTransform ? LatestSupportTransform : CurrentSupportTransform;
+		LatestSupportTransform = CurrentSupportTransform;
+		if (bHasLatestSupportTransform && DeltaSeconds > KINDA_SMALL_NUMBER)
+		{
+			SupportVelocity = (LatestSupportTransform.GetLocation() - SupportTransformAtLastStep.GetLocation()) / DeltaSeconds;
+		}
+		bHasLatestSupportTransform = true;
+	}
+
 	if (bIsAirborne || (bWasAirborneLastFrame && !bIsAirborne))
 	{
 		// 점프뿐 아니라 트랙 높이 차이로 잠깐 Falling이 된 경우도 적재물이 관성으로 튀지 않도록 짧게 보정한다.
@@ -396,6 +420,17 @@ void UPGCargoStackComponent::ApplyAirborneCargoAssist()
 		return;
 	}
 
+	// 바구니에 담긴 적재물은 바구니 속도에, 아직 위에서 떨어지는 중인 적재물은 기존처럼 캡슐(앵커) 속도에 묶는다.
+	// 바구니 밖으로 나간 적재물까지 묶으면 떨어지지 않고 공중에 뜬 채 러너를 따라오므로 보정하지 않는다.
+	const USceneComponent* Support = SupportComponent.Get();
+	const FBoxSphereBounds SupportBounds = Support
+		? Support->CalcBounds(FTransform(FQuat::Identity, FVector::ZeroVector, SupportTransformAtLastStep.GetScale3D()))
+		: FBoxSphereBounds(ForceInit);
+	const float RimRadius = FMath::Max(SupportBounds.BoxExtent.X, SupportBounds.BoxExtent.Y);
+
+	// 바구니 루트가 크기 없는 컴포넌트로 바뀌면 범위가 0이라 모든 적재물이 밖으로 판정된다. 그때는 범위를 따지지 않고 전부 보정한다.
+	const bool bCheckFootprint = Support && RimRadius > KINDA_SMALL_NUMBER;
+
 	for (const FPGRuntimeCargoInstance& CargoInstance : CargoInstances)
 	{
 		APGPhysicsCargoActor* CargoActor = CargoInstance.CargoActor;
@@ -405,7 +440,26 @@ void UPGCargoStackComponent::ApplyAirborneCargoAssist()
 		}
 
 		UStaticMeshComponent* CargoMeshComponent = CargoActor->GetCargoMeshComponent();
-		FVector RelativeVelocity = CargoMeshComponent->GetPhysicsLinearVelocity() - AnchorVelocity;
+		FVector ReferenceVelocity = AnchorVelocity;
+		if (bCheckFootprint)
+		{
+			// 이번 프레임 자세와 비교하면 점프 첫 프레임에 바구니만 솟아 있어 멀쩡한 적재물이 바닥 아래로 판정된다.
+			const FVector LocalOffset = SupportTransformAtLastStep.InverseTransformPositionNoScale(CargoMeshComponent->Bounds.Origin) - SupportBounds.Origin;
+
+			// 테두리보다 한참 위에 떠 있는 적재물은 아직 바구니로 떨어지는 중이다. 바구니의 좌우 흔들림 속도까지 물려주면 풀려날 때 옆으로 던져지므로 캡슐 속도에 둔다.
+			constexpr float SettledHeightAboveRim = 40.0f;
+			if (LocalOffset.Z < SupportBounds.BoxExtent.Z + SettledHeightAboveRim)
+			{
+				// 바구니 기준 좌표에서 테두리 반지름 밖이거나 바닥보다 아래면 이미 바구니를 벗어난 것이다.
+				if (FVector2D(LocalOffset).SizeSquared() > FMath::Square(RimRadius) || LocalOffset.Z < -SupportBounds.BoxExtent.Z)
+				{
+					continue;
+				}
+				ReferenceVelocity = SupportVelocity;
+			}
+		}
+
+		FVector RelativeVelocity = CargoMeshComponent->GetPhysicsLinearVelocity() - ReferenceVelocity;
 
 		// 공중 보정은 앵커 기준 상대속도만 제한한다. 월드 속도를 직접 0으로 만들면 자동 전진과 충돌한다.
 		if (MaxRelativeSpeed > KINDA_SMALL_NUMBER && RelativeVelocity.SizeSquared() > FMath::Square(MaxRelativeSpeed))
@@ -418,7 +472,7 @@ void UPGCargoStackComponent::ApplyAirborneCargoAssist()
 			RelativeVelocity.Z = MaxUpwardRelativeSpeed;
 		}
 
-		CargoMeshComponent->SetPhysicsLinearVelocity(AnchorVelocity + RelativeVelocity);
+		CargoMeshComponent->SetPhysicsLinearVelocity(ReferenceVelocity + RelativeVelocity);
 	}
 }
 

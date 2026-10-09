@@ -1,6 +1,6 @@
-<#
+﻿<#
 .SYNOPSIS
-    ProjectG 변경 검증을 한 번에 실행합니다: Editor 빌드 → Blueprint 전체 컴파일 → 자동화 테스트 → (선택) Android 패키징.
+    ProjectG 변경 검증을 한 번에 실행합니다: Editor 빌드 → Blueprint 전체 컴파일 → 자동화 테스트 → (선택) 위젯 QA → (선택) Android 패키징.
 
 .DESCRIPTION
     각 단계는 실패하면 즉시 멈추고 종료 코드 1을 반환합니다. 로그는 Saved\Verify 아래에 남습니다.
@@ -9,6 +9,7 @@
 .EXAMPLE
     powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Tools\Verify-Project.ps1
     powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Tools\Verify-Project.ps1 -SkipBuild -SkipBlueprints
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Tools\Verify-Project.ps1 -WidgetQA
     powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Tools\Verify-Project.ps1 -Package
 #>
 [CmdletBinding()]
@@ -19,6 +20,7 @@ param(
     [switch]$SkipBuild,
     [switch]$SkipBlueprints,
     [switch]$SkipTests,
+    [switch]$WidgetQA,
     [switch]$Package
 )
 
@@ -58,12 +60,14 @@ function Invoke-Timed {
 
 # UnrealEditor-Cmd는 실패해도 종료 코드가 0일 수 있어 로그 본문으로 결과를 판정합니다.
 function Invoke-EditorCmd {
-    param([string]$LogName, [string[]]$Arguments)
+    param([string]$LogName, [string[]]$Arguments, [switch]$Render)
     $logPath = Join-Path $LogRoot $LogName
     if (Test-Path -LiteralPath $logPath) {
         Remove-Item -LiteralPath $logPath -Force
     }
-    & $EditorCmd $ProjectFile @Arguments -Unattended -NoSplash -NoSound -NullRHI "-abslog=$logPath" | Out-Null
+    # 위젯을 실제로 그려야 하는 단계만 RHI를 켠다(창 없이 오프스크린 렌더링).
+    $rhiArgument = if ($Render) { '-RenderOffscreen' } else { '-NullRHI' }
+    & $EditorCmd $ProjectFile @Arguments -Unattended -NoSplash -NoSound $rhiArgument "-abslog=$logPath" | Out-Null
     if (-not (Test-Path -LiteralPath $logPath)) {
         throw "Editor did not produce a log: $logPath"
     }
@@ -120,6 +124,21 @@ if (-not $SkipTests) {
     }
 }
 
+if ($WidgetQA) {
+    Write-Step 'Widget QA (render + hit test)'
+    Invoke-Timed 'Widget QA' {
+        $script = Join-Path $PSScriptRoot 'EditorScripts\qa_widgets.py'
+        $logPath = Invoke-EditorCmd 'WidgetQA.log' @("-ExecutePythonScript=$script") -Render
+        Select-String -LiteralPath $logPath -Pattern 'LogPython: ### (.*)$' | ForEach-Object { Write-Host "   $($_.Matches[0].Groups[1].Value)" }
+        $pythonErrors = Select-String -LiteralPath $logPath -Pattern 'LogPython: Error'
+        if ($pythonErrors -or -not (Select-String -LiteralPath $logPath -Pattern '### WIDGET_QA: PASS' -Quiet)) {
+            $pythonErrors | Select-Object -First 10 | ForEach-Object { Write-Host "   $($_.Line)" -ForegroundColor Yellow }
+            throw "Widget QA failed. See $logPath and $(Join-Path $LogRoot 'WidgetQA')"
+        }
+        Write-Host "   PNG: $(Join-Path $LogRoot 'WidgetQA')"
+    }
+}
+
 if ($Package) {
     Write-Step 'Package Android (ASTC, arm64, Shipping)'
     if (-not (Test-Path -LiteralPath $RunUAT)) {
@@ -146,7 +165,12 @@ if ($Package) {
     Remove-Item Env:NoDefaultCurrentDirectoryInExePath -ErrorAction SilentlyContinue
     # Gradle 증분 패키징은 기존 APK를 제자리에서 갱신하며 교체된 main.obb.png 자리를 빈 공간으로 남겨 APK가 수백 MB 부풀 수 있다.
     # 복구 가이드의 Full Rebuild와 같은 결과가 나오도록 Android 중간 산출물을 지우고 Gradle 프로젝트를 새로 만든다. Cook 결과는 유지된다.
-    Remove-Item -LiteralPath (Join-Path $ProjectRoot 'Intermediate\Android') -Recurse -Force -ErrorAction SilentlyContinue
+    $androidIntermediate = Join-Path $ProjectRoot 'Intermediate\Android'
+    Remove-Item -LiteralPath $androidIntermediate -Recurse -Force -ErrorAction SilentlyContinue
+    if (Test-Path -LiteralPath $androidIntermediate) {
+        # 잠긴 파일이 남으면 증분 패키징이 그대로 일어날 수 있다. 패키징은 계속하되 APK 크기를 확인하도록 알린다.
+        Write-Warning "Intermediate\Android was not fully removed; check the APK size after packaging."
+    }
     Invoke-Timed 'Package' {
         $archiveDir = Join-Path $LogRoot 'Android_ASTC'
         # 쿠커 셰이더 컴파일이 XGE 컨트롤러를 거치면 Incredibuild 상태(라이선스·워커 실행 환경)에 따라 영원히 기다릴 수 있다

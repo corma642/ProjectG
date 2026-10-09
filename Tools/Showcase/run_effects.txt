@@ -1,0 +1,22 @@
+# seed 2
+# 런 연출 확인용 시나리오: 좌/우/중앙 위험 구역 예고 -> 새 떼 피격 -> 적재물 이탈 -> 손실 임박 경고 -> 실패 슬로모션 -> 결과 화면.
+# 시각은 런 시작(GO) 기준 초입니다. seed는 트랙 순서를 고정합니다. 시드나 시각을 바꾸면 트랙과 피격 위치가 달라져 자동 조종이 끝까지 못 갈 수 있으니 다시 녹화해 확인합니다.
+0 r.SetRes 540x1170w
+0 PG.Showcase.AutoPilot 1
+0 PG.Showcase.CargoWatch 1
+0 PG.Showcase.WaitForRun
+0 PG.Showcase.DumpFrames {OUT} 30 840
+1.0 PG.Showcase.RunEvent MovingHazard -1
+4.5 PG.Showcase.RunEvent MovingHazard 1
+8.0 PG.Showcase.RunEvent MovingHazard 0
+# 공중과 착지 직후에는 적재물이 바구니에 묶여 충격이 먹히지 않는다. 땅을 달리는 순간에 걸리도록 여러 번 준다.
+# 아래 충격은 실제 플레이에 없는 세기라 적재물이 낮은 옆면을 그대로 뚫고 나간다. 의도한 연출이므로 통과 감시는 그 전에 끈다.
+18.9 PG.Showcase.CargoWatch 0
+19.0 PG.Showcase.CargoImpulse 700
+19.6 PG.Showcase.CargoImpulse 700
+20.2 PG.Showcase.CargoImpulse 700
+20.8 PG.Showcase.CargoImpulse 700
+21.4 PG.Showcase.CargoImpulse 700
+22.0 PG.Showcase.CargoImpulse 700
+22.6 PG.Showcase.CargoImpulse 700
+23.2 PG.Showcase.CargoImpulse 700

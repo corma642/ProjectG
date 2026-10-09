@@ -1,0 +1,53 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
+#include "PGEditorAutomationLibrary.generated.h"
+
+class UUserWidget;
+
+/**
+ * 헤드리스 에디터 Python 스크립트가 위젯 작업 결과를 검증할 때 쓰는 에디터 전용 함수 모음입니다.
+ * 기본 Python API에 없는 위젯 인스턴스 생성, 게임 진입 함수 호출, 오프스크린 렌더링, 히트 테스트만 제공합니다.
+ * 위젯 트리 편집은 엔진의 unreal.EditorUtilityLibrary.add_source_widget을 그대로 씁니다.
+ * 런타임 모듈과 게임 빌드에는 포함되지 않습니다.
+ */
+UCLASS()
+class UPGEditorAutomationLibrary : public UBlueprintFunctionLibrary
+{
+	GENERATED_BODY()
+
+public:
+	/** 에디터 월드에 위젯 인스턴스를 만듭니다. 렌더링·히트 테스트 전에 Python에서 상태를 바꿀 수 있도록 인스턴스를 돌려줍니다. */
+	UFUNCTION(BlueprintCallable, Category = "ProjectG | Editor Automation")
+	static UUserWidget* CreateWidgetInstance(TSubclassOf<UUserWidget> WidgetClass);
+
+	/**
+	 * 게임이 위젯을 화면에 올린 직후 부르는 C++ 진입 함수(열기 애니메이션, 튜토리얼 페이지 연결 등)를 대신 호출합니다.
+	 * 이 함수들은 UFUNCTION이 아니라 Python에서 직접 부를 수 없습니다. 대상: Pause, Settings, Shop, ReceiptShop, Tutorial, 배달 카드, 점수 표시, 화면 전환 페이드.
+	 * 그릴 때마다 NativeConstruct가 위젯을 진입 전 상태로 되돌리므로, 그리기·히트 테스트 호출 직전에 매번 부릅니다.
+	 * 진입 함수가 없는 위젯이면 아무것도 하지 않고 false를 반환합니다.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ProjectG | Editor Automation")
+	static bool PlayWidgetEntry(UUserWidget* Widget);
+
+	/**
+	 * 위젯을 Size(px) 크기의 화면에 배경색 위로 한 번 그려 PNG로 저장합니다.
+	 * AdvanceSeconds(초)가 0보다 크면 그만큼 시간이 흐른 것으로 NativeTick을 돌린 뒤의 화면을 그립니다. 진입 애니메이션보다 길게 주면 끝난 상태가 나옵니다.
+	 * 실제 RHI가 필요하므로 -NullRHI 실행에서는 false를 반환합니다(-RenderOffscreen으로 실행).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ProjectG | Editor Automation")
+	static bool RenderWidgetToPng(UUserWidget* Widget, FIntPoint Size, FLinearColor Background, const FString& PngPath, float AdvanceSeconds = 0.0f);
+
+	/**
+	 * 위젯을 Size(px) 크기의 화면에 배치했을 때 각 Point(px)에서 터치/클릭을 받는 최상단 위젯 이름을 같은 순서로 반환합니다.
+	 * 위젯 자신(루트)이 입력을 받는 지점은 그 인스턴스 이름, 입력을 받는 위젯이 없는 지점은 None이고, 그릴 수 없으면 빈 배열입니다.
+	 * 장식 위젯이 버튼을 가리는지 확인할 때 씁니다. AdvanceSeconds는 RenderWidgetToPng와 같습니다.
+	 * bIgnoreEnabledState가 false면 게임과 같이 비활성 위젯에서 경로가 끊겨 그 부모가 반환됩니다.
+	 * true면 비활성 여부와 무관하게 그 지점의 최상단 위젯을 반환하므로, 잠긴 버튼이 가려졌는지도 확인할 수 있습니다.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ProjectG | Editor Automation")
+	static TArray<FName> FindHitWidgetNames(UUserWidget* Widget, FIntPoint Size, const TArray<FVector2D>& Points, float AdvanceSeconds = 0.0f, bool bIgnoreEnabledState = false);
+};

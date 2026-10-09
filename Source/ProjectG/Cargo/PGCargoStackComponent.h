@@ -98,6 +98,12 @@ public:
 	/** 현재 맵에서 사용할 고정 월드 Z 손실선(cm)을 적용합니다. */
 	void SetCargoLossWorldZ(float InCargoLossWorldZ);
 
+	/**
+	 * 적재물을 실제로 받치는 컴포넌트(바구니)를 지정합니다. 이후 바구니에 담긴 적재물의 공중 속도 보정은 이 컴포넌트의 움직임을 기준으로 합니다.
+	 * null이면 모든 적재물이 CargoStack 자신의 움직임을 기준으로 삼습니다.
+	 */
+	void SetSupportComponent(const USceneComponent* InSupportComponent);
+
 	/** -1~1 중심 입력과 공중 상태로 Hold, 물리 보정, 배달 완료와 손실 판정을 한 프레임 갱신합니다. */
 	void UpdateCargoReaction(float DeltaSeconds, float BalanceInput, bool bIsAirborne);
 
@@ -152,6 +158,17 @@ private:
 	void CleanupInvalidCargoActors();
 
 	FPGCargoSettings CachedCargoSettings;
+
+	// 적재물을 받치는 바구니 컴포넌트입니다. 머리 소켓에 붙어 애니메이션만큼 캡슐과 다르게 움직이므로 속도 기준을 따로 둡니다.
+	TWeakObjectPtr<const USceneComponent> SupportComponent;
+
+	// 바구니의 이번 프레임 자세와, 적재물의 현재 위치가 계산된 지난 물리 스텝 시점의 자세입니다.
+	FTransform LatestSupportTransform = FTransform::Identity;
+	FTransform SupportTransformAtLastStep = FTransform::Identity;
+
+	// 바구니가 이번 프레임에 움직인 속도(cm/s)입니다. 바구니가 없으면 AnchorVelocity와 같습니다.
+	FVector SupportVelocity = FVector::ZeroVector;
+	bool bHasLatestSupportTransform = false;
 
 	// Hold 중인 적재물을 보여주는 비물리 프리뷰 메시입니다. 실제 물리 Actor는 Hold 종료 후 별도로 생성됩니다.
 	UPROPERTY(Transient)
