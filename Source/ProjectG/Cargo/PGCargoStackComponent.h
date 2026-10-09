@@ -153,7 +153,7 @@ private:
 	void UpdateAnchorMotion(float DeltaSeconds, bool bIsAirborne);
 	void ApplyAirborneCargoAssist();
 	FVector GetLossOriginLocation() const;
-	bool CheckCargoLoss();
+	bool CheckCargoLoss(float DeltaSeconds);
 	void LoseCargoAt(int32 CargoIndex);
 	void CompleteCargoAt(int32 CargoIndex);
 	void CleanupInvalidCargoActors();

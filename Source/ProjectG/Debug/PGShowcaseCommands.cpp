@@ -57,7 +57,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogPGShowcase, Log, All);
  *   적재물이 바구니를 벗어나는 순간을 로그로 남깁니다. 바구니 면에 절반 넘게 박히거나, 테두리를 넘지 않고 옆면·바닥으로 빠지거나,
  *   떨어진 적재물이 바구니에 담기지 못하고 빗나가면 Warning이라 녹화 도구가 실패로 처리합니다.
  *   2는 프레임마다 바구니 기준 적재물 위치와 상대 속도, 생성 위치(CargoStack 앵커) 기준 위치,
- *   그리고 지난 프레임 시간 대비 물리가 실제로 진행한 시간과 스텝 수(PHYS 줄)까지 남깁니다.
+ *   그리고 지난 프레임 시간 대비 물리가 실제로 진행한 시간과 스텝 수, 그 프레임의 손실 임박 비율(PHYS 줄)까지 남깁니다.
  * 명령줄 -PGShowcaseSeed=<N>
  *   트랙 세그먼트 순서를 고정해 같은 스크립트를 같은 길에서 다시 녹화할 수 있게 합니다.
  */
@@ -469,7 +469,9 @@ namespace
 		{
 			const double SolverTime = Solver->GetSolverTime();
 			const int32 SolverStep = Solver->GetCurrentFrame();
-			UE_LOG(LogPGShowcase, Display, TEXT("PHYS dt=%.4f sim=%.4f steps=%d"), FApp::GetDeltaTime(), SolverTime - GPreviousSolverTime, SolverStep - GPreviousSolverStep);
+			// danger는 그 프레임의 손실 판정이 본 최대 수평 이탈 비율이다. 긴 프레임 하나가 판정 거리를 얼마나 늘리는지 프레임 시간과 나란히 본다.
+			UE_LOG(LogPGShowcase, Display, TEXT("PHYS dt=%.4f sim=%.4f steps=%d danger=%.3f"), FApp::GetDeltaTime(), SolverTime - GPreviousSolverTime, SolverStep - GPreviousSolverStep,
+				Runner ? Runner->GetCargoStackComponent()->GetCargoDangerRatio() : 0.0f);
 			GPreviousSolverTime = SolverTime;
 			GPreviousSolverStep = SolverStep;
 		}

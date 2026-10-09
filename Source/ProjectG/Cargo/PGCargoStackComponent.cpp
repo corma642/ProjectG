@@ -126,7 +126,7 @@ void UPGCargoStackComponent::UpdateCargoReaction(float DeltaSeconds, float Balan
 	}
 
 	// 손실이 나면 같은 프레임에 런이 실패하고 보상이 정산된다. 이후 배달 완료가 점수를 더하면 정산 뒤 점수가 바뀌므로 건너뛴다.
-	if (CheckCargoLoss())
+	if (CheckCargoLoss(DeltaSeconds))
 	{
 		return;
 	}
@@ -480,11 +480,14 @@ void UPGCargoStackComponent::ApplyAirborneCargoAssist()
 	}
 }
 
-bool UPGCargoStackComponent::CheckCargoLoss()
+bool UPGCargoStackComponent::CheckCargoLoss(float DeltaSeconds)
 {
 	bool bAnyCargoLost = false;
 	float MaxHorizontalDistanceSquared = 0.0f;
-	const FVector LossOriginLocation = GetLossOriginLocation();
+
+	// 적재물 위치는 지난 물리 스텝의 결과인데 러너는 이미 이번 프레임만큼 나아갔다. 그대로 비교하면 바구니에 담긴 적재물도 한 프레임 이동 거리만큼 뒤처져 보여,
+	// 긴 프레임 하나에 손실로 판정되고 손실 임박 경고가 프레임률에 따라 달라진다. 러너도 지난 프레임 위치로 되돌려 같은 시점끼리 비교한다.
+	const FVector LossOriginLocation = GetLossOriginLocation() - AnchorVelocity * DeltaSeconds;
 	const float LossDistanceSquared = FMath::Square(CachedCargoSettings.CargoLossHorizontalDistance);
 	if (!bHasCargoLossWorldZ && !bWarnedMissingCargoLossWorldZ)
 	{
