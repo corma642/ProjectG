@@ -143,7 +143,8 @@ private:
 	void EnsureScriptedCargoMeshComponent();
 	void DestroyScriptedCargoMeshComponent();
 	bool StartCargoDropHold(UPGCargoTypeDefinition* CargoType);
-	void FinishCargoDropHold();
+	// PendingPhysicsSeconds: 생성한 뒤 같은 프레임 물리가 진행할 시간(초). 러너 Tick에서 부르면 프레임 시간, 물리 뒤에 부르면 0입니다.
+	void FinishCargoDropHold(float PendingPhysicsSeconds);
 	APGPhysicsCargoActor* SpawnPhysicsCargo(UPGCargoTypeDefinition* CargoType, const FTransform& SpawnTransform);
 	FTransform MakeCargoWorldTransform() const;
 	void ApplyScriptedCargoDisplayTransform(const UPGCargoTypeDefinition* CargoType);

@@ -1,0 +1,9 @@
+# seed 2
+# 10fps 확인용 시나리오: 프레임 시간이 길어도 새 적재물이 Hold 위치 그대로 물리 적재물로 바뀌어 바구니 가운데에 담기는지 본다.
+# DumpFrames가 게임 프레임 시간을 1/FPS초로 고정하므로 녹화 프레임률(10)이 곧 게임 프레임률이다. 시각은 런 시작(GO) 기준 초입니다.
+# 생성 위치 보정(UPGCargoStackComponent::FinishCargoDropHold)이 빠지면 첫 적재물이 러너의 한 프레임 이동 거리(60cm)만큼 앞에서 떨어져 바구니를 빗나가고, 감시가 Warning을 남겨 녹화가 실패한다.
+0 r.SetRes 540x1170w
+0 PG.Showcase.AutoPilot 1
+0 PG.Showcase.CargoWatch 1
+0 PG.Showcase.WaitForRun
+0 PG.Showcase.DumpFrames {OUT} 10 200

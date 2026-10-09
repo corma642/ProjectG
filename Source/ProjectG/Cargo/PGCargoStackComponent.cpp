@@ -121,7 +121,7 @@ void UPGCargoStackComponent::UpdateCargoReaction(float DeltaSeconds, float Balan
 		CargoDropHoldRemainingTime = FMath::Max(0.0f, CargoDropHoldRemainingTime - DeltaSeconds);
 		if (CargoDropHoldRemainingTime <= 0.0f)
 		{
-			FinishCargoDropHold();
+			FinishCargoDropHold(DeltaSeconds);
 		}
 	}
 
@@ -194,13 +194,13 @@ bool UPGCargoStackComponent::StartCargoDropHold(UPGCargoTypeDefinition* CargoTyp
 	if (CargoDropHoldRemainingTime <= 0.0f)
 	{
 		// Hold 시간이 0이면 같은 프레임에 바로 물리 적재물로 전환한다.
-		FinishCargoDropHold();
+		FinishCargoDropHold(0.0f);
 	}
 
 	return true;
 }
 
-void UPGCargoStackComponent::FinishCargoDropHold()
+void UPGCargoStackComponent::FinishCargoDropHold(float PendingPhysicsSeconds)
 {
 	if (!bHasPendingCargoDrop)
 	{
@@ -224,7 +224,11 @@ void UPGCargoStackComponent::FinishCargoDropHold()
 		ScriptedCargoMeshComponent->SetHiddenInGame(true, true);
 	}
 
-	APGPhysicsCargoActor* SpawnedCargoActor = SpawnPhysicsCargo(CargoType, MakeCargoWorldTransform());
+	// 러너 Tick에서 만든 적재물은 같은 프레임 물리에서 앵커 속도로 한 프레임만큼 더 나아가지만, 바구니는 이번 프레임 위치에 그대로 있다.
+	// 그만큼 뒤에서 만들어야 물리가 끝난 화면에서 Hold 위치와 겹치고, 착지 위치가 프레임 시간에 비례해 앞으로 밀리지 않는다.
+	FTransform SpawnTransform = MakeCargoWorldTransform();
+	SpawnTransform.AddToTranslation(-AnchorVelocity * PendingPhysicsSeconds);
+	APGPhysicsCargoActor* SpawnedCargoActor = SpawnPhysicsCargo(CargoType, SpawnTransform);
 	if (SpawnedCargoActor)
 	{
 		if (const UPGGameSettings* Settings = GetDefault<UPGGameSettings>())

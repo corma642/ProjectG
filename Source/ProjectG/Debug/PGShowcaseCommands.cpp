@@ -56,7 +56,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogPGShowcase, Log, All);
  * PG.Showcase.CargoWatch <0|1|2>
  *   적재물이 바구니를 벗어나는 순간을 로그로 남깁니다. 바구니 면에 절반 넘게 박히거나, 테두리를 넘지 않고 옆면·바닥으로 빠지거나,
  *   떨어진 적재물이 바구니에 담기지 못하고 빗나가면 Warning이라 녹화 도구가 실패로 처리합니다.
- *   2는 프레임마다 바구니 기준 적재물 위치와 상대 속도, 그리고 지난 프레임 시간 대비 물리가 실제로 진행한 시간과 스텝 수(PHYS 줄)까지 남깁니다.
+ *   2는 프레임마다 바구니 기준 적재물 위치와 상대 속도, 생성 위치(CargoStack 앵커) 기준 위치,
+ *   그리고 지난 프레임 시간 대비 물리가 실제로 진행한 시간과 스텝 수(PHYS 줄)까지 남깁니다.
  * 명령줄 -PGShowcaseSeed=<N>
  *   트랙 세그먼트 순서를 고정해 같은 스크립트를 같은 길에서 다시 녹화할 수 있게 합니다.
  */
@@ -577,9 +578,12 @@ namespace
 			if (bCargoWatchTrace)
 			{
 				const FVector RelativeVelocity = BowlTransform.InverseTransformVectorNoScale(CargoMesh->GetPhysicsLinearVelocity() - BowlVelocity);
-				UE_LOG(LogPGShowcase, Display, TEXT("CARGO %s local=(%.1f,%.1f,%.1f) r=%.1f relV=(%.0f,%.0f,%.0f) bowlV=(%.0f,%.0f,%.0f) falling=%d"),
+				// 생성 위치(CargoStack 앵커) 기준 위치도 남겨, 물리로 바뀐 첫 프레임에 적재물이 앵커보다 얼마나 앞서는지 프레임률별로 비교한다.
+				const FVector FromAnchor = Runner->GetCargoStackComponent()->GetComponentTransform().InverseTransformPositionNoScale(It->GetActorLocation());
+				UE_LOG(LogPGShowcase, Display, TEXT("CARGO %s local=(%.1f,%.1f,%.1f) r=%.1f relV=(%.0f,%.0f,%.0f) bowlV=(%.0f,%.0f,%.0f) falling=%d anchor=(%.1f,%.1f,%.1f)"),
 					*It->GetName(), Local.X, Local.Y, Local.Z, Radius, RelativeVelocity.X, RelativeVelocity.Y, RelativeVelocity.Z,
-					BowlVelocity.X, BowlVelocity.Y, BowlVelocity.Z, Runner->GetCharacterMovement()->IsFalling() ? 1 : 0);
+					BowlVelocity.X, BowlVelocity.Y, BowlVelocity.Z, Runner->GetCharacterMovement()->IsFalling() ? 1 : 0,
+					FromAnchor.X, FromAnchor.Y, FromAnchor.Z);
 			}
 		}
 		GCargoInBowl = MoveTemp(CargoInBowl);
