@@ -222,6 +222,7 @@ bool APGRunnerCharacter::RequestJump()
 	{
 		// 사운드는 입력 요청이 아니라 실제 점프가 실행된 경우에만 재생한다.
 		PlayJumpSound();
+		OnJumpStarted.Broadcast();
 		return true;
 	}
 

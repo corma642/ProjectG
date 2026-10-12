@@ -244,6 +244,10 @@ struct FPGRunHUDSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | HUD")
 	TSoftClassPtr<UUserWidget> CargoScoreIndicatorWidgetClass;
 
+	// 첫 런에서 드래그·플릭 조작을 안내하는 가이드 Widget Blueprint 클래스. 저장된 완료 기록이 없을 때 GO 시점에 HUD 위에 표시한다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | HUD")
+	TSoftClassPtr<UUserWidget> RunGuideWidgetClass;
+
 	// 적재물 배달 완료 시 적재물 월드 위치에 한 번 재생할 공통 Niagara VFX
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | HUD")
 	TSoftObjectPtr<UNiagaraSystem> CargoDeliveredVFX;

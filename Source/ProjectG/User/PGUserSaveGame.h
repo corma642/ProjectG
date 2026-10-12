@@ -40,4 +40,8 @@ public:
 	// 현재 Home/Run 레벨로 사용할 장착 맵 ID입니다.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectG | User")
 	FName EquippedMapId;
+
+	// 첫 런 가이드(드래그 → 플릭 안내)를 끝까지 마쳤는지. true면 다시 표시하지 않습니다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectG | User")
+	bool bRunGuideCompleted = false;
 };

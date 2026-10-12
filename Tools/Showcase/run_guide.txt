@@ -1,0 +1,13 @@
+# seed 2
+# 첫 런 가이드 확인용 시나리오: GO 직후 DRAG TO BALANCE → 강제 드래그 입력으로 1단계 종료 → FLICK UP TO JUMP → 점프로 완료·페이드 아웃.
+# 가이드는 저장 데이터에 완료 기록(bRunGuideCompleted)이 없을 때만 나온다. 녹화 도구가 SaveGames를 백업·복구하므로 기록이 있으면 먼저 Saved/SaveGames의 PGUserData_A/B를 지운다.
+# UI 확인용이라 적재물 통과 감시(CargoWatch)는 켜지 않는다. 시각은 런 시작(GO) 기준 초다.
+0 r.SetRes 540x1170w
+0 PG.Showcase.AutoPilot 1
+0 PG.Showcase.WaitForRun
+0 PG.Showcase.DumpFrames {OUT} 30 360
+# 2.5초: 드래그 안내를 본 뒤 오른쪽으로 짧게 끌어(입력 0.7, 판정 기준 0.5) 1단계를 끝낸다. 자동 조종이 곧 중앙으로 되돌린다.
+2.5 PG.Showcase.Balance 0.7 0.15
+# 5.5초: 플릭 안내를 본 뒤 점프해 2단계를 끝낸다. 공중이라 거절되면 1초 뒤 한 번 더 시도한다.
+5.5 PG.Showcase.Jump
+6.5 PG.Showcase.Jump

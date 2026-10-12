@@ -49,6 +49,10 @@ DEFINE_LOG_CATEGORY_STATIC(LogPGShowcase, Log, All);
  *   스크립트 안에서 사용합니다. 런이 시작될(GO) 때까지 스크립트 시계를 멈춰, 이후 명령의 시각이 예열 시간과 무관하게 런 시작 기준이 되게 합니다.
  * PG.Showcase.AutoPilot <0|1>
  *   입력 없이도 러너가 길을 따라가도록 좌우 이동과 점프를 대신 넣습니다.
+ * PG.Showcase.Balance <입력 -1~1> [초]
+ *   지정한 시간 동안(기본 0.5초) 러너 중심 입력을 강제합니다. 자동 조종보다 뒤에 적용되므로 첫 런 가이드처럼 입력에 반응하는 UI를 연출할 수 있습니다.
+ * PG.Showcase.Jump
+ *   플레이어 입력처럼 점프를 한 번 요청합니다. 공중이거나 쿨타임이면 거절되고 Display 로그만 남깁니다.
  * PG.Showcase.RunEvent <Wind|Snowstorm|MovingHazard> [방향 -1~1]
  *   지정한 런 이벤트를 지금 전조부터 시작합니다. MovingHazard의 방향은 -1 왼쪽, 0 중앙, 1 오른쪽 구역이고, Wind는 음수면 왼쪽 그 외에는 오른쪽입니다.
  * PG.Showcase.CargoImpulse <속도 cm/s>
@@ -273,6 +277,22 @@ namespace
 		UE_LOG(LogPGShowcase, Display, TEXT("Showcase script started: %d commands from %s"), GShowcaseScript.PendingCommands.Num(), *Args[0]);
 	}
 
+	// Balance 명령이 남긴 강제 중심 입력과 남은 시간. 자동 조종이 켜져 있으면 자동 조종 Tick이, 꺼져 있으면 TickBalanceOverride가 적용한다.
+	float GBalanceOverrideInput = 0.0f;
+	float GBalanceOverrideRemainingSeconds = 0.0f;
+	FDelegateHandle GBalanceOverrideHandle;
+
+	// 강제 입력이 남아 있으면 시간을 줄이고 그 값을, 없으면 주어진 입력을 그대로 돌려준다.
+	float ApplyBalanceOverride(float Input)
+	{
+		if (GBalanceOverrideRemainingSeconds <= 0.0f)
+		{
+			return Input;
+		}
+		GBalanceOverrideRemainingSeconds -= static_cast<float>(FApp::GetDeltaTime());
+		return GBalanceOverrideInput;
+	}
+
 	void TickAutoPilot()
 	{
 		APGRunnerCharacter* Runner = FindRunner(FindGameWorld());
@@ -402,7 +422,7 @@ namespace
 		// 목표와의 거리와 좌우 속도에 비례해 입력한다. 입력이 크면 적재물까지 쏟아지므로 완만한 계수를 쓴다.
 		constexpr float OffsetGain = 0.01f;
 		constexpr float VelocityGain = 0.006f;
-		Runner->SetBalanceInput(FMath::Clamp((GAutoPilotTargetOffset - Offset) * OffsetGain - Movement->GetBalanceVelocity() * VelocityGain, -1.0f, 1.0f));
+		Runner->SetBalanceInput(ApplyBalanceOverride(FMath::Clamp((GAutoPilotTargetOffset - Offset) * OffsetGain - Movement->GetBalanceVelocity() * VelocityGain, -1.0f, 1.0f)));
 	}
 
 	void SetAutoPilot(const TArray<FString>& Args)
@@ -434,6 +454,47 @@ namespace
 		if (EventType == EPGRunEventType::None || !RunEventSubsystem || !RunEventSubsystem->DebugScheduleEvent(EventType, Direction))
 		{
 			UE_LOG(LogPGShowcase, Warning, TEXT("Usage: PG.Showcase.RunEvent <Wind|Snowstorm|MovingHazard> [Direction] (only while a run is in progress)"));
+		}
+	}
+
+	void TickBalanceOverride()
+	{
+		// 자동 조종이 켜져 있으면 그쪽 Tick이 강제 입력을 합친다. multicast delegate는 나중에 등록한 쪽이 먼저 불려 순서에 기댈 수 없다.
+		if (GAutoPilotHandle.IsValid())
+		{
+			return;
+		}
+
+		APGRunnerCharacter* Runner = FindRunner(FindGameWorld());
+		const bool bActive = GBalanceOverrideRemainingSeconds > 0.0f;
+		if (Runner)
+		{
+			Runner->SetBalanceInput(ApplyBalanceOverride(0.0f));
+		}
+		if (!bActive)
+		{
+			FCoreDelegates::OnBeginFrame.Remove(GBalanceOverrideHandle);
+			GBalanceOverrideHandle.Reset();
+		}
+	}
+
+	void SetBalanceOverride(const TArray<FString>& Args)
+	{
+		GBalanceOverrideInput = FMath::Clamp(Args.Num() > 0 ? FCString::Atof(*Args[0]) : 0.0f, -1.0f, 1.0f);
+		GBalanceOverrideRemainingSeconds = Args.Num() > 1 ? FCString::Atof(*Args[1]) : 0.5f;
+		if (!GAutoPilotHandle.IsValid() && !GBalanceOverrideHandle.IsValid())
+		{
+			GBalanceOverrideHandle = FCoreDelegates::OnBeginFrame.AddStatic(&TickBalanceOverride);
+		}
+	}
+
+	void RequestShowcaseJump(const TArray<FString>& Args, UWorld* World)
+	{
+		APGRunnerCharacter* Runner = FindRunner(World);
+		if (!Runner || !Runner->RequestJump())
+		{
+			// 녹화 도구는 Warning을 실패로 보므로 거절은 Display로만 남긴다. 프레임에서 점프 여부를 확인한다.
+			UE_LOG(LogPGShowcase, Display, TEXT("PG.Showcase.Jump was refused (no runner, not running, airborne, or jump cooldown)."));
 		}
 	}
 
@@ -621,6 +682,16 @@ namespace
 		TEXT("PG.Showcase.RunEvent"),
 		TEXT("PG.Showcase.RunEvent <Wind|Snowstorm|MovingHazard> [Direction]: starts that run event now, beginning with its preview."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&ScheduleRunEvent));
+
+	FAutoConsoleCommand GBalanceCommand(
+		TEXT("PG.Showcase.Balance"),
+		TEXT("PG.Showcase.Balance <Input -1..1> [Seconds]: forces the runner balance input for a while, overriding AutoPilot."),
+		FConsoleCommandWithArgsDelegate::CreateStatic(&SetBalanceOverride));
+
+	FAutoConsoleCommandWithWorldAndArgs GJumpCommand(
+		TEXT("PG.Showcase.Jump"),
+		TEXT("PG.Showcase.Jump: requests one runner jump as the player would."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&RequestShowcaseJump));
 
 	FAutoConsoleCommandWithWorldAndArgs GCargoImpulseCommand(
 		TEXT("PG.Showcase.CargoImpulse"),

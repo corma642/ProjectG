@@ -6,6 +6,7 @@
 #include "Cargo/PGCargoStackComponent.h"
 #include "Components/ActorComponent.h"
 #include "Settings/PGGameSettings.h"
+#include "UI/PGRunGuideWidget.h"
 #include "PGRunHUDComponent.generated.h"
 
 class APGGameModeBase;
@@ -16,6 +17,7 @@ class UPGRunHUDWidget;
 class UPGRunPauseWidget;
 class UPGRunProgressComponent;
 class UPGSettingsScreenWidget;
+class UPGUserDataSubsystem;
 
 /**
  * 로컬 PlayerController가 소유하는 러닝 HUD 관리자입니다.
@@ -66,6 +68,7 @@ private:
 
 	void HandleCargoListChanged();
 	void HandleCargoDelivered(int32 CargoInstanceId, int32 Score, int32 Receipts, FVector DeliveryLocation);
+	void HandleRunnerJumpStarted();
 	void HandlePauseRequested();
 	void HandleResumeRequested();
 	void HandlePauseSettingsRequested();
@@ -80,8 +83,14 @@ private:
 	void UnbindRunProgress();
 	void BindCargoStack(UPGCargoStackComponent* CargoStackComponent);
 	void UnbindCargoStack();
+	void BindRunner(APGRunnerCharacter* RunnerCharacter);
+	void UnbindRunner();
 	void ShowHUD();
 	void CleanupHUD();
+	UPGUserDataSubsystem* GetUserDataSubsystem() const;
+	void ShowRunGuideIfNeeded();
+	void AdvanceRunGuide(EPGRunGuideStep NextStep);
+	void CleanupRunGuide(bool bFadeOut);
 	void UpdateHUDInteractionState() const;
 	void RefreshHUDValues();
 	void RefreshCargoList();
@@ -120,6 +129,16 @@ private:
 	// Pause 위에 중첩되는 Settings 모달이며 닫힘 후 Pause 입력을 복구합니다.
 	UPROPERTY(Transient)
 	TObjectPtr<UPGSettingsScreenWidget> SettingsScreenWidget;
+
+	// 첫 런 가이드 오버레이입니다. 저장된 완료 기록이 없을 때만 GO 시점에 만들고 완료·실패·Home 전환 시 제거합니다.
+	UPROPERTY(Transient)
+	TObjectPtr<UPGRunGuideWidget> RunGuideWidget;
+
+	// 가이드 단계 판정(드래그 입력량, 점프 시작)에 쓰는 현재 러너입니다. GameMode가 소유하므로 약한 참조만 둡니다.
+	TWeakObjectPtr<APGRunnerCharacter> BoundRunnerCharacter;
+
+	// 현재 가이드가 기다리는 조작 단계입니다. None이면 가이드가 없습니다.
+	EPGRunGuideStep RunGuideStep = EPGRunGuideStep::None;
 
 	FPGRunHUDSettings CachedRunHUDSettings;
 	FPGHomeFlowSettings CachedHomeFlowSettings;

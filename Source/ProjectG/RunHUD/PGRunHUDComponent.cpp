@@ -20,8 +20,15 @@
 #include "UI/PGRunHUDWidget.h"
 #include "UI/PGRunPauseWidget.h"
 #include "UI/PGSettingsScreenWidget.h"
+#include "User/PGUserDataSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGRunHUDComponent, Log, All);
+
+namespace
+{
+	// 드래그 안내를 끝내는 중심 입력량(절댓값, 0~1). 작은 떨림이 아니라 실제로 끌었다고 볼 수 있는 값이다.
+	constexpr float RunGuideDragInputThreshold = 0.5f;
+}
 
 UPGRunHUDComponent::UPGRunHUDComponent()
 {
@@ -66,6 +73,15 @@ void UPGRunHUDComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+	if (RunGuideWidget && RunGuideStep == EPGRunGuideStep::Drag)
+	{
+		const APGRunnerCharacter* Runner = BoundRunnerCharacter.Get();
+		if (Runner && FMath::Abs(Runner->GetBalanceInput()) >= RunGuideDragInputThreshold)
+		{
+			AdvanceRunGuide(EPGRunGuideStep::Flick);
+		}
+	}
+
 	if (!HUDWidget || !BoundCargoStackComponent)
 	{
 		return;
@@ -86,12 +102,14 @@ void UPGRunHUDComponent::HandleRunnerPossessed(APGRunnerCharacter* RunnerCharact
 {
 	BindRunProgress(RunnerCharacter ? RunnerCharacter->GetRunProgressComponent() : nullptr);
 	BindCargoStack(RunnerCharacter ? RunnerCharacter->GetCargoStackComponent() : nullptr);
+	BindRunner(RunnerCharacter);
 }
 
 void UPGRunHUDComponent::HandleRunnerUnpossessed()
 {
 	UnbindRunProgress();
 	UnbindCargoStack();
+	UnbindRunner();
 }
 
 void UPGRunHUDComponent::HandleRunStarted()
@@ -101,6 +119,7 @@ void UPGRunHUDComponent::HandleRunStarted()
 	UpdateHUDInteractionState();
 	RefreshHUDValues();
 	RefreshCargoList();
+	ShowRunGuideIfNeeded();
 }
 
 void UPGRunHUDComponent::HandleRunCountdownStarted(float Duration)
@@ -128,6 +147,8 @@ void UPGRunHUDComponent::HandleRunFailed(FName FailureReason)
 	{
 		HUDWidget->SetCargoDangerWarningActive(false);
 	}
+	// 가이드를 끝내지 못한 채 실패하면 완료로 저장하지 않아 다음 런에서 다시 보여준다.
+	CleanupRunGuide(true);
 }
 
 void UPGRunHUDComponent::HandleDisplayedDistanceChanged(float DisplayedDistanceMeters)
@@ -195,6 +216,22 @@ void UPGRunHUDComponent::HandleCargoDelivered(int32 CargoInstanceId, int32 Score
 	{
 		HUDWidget->ShowCargoScoreIndicator(CargoInstanceId, Score);
 	}
+}
+
+void UPGRunHUDComponent::HandleRunnerJumpStarted()
+{
+	if (!RunGuideWidget || RunGuideStep != EPGRunGuideStep::Flick)
+	{
+		return;
+	}
+
+	UPGUserDataSubsystem* UserData = GetUserDataSubsystem();
+	if (!UserData || !UserData->TryCompleteRunGuide())
+	{
+		// 저장이 실패해도 이번 런의 안내는 끝낸다. 플래그가 남지 않아 다음 런에서 다시 보여준다.
+		UE_LOG(LogPGRunHUDComponent, Warning, TEXT("Run guide completion could not be saved; it will be shown again next run."));
+	}
+	CleanupRunGuide(true);
 }
 
 void UPGRunHUDComponent::HandlePauseRequested()
@@ -380,6 +417,30 @@ void UPGRunHUDComponent::UnbindCargoStack()
 	BoundCargoStackComponent = nullptr;
 }
 
+void UPGRunHUDComponent::BindRunner(APGRunnerCharacter* RunnerCharacter)
+{
+	if (BoundRunnerCharacter.Get() == RunnerCharacter)
+	{
+		return;
+	}
+
+	UnbindRunner();
+	BoundRunnerCharacter = RunnerCharacter;
+	if (RunnerCharacter)
+	{
+		RunnerCharacter->OnJumpStarted.AddUObject(this, &UPGRunHUDComponent::HandleRunnerJumpStarted);
+	}
+}
+
+void UPGRunHUDComponent::UnbindRunner()
+{
+	if (APGRunnerCharacter* Runner = BoundRunnerCharacter.Get())
+	{
+		Runner->OnJumpStarted.RemoveAll(this);
+	}
+	BoundRunnerCharacter = nullptr;
+}
+
 void UPGRunHUDComponent::ShowHUD()
 {
 	if (!OwnerPlayerController)
@@ -442,6 +503,7 @@ void UPGRunHUDComponent::CleanupHUD()
 	SetComponentTickEnabled(false);
 	CargoRefreshElapsed = 0.0f;
 	bIsCargoDangerActive = false;
+	CleanupRunGuide(false);
 
 	if (HUDWidget)
 	{
@@ -449,6 +511,69 @@ void UPGRunHUDComponent::CleanupHUD()
 		HUDWidget->PlayExitAnimation();
 		HUDWidget = nullptr;
 	}
+}
+
+UPGUserDataSubsystem* UPGRunHUDComponent::GetUserDataSubsystem() const
+{
+	const UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	return GameInstance ? GameInstance->GetSubsystem<UPGUserDataSubsystem>() : nullptr;
+}
+
+void UPGRunHUDComponent::ShowRunGuideIfNeeded()
+{
+	if (RunGuideWidget || !OwnerPlayerController || !AreRuntimeResourcesReady())
+	{
+		return;
+	}
+
+	const UPGUserDataSubsystem* UserData = GetUserDataSubsystem();
+	if (!UserData || UserData->IsRunGuideCompleted())
+	{
+		return;
+	}
+
+	UClass* WidgetClass = CachedRunHUDSettings.RunGuideWidgetClass.Get();
+	if (!WidgetClass || !WidgetClass->IsChildOf(UPGRunGuideWidget::StaticClass()))
+	{
+		UE_LOG(LogPGRunHUDComponent, Warning, TEXT("RunGuideWidgetClass must be assigned and inherit UPGRunGuideWidget."));
+		return;
+	}
+
+	RunGuideWidget = CreateWidget<UPGRunGuideWidget>(OwnerPlayerController, TSubclassOf<UPGRunGuideWidget>(WidgetClass));
+	if (!RunGuideWidget)
+	{
+		return;
+	}
+
+	// HUD(15) 위, Pause 모달(60) 아래에 둔다. 가이드는 입력을 받지 않으므로 Pause 버튼을 가리지 않는다.
+	RunGuideWidget->AddToViewport(16);
+	AdvanceRunGuide(EPGRunGuideStep::Drag);
+}
+
+void UPGRunHUDComponent::AdvanceRunGuide(EPGRunGuideStep NextStep)
+{
+	RunGuideStep = NextStep;
+	if (RunGuideWidget)
+	{
+		RunGuideWidget->ShowStep(NextStep);
+	}
+}
+
+void UPGRunHUDComponent::CleanupRunGuide(bool bFadeOut)
+{
+	if (RunGuideWidget)
+	{
+		if (bFadeOut)
+		{
+			RunGuideWidget->Dismiss();
+		}
+		else
+		{
+			RunGuideWidget->RemoveFromParent();
+		}
+		RunGuideWidget = nullptr;
+	}
+	RunGuideStep = EPGRunGuideStep::None;
 }
 
 void UPGRunHUDComponent::UpdateHUDInteractionState() const

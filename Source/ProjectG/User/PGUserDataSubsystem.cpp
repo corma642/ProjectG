@@ -124,6 +124,33 @@ bool UPGUserDataSubsystem::TrySettleRunRewards(int32 Receipts, int32 Score, FNam
 	return true;
 }
 
+bool UPGUserDataSubsystem::IsRunGuideCompleted() const
+{
+	return UserSaveGame && UserSaveGame->bRunGuideCompleted;
+}
+
+bool UPGUserDataSubsystem::TryCompleteRunGuide()
+{
+	UPGUserSaveGame* UserData = EnsureUserData();
+	if (!UserData)
+	{
+		return false;
+	}
+	if (UserData->bRunGuideCompleted)
+	{
+		return true;
+	}
+
+	UserData->bRunGuideCompleted = true;
+	// 저장에 실패하면 플래그를 되돌려 다음 런에서 가이드를 다시 보여주고 저장을 재시도한다.
+	if (!SaveUserData())
+	{
+		UserData->bRunGuideCompleted = false;
+		return false;
+	}
+	return true;
+}
+
 const UPGCharacterShopCatalog* UPGUserDataSubsystem::GetCharacterCatalog() const
 {
 	return CachedCatalog;

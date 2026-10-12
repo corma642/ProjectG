@@ -51,6 +51,12 @@ public:
 	/** 현재 런의 영수증과 최고 점수를 하나의 SaveGame 트랜잭션으로 확정합니다. */
 	bool TrySettleRunRewards(int32 Receipts, int32 Score, FName Reason);
 
+	/** 첫 런 가이드를 끝까지 마친 저장 기록이 있는지 반환합니다. 저장 데이터가 없으면 false입니다. */
+	bool IsRunGuideCompleted() const;
+
+	/** 첫 런 가이드 완료를 저장합니다. 저장에 실패하면 플래그를 되돌리고 false를 반환합니다. */
+	bool TryCompleteRunGuide();
+
 	/** 예열 후 캐시된 캐릭터 상점 카탈로그를 반환합니다. 준비되지 않았으면 nullptr입니다. */
 	const UPGCharacterShopCatalog* GetCharacterCatalog() const;
 

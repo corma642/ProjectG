@@ -1,7 +1,7 @@
 """위젯 시각·입력 회귀 검증 (헤드리스 에디터 Python).
 
 위젯을 실제 RHI로 그려 PNG를 남기고, 버튼이 장식 위젯에 가려지지 않았는지와 런 이벤트 전조 위젯의 방향 표시를 확인한다.
-대상: Run HUD(배달 카드·점수 표시 포함), 런 이벤트 전조, Home, Settings, Tutorial, Pause, RunResult, Shop, ReceiptShop, 상품 카드, FPS 표시, 카운트다운, 화면 전환 페이드.
+대상: Run HUD(배달 카드·점수 표시 포함), 첫 런 가이드(드래그·플릭 단계), 런 이벤트 전조, Home, Settings, Tutorial, Pause, RunResult, Shop, ReceiptShop, 상품 카드, FPS 표시, 카운트다운, 화면 전환 페이드.
 실행: powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\Tools\\Verify-Project.ps1 -SkipBuild -SkipBlueprints -SkipTests -WidgetQA
 결과: Saved/Verify/WidgetQA/*.png, 로그의 '### WIDGET_QA: PASS' 또는 '### WIDGET_QA: FAIL'
 """
@@ -243,6 +243,14 @@ if countdown:
     log('skip HomeCountdown.png: the digits only appear while the world clock runs after StartCountdown')
     blocked = {index for index, hit in enumerate(hit_names(countdown)) if hit != 'None'} & hud_buttons
     check(not blocked, f'HomeCountdown does not take input over Run HUD buttons ({len(blocked)} samples overlap)')
+
+# 첫 런 가이드(ZOrder 16)는 Run HUD 위에 겹치므로 어느 단계에서도 입력을 받지 않아야 한다. 페이드 인(0.25초)이 끝난 뒤 그린다.
+guide = create_widget('HUD/WBP_RunGuide')
+if guide:
+    for step, label in ((unreal.PGRunGuideStep.DRAG, 'Drag'), (unreal.PGRunGuideStep.FLICK, 'Flick')):
+        guide.show_step(step)
+        render(guide, 'RunGuide_' + label, advance=0.6)
+        check(set(hit_counts(guide, 90, advance=0.6)) == {'None'}, f'RunGuide {label} does not take input')
 
 # 화면 전환 페이드(ZOrder 500)는 덮는 동안 화면 전체의 입력을 막고 끝나면 스스로 제거된다. 의도된 동작이라 그림만 남긴다.
 fade = create_widget('Etc/WBP_ScreenTransitionFade')

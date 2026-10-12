@@ -157,6 +157,7 @@ void UPGRuntimePreloadSubsystem::CollectPrimaryResourcePaths(EPGRuntimePreloadGr
 		AddUniquePath(OutPaths, Settings->RunHUD.RunPauseWidgetClass.ToSoftObjectPath());
 		AddUniquePath(OutPaths, Settings->RunHUD.CargoDeliveryItemWidgetClass.ToSoftObjectPath());
 		AddUniquePath(OutPaths, Settings->RunHUD.CargoScoreIndicatorWidgetClass.ToSoftObjectPath());
+		AddUniquePath(OutPaths, Settings->RunHUD.RunGuideWidgetClass.ToSoftObjectPath());
 		AddUniquePath(OutPaths, Settings->RunHUD.CargoDeliveredVFX.ToSoftObjectPath());
 		AddUniquePath(OutPaths, Settings->RunHUD.CargoDeliveredSound.ToSoftObjectPath());
 		AddUniquePath(OutPaths, Settings->RunHUD.CargoDangerWarningSound.ToSoftObjectPath());
