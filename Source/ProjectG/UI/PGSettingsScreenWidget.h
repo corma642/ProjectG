@@ -103,9 +103,16 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
 	TObjectPtr<UTextBlock> SFXVolumeValueText;
 
+	/** 개인정보처리방침(`Go Deliver! Settings > Legal > PrivacyPolicyUrl`)을 외부 브라우저로 여는 필수 버튼입니다. Google Play는 앱 안에서도 방침 링크를 요구합니다. */
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
+	TObjectPtr<UButton> PrivacyPolicyButton;
+
 private:
 	UFUNCTION()
 	void HandleCloseClicked();
+
+	UFUNCTION()
+	void HandlePrivacyPolicyClicked();
 
 	UFUNCTION()
 	void HandleLowPresetClicked();

@@ -1,11 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root xmlns:android="http://schemas.android.com/apk/res/android">
+	<!-- 엔진 기본 aar-imports.txt는 Google Play 지원을 꺼도 Play Games v2·Auth AAR를 넣어 APK에 GMS 컴포넌트와 dex가 남습니다. 버전 문자열은 UE 5.6.1 Engine/Build/Android/Java/aar-imports.txt 기준입니다. -->
+	<AARImports>
+		<replace find="com.google.android.gms,play-services-auth,20.7.0" with="" />
+		<replace find="com.google.android.gms,play-services-games-v2,19.0.0" with="" />
+	</AARImports>
+
 	<androidManifestUpdates>
-		<!-- UE 5.6은 OBB를 사용하지 않아도 downloader 선언을 생성하므로 단독 설치 APK에서 제거합니다. -->
 		<loopElements tag="application">
 			<removeAttribute tag="$" name="android:requestLegacyExternalStorage" />
+			<!-- Android 16(API 36)은 큰 화면에서 세로 고정을 무시하지만 게임 카테고리는 예외입니다. -->
+			<addAttribute tag="$" name="android:appCategory" value="game" />
+			<!-- API 36부터 기본으로 켜지는 예측형 뒤로가기는 KEYCODE_BACK을 엔진에 전달하지 않습니다. 뒤로가기 처리를 구현할 때까지 끕니다. -->
+			<addAttribute tag="$" name="android:enableOnBackInvokedCallback" value="false" />
 		</loopElements>
 
+		<!-- UE 5.6은 OBB를 사용하지 않아도 downloader 선언을 생성하므로 단독 설치 APK에서 제거합니다. -->
 		<loopElements tag="activity">
 			<setStringFromAttribute result="nodeName" tag="$" name="android:name" />
 			<setBoolIsEqual result="removeNode" arg1="$S(nodeName)" arg2=".DownloaderActivity" />
@@ -18,9 +28,16 @@
 			<if condition="removeNode"><true><removeElement tag="$" /></true></if>
 		</loopElements>
 
+		<!-- 알림·셀룰러·멀티캐스트(INSTALL_REFERRER, exported) 리시버는 게임이 쓰지 않습니다. 로컬 알림을 도입하면 LocalNotificationReceiver만 되살립니다. -->
 		<loopElements tag="receiver">
 			<setStringFromAttribute result="nodeName" tag="$" name="android:name" />
-			<setBoolIsEqual result="removeNode" arg1="$S(nodeName)" arg2="AlarmReceiver" />
+			<setBoolIsEqual result="removeAlarm" arg1="$S(nodeName)" arg2="AlarmReceiver" />
+			<setBoolIsEqual result="removeMulticast" arg1="$S(nodeName)" arg2="com.epicgames.unreal.MulticastBroadcastReceiver" />
+			<setBoolIsEqual result="removeCellular" arg1="$S(nodeName)" arg2="com.epicgames.unreal.CellularReceiver" />
+			<setBoolIsEqual result="removeLocalNotification" arg1="$S(nodeName)" arg2="com.epicgames.unreal.LocalNotificationReceiver" />
+			<setBoolOr result="removeEngineReceiver" arg1="$B(removeMulticast)" arg2="$B(removeCellular)" />
+			<setBoolOr result="removeEngineReceiver" arg1="$B(removeEngineReceiver)" arg2="$B(removeLocalNotification)" />
+			<setBoolOr result="removeNode" arg1="$B(removeAlarm)" arg2="$B(removeEngineReceiver)" />
 			<if condition="removeNode"><true><removeElement tag="$" /></true></if>
 		</loopElements>
 
@@ -34,15 +51,27 @@
 			<if condition="removeNode"><true><removeElement tag="$" /></true></if>
 		</loopElements>
 
+		<!-- 스토어·OBB 권한과 엔진 기본값 중 게임이 호출하지 않는 권한을 제거합니다. INTERNET·ACCESS_NETWORK_STATE는 광고·애널리틱스 도입 예정이라 두고, VIBRATE는 햅틱 도입 예정이라 둡니다. -->
 		<loopElements tag="uses-permission">
 			<setStringFromAttribute result="nodeName" tag="$" name="android:name" />
 			<setBoolIsEqual result="removeBilling" arg1="$S(nodeName)" arg2="com.android.vending.BILLING" />
 			<setBoolIsEqual result="removeLicense" arg1="$S(nodeName)" arg2="com.android.vending.CHECK_LICENSE" />
 			<setBoolIsEqual result="removeLegacyStorage" arg1="$S(nodeName)" arg2="android.permission.WRITE_EXTERNAL_STORAGE" />
+			<setBoolIsEqual result="removeWakeLock" arg1="$S(nodeName)" arg2="android.permission.WAKE_LOCK" />
+			<setBoolIsEqual result="removeWifiState" arg1="$S(nodeName)" arg2="android.permission.ACCESS_WIFI_STATE" />
+			<setBoolIsEqual result="removeAudioSettings" arg1="$S(nodeName)" arg2="android.permission.MODIFY_AUDIO_SETTINGS" />
 			<setBoolOr result="removeStorePermission" arg1="$B(removeBilling)" arg2="$B(removeLicense)" />
+			<setBoolOr result="removeUnusedPermission" arg1="$B(removeWakeLock)" arg2="$B(removeWifiState)" />
+			<setBoolOr result="removeUnusedPermission" arg1="$B(removeUnusedPermission)" arg2="$B(removeAudioSettings)" />
 			<setBoolOr result="removeNode" arg1="$B(removeStorePermission)" arg2="$B(removeLegacyStorage)" />
+			<setBoolOr result="removeNode" arg1="$B(removeNode)" arg2="$B(removeUnusedPermission)" />
 			<if condition="removeNode"><true><removeElement tag="$" /></true></if>
 		</loopElements>
+
+		<!-- 드래그·플릭 전용 조작이므로 터치스크린이 없는 기기(Chromebook 마우스 등)에는 노출하지 않습니다. -->
+		<addElements tag="manifest">
+			<uses-feature android:name="android.hardware.touchscreen" android:required="true" />
+		</addElements>
 	</androidManifestUpdates>
 
 	<gradleCopies>
@@ -52,8 +81,8 @@
 
 	<buildGradleAdditions>
 		<insert>
-			// UE 5.6의 GameActivity/PSO Java 템플릿에는 Google Play 지원을 꺼도 미사용 import가 남습니다.
-			// Gradle 컴파일 직전에 해당 import만 제거해 Play Services AAR 없는 로컬 APK를 패키징합니다.
+			// 위 AARImports에서 GMS AAR를 뺐으므로 UE 5.6 GameActivity/PSO Java 템플릿에 남은 미사용 GMS import를 컴파일 직전에 지웁니다.
+			// 엔진 템플릿의 import 줄이 바뀌어 치환이 실패하면 조용히 넘어가지 않고 빌드를 멈춥니다.
 			tasks.configureEach { task -&gt;
 				if (task.name.startsWith("compile") &amp;&amp; task.name.endsWith("JavaWithJavac")) {
 					task.doFirst {
@@ -72,6 +101,9 @@
 						sourceFiles.findAll { it.exists() }.each { sourceFile -&gt;
 							def source = sourceFile.getText("UTF-8")
 							unusedGoogleImports.each { source = source.replace(it, "") }
+							if (source.contains("import com.google.android.gms")) {
+								throw new GradleException("ProjectG_UPL: a com.google.android.gms import is still present in " + sourceFile.name + ". Compare the import list with the engine Java template.")
+							}
 							sourceFile.write(source, "UTF-8")
 						}
 					}

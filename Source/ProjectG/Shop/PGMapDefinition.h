@@ -44,7 +44,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Map")
 	TSoftObjectPtr<UPGCargoDropSet> CargoDropSet;
 
-	// 이 월드 Z 아래로 떨어진 배달 적재물은 손실로 처리합니다. 트랙 바닥보다 충분히 낮게 지정합니다.
+	// 이 월드 Z(cm) 아래로 떨어진 배달 적재물은 손실로 처리합니다. 바닥에 떨어진 적재물보다 높게 지정합니다(현재 맵 값 50).
+	// 0으로 두면 트랙 위에 떨어진 적재물이 손실로 잡히지 않아 실제 손실에서 패배 판정까지 간격이 길어집니다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Map")
 	float CargoLossWorldZ = 0.0f;
 

@@ -82,6 +82,13 @@ void UPGShopScreenWidget::NativeConstruct()
 	if (ReceiptAddButton)
 	{
 		ReceiptAddButton->OnClicked.AddDynamic(this, &UPGShopScreenWidget::HandleReceiptAddClicked);
+
+		// 테스트 지급 상점이 닫힌 빌드(Shipping 포함)에서는 눌러도 열 화면이 없으므로 버튼 자체를 숨긴다. 실결제 도입 시 IAP 진입으로 되살린다.
+		const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
+		if (!Settings || !Settings->Shop.IsReceiptShopTestGrantEnabled())
+		{
+			ReceiptAddButton->SetVisibility(ESlateVisibility::Collapsed);
+		}
 	}
 	if (MapsTabButton)
 	{
@@ -306,24 +313,8 @@ void UPGShopScreenWidget::HandleMapsTabClicked()
 
 void UPGShopScreenWidget::HandleReceiptAddClicked()
 {
-	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
-	if (Settings && Settings->Shop.IsReceiptShopTestGrantEnabled())
-	{
-		UPGAudioStatics::PlayCommonButtonClick(this);
-		OnReceiptShopRequested.Broadcast();
-		return;
-	}
-
-	// 설정에서 모의 구매를 끈 경우 기존 구매 실패 피드백으로 접근 불가 상태를 알린다.
-	if (Settings)
-	{
-		UPGAudioStatics::PlayUIButtonSound(this, Settings->SFX.ShopPurchaseFailSound.Get());
-	}
-	else
-	{
-		UPGAudioStatics::PlayCommonButtonClick(this);
-	}
-	StartActionFeedback(ReceiptAddButton, false);
+	UPGAudioStatics::PlayCommonButtonClick(this);
+	OnReceiptShopRequested.Broadcast();
 }
 
 void UPGShopScreenWidget::HandleReceiptBalanceChanged(int32 NewBalance, FName Reason)

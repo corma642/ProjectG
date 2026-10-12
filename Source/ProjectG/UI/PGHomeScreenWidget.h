@@ -105,7 +105,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Home")
 	TObjectPtr<UTextBlock> BestScoreText;
 
-	/** 테스트용 영수증 상품 모달을 여는 필수 추가 버튼입니다. */
+	/** 테스트용 영수증 상품 모달을 여는 필수 추가 버튼입니다. 테스트 지급이 꺼진 빌드(Shipping 포함)에서는 Collapsed로 숨깁니다. */
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Home")
 	TObjectPtr<UButton> ReceiptAddButton;
 
@@ -128,7 +128,6 @@ private:
 	void StartEntryAnimation();
 	void ApplyEntryAnimation(float Alpha);
 	void ApplyExitAnimation(float Alpha);
-	void ApplyReceiptShopUnavailableFeedback(float DeltaSeconds);
 	void ApplyWidgetAnimationState(UWidget* Widget, const FVector2D& StartOffset, float Delay, float AnimationTime, bool bReverse, float StartScale = 1.0f, float EndScale = 1.0f) const;
 
 	bool bIsEntryAnimating = false;
@@ -137,7 +136,4 @@ private:
 	float EntryAnimationDuration = 0.45f;
 	float ExitAnimationElapsed = 0.0f;
 	float ExitAnimationDuration = 0.35f;
-	bool bReceiptShopUnavailableFeedbackActive = false;
-	float ReceiptShopUnavailableFeedbackElapsed = 0.0f;
-	float ReceiptShopUnavailableFeedbackDuration = 0.22f;
 };

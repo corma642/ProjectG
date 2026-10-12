@@ -10,6 +10,7 @@
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "GameFramework/GameUserSettings.h"
+#include "HAL/PlatformProcess.h"
 #include "Settings/PGGameUserSettings.h"
 #include "UI/PGUIAnimationUtils.h"
 
@@ -33,6 +34,10 @@ void UPGSettingsScreenWidget::NativeConstruct()
 	if (CloseButton)
 	{
 		CloseButton->OnClicked.AddDynamic(this, &UPGSettingsScreenWidget::HandleCloseClicked);
+	}
+	if (PrivacyPolicyButton)
+	{
+		PrivacyPolicyButton->OnClicked.AddDynamic(this, &UPGSettingsScreenWidget::HandlePrivacyPolicyClicked);
 	}
 	if (LowPresetButton)
 	{
@@ -83,6 +88,10 @@ void UPGSettingsScreenWidget::NativeDestruct()
 	if (CloseButton)
 	{
 		CloseButton->OnClicked.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleCloseClicked);
+	}
+	if (PrivacyPolicyButton)
+	{
+		PrivacyPolicyButton->OnClicked.RemoveDynamic(this, &UPGSettingsScreenWidget::HandlePrivacyPolicyClicked);
 	}
 	if (LowPresetButton)
 	{
@@ -180,6 +189,16 @@ void UPGSettingsScreenWidget::HandleCloseClicked()
 	bIsClosing = true;
 	AnimationElapsed = 0.0f;
 	SetAllButtonsEnabled(false);
+}
+
+void UPGSettingsScreenWidget::HandlePrivacyPolicyClicked()
+{
+	UPGAudioStatics::PlayCommonButtonClick(this);
+	const FString& Url = GetDefault<UPGGameSettings>()->Legal.PrivacyPolicyUrl;
+	if (!Url.IsEmpty())
+	{
+		FPlatformProcess::LaunchURL(*Url, nullptr, nullptr);
+	}
 }
 
 void UPGSettingsScreenWidget::HandleLowPresetClicked()
@@ -370,6 +389,10 @@ void UPGSettingsScreenWidget::SetAllButtonsEnabled(bool bEnabled) const
 	if (CloseButton)
 	{
 		CloseButton->SetIsEnabled(bEnabled);
+	}
+	if (PrivacyPolicyButton)
+	{
+		PrivacyPolicyButton->SetIsEnabled(bEnabled);
 	}
 	if (LowPresetButton)
 	{

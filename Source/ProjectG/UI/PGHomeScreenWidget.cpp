@@ -47,6 +47,13 @@ void UPGHomeScreenWidget::NativeConstruct()
 	if (ReceiptAddButton)
 	{
 		ReceiptAddButton->OnClicked.AddDynamic(this, &UPGHomeScreenWidget::HandleReceiptAddClicked);
+
+		// 테스트 지급 상점이 닫힌 빌드(Shipping 포함)에서는 눌러도 열 화면이 없으므로 버튼 자체를 숨긴다. 실결제 도입 시 IAP 진입으로 되살린다.
+		const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
+		if (!Settings || !Settings->Shop.IsReceiptShopTestGrantEnabled())
+		{
+			ReceiptAddButton->SetVisibility(ESlateVisibility::Collapsed);
+		}
 	}
 
 	StartEntryAnimation();
@@ -81,7 +88,6 @@ void UPGHomeScreenWidget::NativeDestruct()
 void UPGHomeScreenWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
-	ApplyReceiptShopUnavailableFeedback(InDeltaTime);
 
 	if (bIsEntryAnimating)
 	{
@@ -200,50 +206,8 @@ void UPGHomeScreenWidget::HandleHelpClicked()
 
 void UPGHomeScreenWidget::HandleReceiptAddClicked()
 {
-	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
-	if (Settings && Settings->Shop.IsReceiptShopTestGrantEnabled())
-	{
-		UPGAudioStatics::PlayCommonButtonClick(this);
-		OnReceiptShopRequested.Broadcast();
-		return;
-	}
-
-	// 설정에서 모의 구매를 끈 경우 가격 화면 대신 기존 구매 실패 피드백을 제공한다.
-	if (Settings)
-	{
-		UPGAudioStatics::PlayUIButtonSound(this, Settings->SFX.ShopPurchaseFailSound.Get());
-	}
-	else
-	{
-		UPGAudioStatics::PlayCommonButtonClick(this);
-	}
-
-	bReceiptShopUnavailableFeedbackActive = true;
-	ReceiptShopUnavailableFeedbackElapsed = 0.0f;
-	ApplyReceiptShopUnavailableFeedback(0.0f);
-}
-
-void UPGHomeScreenWidget::ApplyReceiptShopUnavailableFeedback(float DeltaSeconds)
-{
-	if (!bReceiptShopUnavailableFeedbackActive || !ReceiptAddButton)
-	{
-		return;
-	}
-
-	ReceiptShopUnavailableFeedbackElapsed += DeltaSeconds;
-	const float Alpha = FMath::Clamp(
-		ReceiptShopUnavailableFeedbackElapsed / FMath::Max(KINDA_SMALL_NUMBER, ReceiptShopUnavailableFeedbackDuration),
-		0.0f,
-		1.0f);
-	const float Shake = FMath::Sin(Alpha * UE_PI * 6.0f) * 12.0f * (1.0f - Alpha);
-	ReceiptAddButton->SetRenderTranslation(FVector2D(Shake, 0.0f));
-
-	if (Alpha >= 1.0f)
-	{
-		bReceiptShopUnavailableFeedbackActive = false;
-		ReceiptAddButton->SetRenderTranslation(FVector2D::ZeroVector);
-		ReceiptAddButton->SetRenderScale(FVector2D(1.0f, 1.0f));
-	}
+	UPGAudioStatics::PlayCommonButtonClick(this);
+	OnReceiptShopRequested.Broadcast();
 }
 
 void UPGHomeScreenWidget::StartEntryAnimation()

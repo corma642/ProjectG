@@ -378,8 +378,8 @@ struct FPGShopSettings
 {
 	GENERATED_BODY()
 
-	// 상품 선택 시 설정된 영수증을 즉시 지급하는 상점을 엽니다.
-	// 동일한 구매 UX를 검증할 수 있도록 빌드 구성과 무관하게 적용합니다.
+	// 상품 선택 시 설정된 영수증을 즉시 지급하는 테스트 상점을 엽니다(Editor·Development 전용).
+	// Shipping 빌드는 이 값을 무시하고 항상 닫습니다. 실결제 없이 재화를 지급하는 경로가 배포 빌드에 남으면 수익과 경제가 무너지기 때문입니다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Receipt Shop")
 	bool bEnableReceiptShopTestGrant = false;
 
@@ -427,10 +427,14 @@ struct FPGShopSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Shop Camera", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3.0"))
 	float ShopToHomeCameraBlendTime = 0.35f;
 
-	/** 설정에 따라 테스트 지급용 영수증 상점 진입을 허용하는지 반환합니다. */
+	/** 테스트 지급용 영수증 상점 진입을 허용하는지 반환합니다. Shipping 빌드에서는 설정과 무관하게 항상 false입니다. */
 	bool IsReceiptShopTestGrantEnabled() const
 	{
+#if UE_BUILD_SHIPPING
+		return false;
+#else
 		return bEnableReceiptShopTestGrant;
+#endif
 	}
 };
 
@@ -820,6 +824,19 @@ struct FPGRunEventSettings
 };
 
 /**
+ * 스토어 심사에 필요한 법적 고지 링크 설정
+ */
+USTRUCT(BlueprintType)
+struct FPGLegalSettings
+{
+	GENERATED_BODY()
+
+	// Settings 화면의 개인정보처리방침 버튼이 외부 브라우저로 여는 공개 HTTPS URL. Google Play Console 스토어 등록정보에 입력한 주소와 같아야 합니다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Legal")
+	FString PrivacyPolicyUrl;
+};
+
+/**
  * 프로젝트 전역 설정을 에디터(Project Settings)에서 관리하기 위한 클래스
  */
 UCLASS(Config = Game, DefaultConfig, meta = (DisplayName = "Go Deliver! Settings"))
@@ -910,4 +927,8 @@ public:
 	// 러닝 시간 기반 전역 이벤트 예약/발동 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event")
 	FPGRunEventSettings RunEvent;
+
+	// 개인정보처리방침 등 스토어 심사용 링크 설정
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Legal")
+	FPGLegalSettings Legal;
 };

@@ -50,6 +50,14 @@ SourceArt/**/*.tga
 Binaries/*
 Plugins/**/Binaries/*
 
+# Android upload key and local config overrides (keystore passwords live in Config/UserEngine.ini)
+*.keystore
+*.jks
+Config/User*.ini
+
+# Release artifacts (AAB, universal APK, symbols, build-info) written by Tools/Verify-Project.ps1 -Package
+Releases/
+
 # Builds
 Build/*
 
