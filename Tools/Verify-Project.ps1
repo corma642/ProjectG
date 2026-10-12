@@ -234,6 +234,12 @@ if ($Package) {
         # 잠긴 파일이 남으면 증분 패키징이 그대로 일어날 수 있다. 패키징은 계속하되 APK 크기를 확인하도록 알린다.
         Write-Warning "Intermediate\Android was not fully removed; check the APK size after packaging."
     }
+    # 이전 패키징의 APK·AAB·설치 bat·심볼 폴더가 Binaries\Android에 남아 있으면 UAT 보관 단계가 그것까지 복사하고
+    # 옛 APK에서 패키지명·versionCode를 읽어 심볼 폴더를 잘못 고른다. 링크 결과(.so/.target)는 UBT가 관리하므로 산출물만 지운다.
+    $androidBinaries = Join-Path $ProjectRoot 'Binaries\Android'
+    if (Test-Path -LiteralPath $androidBinaries) {
+        Get-ChildItem -LiteralPath $androidBinaries | Where-Object { $_.PSIsContainer -or $_.Extension -in '.apk', '.aab', '.bat', '.txt' } | Remove-Item -Recurse -Force
+    }
     $releaseDir = Join-Path $ProjectRoot "Releases\v$StoreVersion"
     if (Test-Path -LiteralPath $releaseDir) {
         # 같은 versionCode를 다시 만들면 이전 산출물과 섞이지 않도록 비운다(Play에 올린 빌드는 git 태그와 오프라인 백업이 원본이다).
@@ -254,9 +260,10 @@ if ($Package) {
     }
 
     Write-Step 'Verify release artifacts'
-    $aab = Get-ChildItem -LiteralPath $releaseDir -Filter '*.aab' | Select-Object -First 1
+    # UAT는 -archivedirectory 아래에 플랫폼 폴더(Android_ASTC)를 만들어 보관하므로 하위 폴더까지 찾는다.
+    $aab = Get-ChildItem -LiteralPath $releaseDir -Recurse -Filter '*.aab' | Select-Object -First 1
     if (-not $aab) { throw "No .aab was archived to $releaseDir (bEnableBundle must be True)." }
-    $universalApk = Get-ChildItem -LiteralPath $releaseDir -Filter '*_universal.apk' | Select-Object -First 1
+    $universalApk = Get-ChildItem -LiteralPath $releaseDir -Recurse -Filter '*_universal.apk' | Select-Object -First 1
     if (-not $universalApk) { throw "No universal APK was archived to $releaseDir (bEnableUniversalAPK must be True)." }
 
     $buildToolsRoot = Join-Path $env:ANDROID_HOME 'build-tools'
@@ -320,7 +327,7 @@ if ($Package) {
     if ($LASTEXITCODE -ne 0) { throw 'zipalign -P 16 verification failed.' }
 
     # 4) 심볼: Play Console 'Native debug symbols'는 <abi>/libUnreal.so 구조의 zip을 받는다.
-    $symbolsSo = Get-ChildItem -LiteralPath $releaseDir -Recurse -Filter 'libUnreal.so' | Where-Object { $_.FullName -like '*_Symbols_v*' } | Select-Object -First 1
+    $symbolsSo = Get-ChildItem -LiteralPath $releaseDir -Recurse -Filter 'libUnreal.so' | Where-Object { $_.FullName -like "*_Symbols_v$StoreVersion\*" } | Select-Object -First 1
     $symbolsZip = $null
     if ($symbolsSo) {
         $symbolsStage = Join-Path $env:TEMP "pg_symbols_v$StoreVersion"
