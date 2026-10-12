@@ -63,6 +63,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UWidget> TitleText;
 
+	/** 제목 아래에 실패 원인(적재물 추락/트랙 추락)을 한 줄로 알리는 필수 텍스트입니다. 모르는 원인이면 비웁니다. */
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
+	TObjectPtr<UTextBlock> FailureReasonText;
+
 	// 점수 결과 행입니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UWidget> ScoreRow;
@@ -140,6 +144,7 @@ private:
 	void SetActionButtonsEnabled(bool bEnabled) const;
 	void ApplyWidgetScale(UWidget* Widget, float Scale) const;
 	FText FormatNumber(int32 Value) const;
+	static FText GetFailureReasonText(FName FailureReason);
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UWidget>> AnimatedRows;

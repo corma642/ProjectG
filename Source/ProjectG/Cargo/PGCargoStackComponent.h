@@ -127,7 +127,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
 	bool HasPendingCargoDrop() const { return bHasPendingCargoDrop; }
 
-	/** 가장 멀리 벗어난 적재물의 수평 이탈을 손실 거리 대비 0~1로 반환합니다. 적재물이 없으면 0입니다. */
+	/** 바구니에 담긴 적재물 중 가장 바깥쪽 것의 중심 이탈을 바구니 테두리 반지름 대비 0~1로 반환합니다. 테두리를 넘어 떨어지는 중이면 1, 적재물이 없으면 0입니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
 	float GetCargoDangerRatio() const { return CargoDangerRatio; }
 
@@ -152,6 +152,10 @@ private:
 	void UpdateCargoDeliveries(float DeltaSeconds);
 	void UpdateAnchorMotion(float DeltaSeconds, bool bIsAirborne);
 	void ApplyAirborneCargoAssist();
+	// 바구니 루트의 로컬 범위와 테두리 반지름을 구합니다. 바구니가 없거나 크기가 없으면 false입니다.
+	bool GetSupportFootprint(FBoxSphereBounds& OutBounds, float& OutRimRadius) const;
+	// 적재물 위치(지난 물리 스텝)를 바구니 기준 로컬 오프셋으로 바꿉니다.
+	FVector GetCargoOffsetInSupport(const UStaticMeshComponent& CargoMeshComponent, const FBoxSphereBounds& SupportBounds) const;
 	FVector GetLossOriginLocation() const;
 	bool CheckCargoLoss(float DeltaSeconds);
 	void LoseCargoAt(int32 CargoIndex);
@@ -188,7 +192,7 @@ private:
 	FVector AnchorVelocity = FVector::ZeroVector;
 	float AirborneCargoAssistRemainingTime = 0.0f;
 	float CargoLossWorldZ = 0.0f;
-	// 직전 손실 판정에서 계산한 최대 수평 이탈 비율(0~1). HUD 손실 임박 경고가 읽습니다.
+	// 직전 손실 판정에서 계산한 손실 임박 비율(0~1, 바구니 테두리 반지름 대비 최대 중심 이탈). HUD 손실 임박 경고가 읽습니다.
 	float CargoDangerRatio = 0.0f;
 	bool bWasAirborneLastFrame = false;
 	bool bHasPreviousAnchorLocation = false;

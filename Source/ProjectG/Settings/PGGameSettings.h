@@ -623,9 +623,9 @@ struct FPGRunResultSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Result | Slow Motion", meta = (ClampMin = "0.05", ClampMax = "1.0", UIMin = "0.1", UIMax = "1.0"))
 	float FailureSlowMotionTimeDilation = 0.3f;
 
-	// 슬로모션을 유지할 실제 시간(초). 이 시간이 지나면 시간 배율을 복구하고 결과 화면을 띄운다. 0이면 슬로모션을 끈다.
+	// 슬로모션을 유지할 실제 시간(초). 러너와 바구니는 이 동안 멈춘 채 보이고, 끝나면 시간 배율을 복구하고 러너를 숨긴 뒤 결과 화면을 띄운다. 0이면 슬로모션을 끈다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Result | Slow Motion", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2.0"))
-	float FailureSlowMotionDuration = 0.35f;
+	float FailureSlowMotionDuration = 1.2f;
 };
 
 /**
@@ -672,7 +672,8 @@ struct FPGCargoSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Loss", meta = (ClampMin = "10.0", UIMin = "50.0", UIMax = "500.0"))
 	float CargoLossHorizontalDistance = 180.0f;
 
-	// 가장 멀리 벗어난 적재물의 수평 이탈이 손실 거리의 이 비율(0~1)을 넘으면 HUD 경고와 경고음을 낸다. 1이면 경고를 쓰지 않는다.
+	// 바구니에 담긴 적재물 중 가장 바깥쪽 것의 중심 이탈이 바구니 테두리 반지름의 이 비율(0~1)을 넘으면 HUD 경고와 경고음을 낸다.
+	// 테두리를 넘어 떨어지는 중인 적재물은 1로 본다. 바구니가 없으면 러너 기준 손실 거리 대비 비율을 쓴다. 1이면 경고를 쓰지 않는다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Cargo | Loss", meta = (ClampMin = "0.1", ClampMax = "1.0", UIMin = "0.3", UIMax = "1.0"))
 	float CargoDangerWarningRatio = 0.7f;
 

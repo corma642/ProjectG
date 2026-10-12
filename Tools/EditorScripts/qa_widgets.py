@@ -209,7 +209,7 @@ for name, path, may_be_locked in SCREENS:
         continue
     if name == 'RunResult':
         # 자릿수가 많은 값으로 줄바꿈·잘림이 없는지 본다.
-        screen.configure_run_result('Fell', 83.0, 1234.0, 125680, 12, 7)
+        screen.configure_run_result('Fall', 83.0, 1234.0, 125680, 12, 7)
     list_name, item_paths = LIST_ITEMS.get(name, (None, ()))
     items = [create_widget(item_path) for item_path in item_paths]
     for item in items:

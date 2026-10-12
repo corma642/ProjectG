@@ -61,21 +61,13 @@ void UPGRunResultFeedbackComponent::HandleRunFailed(FName FailureReason)
 		return;
 	}
 
-	const APGRunnerCharacter* RunnerCharacter = GetRunnerCharacter();
 	const FPGRunResultSettings& ResultSettings = Settings->RunResult;
 
-	// 실패 체감 피드백은 슬로모션과 무관하게 충돌 순간에 바로 재생한다.
+	// 충돌 체감(사운드·카메라 쉐이크)은 슬로모션과 무관하게 실패 순간에 바로 재생한다.
+	// 러너가 사라지는 VFX는 슬로모션이 끝나 메시를 숨기는 ShowResultWidget에서 재생한다.
 	if (USoundBase* GameOverSound = ResultSettings.GameOverSound.Get())
 	{
 		UGameplayStatics::PlaySound2D(PlayerController, GameOverSound, UPGGameUserSettings::GetCurrentSFXVolumeScale());
-	}
-
-	if (UNiagaraSystem* GameOverVFX = ResultSettings.GameOverVFX.Get())
-	{
-		const APlayerCameraManager* CameraManager = PlayerController->PlayerCameraManager;
-		const FVector VFXLocation = RunnerCharacter ? RunnerCharacter->GetActorLocation() : (CameraManager ? CameraManager->GetCameraLocation() : FVector::ZeroVector);
-		const FRotator VFXRotation = RunnerCharacter ? RunnerCharacter->GetActorRotation() : (CameraManager ? CameraManager->GetCameraRotation() : FRotator::ZeroRotator);
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(PlayerController, GameOverVFX, VFXLocation, VFXRotation);
 	}
 
 	if (TSubclassOf<UCameraShakeBase> CameraShakeClass = ResultSettings.GameOverCameraShake.Get())
@@ -123,8 +115,21 @@ void UPGRunResultFeedbackComponent::ShowResultWidget(FName FailureReason)
 		return;
 	}
 
+	// 슬로모션 동안 보여 준 러너와 바구니는 결과 화면과 함께 치운다. 사라지는 VFX도 이 순간 러너 위치에 재생한다.
+	APGRunnerCharacter* RunnerCharacter = GetRunnerCharacter();
+	if (UNiagaraSystem* GameOverVFX = Settings->RunResult.GameOverVFX.Get())
+	{
+		const APlayerCameraManager* CameraManager = PlayerController->PlayerCameraManager;
+		const FVector VFXLocation = RunnerCharacter ? RunnerCharacter->GetActorLocation() : (CameraManager ? CameraManager->GetCameraLocation() : FVector::ZeroVector);
+		const FRotator VFXRotation = RunnerCharacter ? RunnerCharacter->GetActorRotation() : (CameraManager ? CameraManager->GetCameraRotation() : FRotator::ZeroRotator);
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(PlayerController, GameOverVFX, VFXLocation, VFXRotation);
+	}
+	if (RunnerCharacter)
+	{
+		RunnerCharacter->HideForRunResult();
+	}
+
 	// 러너 통계는 실패 시 StopRunProgress로 고정되므로 슬로모션 뒤에 읽어도 실패 순간 값과 같다.
-	const APGRunnerCharacter* RunnerCharacter = GetRunnerCharacter();
 	const float RunTimeSeconds = RunnerCharacter ? RunnerCharacter->GetRunElapsedTime() : 0.0f;
 	const float DistanceMeters = RunnerCharacter ? RunnerCharacter->GetRunDistanceMeters() : 0.0f;
 	const int32 Score = RunnerCharacter ? RunnerCharacter->GetRunScore() : 0;

@@ -561,8 +561,6 @@ void APGRunnerCharacter::HandleRunFailed(FName FailureReason)
 	BalanceElapsedTime = 0.0f;
 	CurrentBodyRoll = 0.0f;
 
-	DetachAndDestroyBowl();
-
 	if (RunnerEnvironmentComponent)
 	{
 		RunnerEnvironmentComponent->SetRunActive(false);
@@ -583,12 +581,23 @@ void APGRunnerCharacter::HandleRunFailed(FName FailureReason)
 
 	if (USkeletalMeshComponent* MeshComponent = GetMesh())
 	{
-		MeshComponent->SetHiddenInGame(true, true);
-		MeshComponent->SetVisibility(false, true);
+		// 실패 순간 자세로 멈춰 적재물이 쏟아지는 원인이 보이게 한다. 메시와 바구니는 결과 화면이 뜰 때 HideForRunResult가 정리한다.
+		MeshComponent->bPauseAnims = true;
 	}
 
 	UpdateBodyLean(0.0f);
 	SetActorTickEnabled(false);
+}
+
+void APGRunnerCharacter::HideForRunResult()
+{
+	DetachAndDestroyBowl();
+
+	if (USkeletalMeshComponent* MeshComponent = GetMesh())
+	{
+		MeshComponent->SetHiddenInGame(true, true);
+		MeshComponent->SetVisibility(false, true);
+	}
 }
 
 void APGRunnerCharacter::ApplyGameSettings()

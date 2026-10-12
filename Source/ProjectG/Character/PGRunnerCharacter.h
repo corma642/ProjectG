@@ -107,6 +107,9 @@ public:
 	/** 실제 점프가 시작된 직후 발생합니다. 첫 런 가이드가 플릭 단계 완료 판정에 사용합니다. */
 	FSimpleMulticastDelegate OnJumpStarted;
 
+	/** 결과 화면이 뜰 때 러너 메시를 숨기고 바구니를 제거합니다. 실패 직후 슬로모션 동안은 보이게 둬 실패 원인을 보여 줍니다. */
+	void HideForRunResult();
+
 protected:
 	// 점프와 캡슐 좌우 밸런스 이동을 담당하는 러너 전용 이동 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player")

@@ -11,6 +11,12 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGCargoStack, Log, All);
 
+namespace
+{
+	// 바구니 테두리보다 이만큼(cm) 위에 떠 있는 적재물은 아직 바구니로 떨어지는 중으로 본다. 공중 보정과 손실 임박 판정이 같은 기준을 쓴다.
+	constexpr float SettledHeightAboveRim = 40.0f;
+}
+
 UPGCargoStackComponent::UPGCargoStackComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
@@ -426,14 +432,10 @@ void UPGCargoStackComponent::ApplyAirborneCargoAssist()
 
 	// 바구니에 담긴 적재물은 바구니 속도에, 아직 위에서 떨어지는 중인 적재물은 기존처럼 캡슐(앵커) 속도에 묶는다.
 	// 바구니 밖으로 나간 적재물까지 묶으면 떨어지지 않고 공중에 뜬 채 러너를 따라오므로 보정하지 않는다.
-	const USceneComponent* Support = SupportComponent.Get();
-	const FBoxSphereBounds SupportBounds = Support
-		? Support->CalcBounds(FTransform(FQuat::Identity, FVector::ZeroVector, SupportTransformAtLastStep.GetScale3D()))
-		: FBoxSphereBounds(ForceInit);
-	const float RimRadius = FMath::Max(SupportBounds.BoxExtent.X, SupportBounds.BoxExtent.Y);
-
 	// 바구니 루트가 크기 없는 컴포넌트로 바뀌면 범위가 0이라 모든 적재물이 밖으로 판정된다. 그때는 범위를 따지지 않고 전부 보정한다.
-	const bool bCheckFootprint = Support && RimRadius > KINDA_SMALL_NUMBER;
+	FBoxSphereBounds SupportBounds(ForceInit);
+	float RimRadius = 0.0f;
+	const bool bCheckFootprint = GetSupportFootprint(SupportBounds, RimRadius);
 
 	for (const FPGRuntimeCargoInstance& CargoInstance : CargoInstances)
 	{
@@ -447,11 +449,9 @@ void UPGCargoStackComponent::ApplyAirborneCargoAssist()
 		FVector ReferenceVelocity = AnchorVelocity;
 		if (bCheckFootprint)
 		{
-			// 이번 프레임 자세와 비교하면 점프 첫 프레임에 바구니만 솟아 있어 멀쩡한 적재물이 바닥 아래로 판정된다.
-			const FVector LocalOffset = SupportTransformAtLastStep.InverseTransformPositionNoScale(CargoMeshComponent->Bounds.Origin) - SupportBounds.Origin;
+			const FVector LocalOffset = GetCargoOffsetInSupport(*CargoMeshComponent, SupportBounds);
 
 			// 테두리보다 한참 위에 떠 있는 적재물은 아직 바구니로 떨어지는 중이다. 바구니의 좌우 흔들림 속도까지 물려주면 풀려날 때 옆으로 던져지므로 캡슐 속도에 둔다.
-			constexpr float SettledHeightAboveRim = 40.0f;
 			if (LocalOffset.Z < SupportBounds.BoxExtent.Z + SettledHeightAboveRim)
 			{
 				// 바구니 기준 좌표에서 테두리 반지름 밖이거나 바닥보다 아래면 이미 바구니를 벗어난 것이다.
@@ -480,10 +480,34 @@ void UPGCargoStackComponent::ApplyAirborneCargoAssist()
 	}
 }
 
+bool UPGCargoStackComponent::GetSupportFootprint(FBoxSphereBounds& OutBounds, float& OutRimRadius) const
+{
+	const USceneComponent* Support = SupportComponent.Get();
+	if (!Support)
+	{
+		return false;
+	}
+
+	OutBounds = Support->CalcBounds(FTransform(FQuat::Identity, FVector::ZeroVector, SupportTransformAtLastStep.GetScale3D()));
+	OutRimRadius = FMath::Max(OutBounds.BoxExtent.X, OutBounds.BoxExtent.Y);
+	return OutRimRadius > KINDA_SMALL_NUMBER;
+}
+
+FVector UPGCargoStackComponent::GetCargoOffsetInSupport(const UStaticMeshComponent& CargoMeshComponent, const FBoxSphereBounds& SupportBounds) const
+{
+	// 이번 프레임 자세와 비교하면 점프 첫 프레임에 바구니만 솟아 있어 멀쩡한 적재물이 바닥 아래로 판정된다. 지난 물리 스텝 자세를 쓴다.
+	return SupportTransformAtLastStep.InverseTransformPositionNoScale(CargoMeshComponent.Bounds.Origin) - SupportBounds.Origin;
+}
+
 bool UPGCargoStackComponent::CheckCargoLoss(float DeltaSeconds)
 {
 	bool bAnyCargoLost = false;
 	float MaxHorizontalDistanceSquared = 0.0f;
+	float MaxRimRatio = 0.0f;
+
+	FBoxSphereBounds SupportBounds(ForceInit);
+	float RimRadius = 0.0f;
+	const bool bHasFootprint = GetSupportFootprint(SupportBounds, RimRadius);
 
 	// 적재물 위치는 지난 물리 스텝의 결과인데 러너는 이미 이번 프레임만큼 나아갔다. 그대로 비교하면 바구니에 담긴 적재물도 한 프레임 이동 거리만큼 뒤처져 보여,
 	// 긴 프레임 하나에 손실로 판정되고 손실 임박 경고가 프레임률에 따라 달라진다. 러너도 지난 프레임 위치로 되돌려 같은 시점끼리 비교한다.
@@ -518,12 +542,32 @@ bool UPGCargoStackComponent::CheckCargoLoss(float DeltaSeconds)
 		}
 
 		MaxHorizontalDistanceSquared = FMath::Max(MaxHorizontalDistanceSquared, HorizontalDistanceSquared);
+
+		// 손실 임박은 바구니 테두리를 기준으로 잰다. 바구니를 벗어난 적재물은 바로 떨어져 0.5초 안에 손실되므로
+		// 러너 기준 손실 거리(200cm)로는 경고가 거의 뜨지 않는다. 테두리를 향해 밀려나는 동안 경고가 켜져야 원인이 보인다.
+		if (bHasFootprint && CargoActor->GetCargoMeshComponent())
+		{
+			const FVector LocalOffset = GetCargoOffsetInSupport(*CargoActor->GetCargoMeshComponent(), SupportBounds);
+			if (LocalOffset.Z < SupportBounds.BoxExtent.Z + SettledHeightAboveRim)
+			{
+				// 테두리 반지름 밖이거나 바닥 아래면 이미 떨어지는 중이라 1로 본다. 아직 위에서 내려오는 적재물은 세지 않는다.
+				const bool bLeftBowl = FVector2D(LocalOffset).SizeSquared() > FMath::Square(RimRadius) || LocalOffset.Z < -SupportBounds.BoxExtent.Z;
+				MaxRimRatio = FMath::Max(MaxRimRatio, bLeftBowl ? 1.0f : FVector2D(LocalOffset).Size() / RimRadius);
+			}
+		}
 	}
 
-	// 손실 임박 경고는 수평 이탈만 본다. 수직 낙하는 이미 Bowl을 벗어난 뒤라 경고할 여지가 없다.
-	CargoDangerRatio = LossDistanceSquared > KINDA_SMALL_NUMBER
-		? FMath::Clamp(FMath::Sqrt(MaxHorizontalDistanceSquared / LossDistanceSquared), 0.0f, 1.0f)
-		: 0.0f;
+	if (bHasFootprint)
+	{
+		CargoDangerRatio = FMath::Clamp(MaxRimRatio, 0.0f, 1.0f);
+	}
+	else
+	{
+		// 바구니가 없으면 예전처럼 러너 기준 수평 이탈만 본다. 수직 낙하는 경고할 여지가 없다.
+		CargoDangerRatio = LossDistanceSquared > KINDA_SMALL_NUMBER
+			? FMath::Clamp(FMath::Sqrt(MaxHorizontalDistanceSquared / LossDistanceSquared), 0.0f, 1.0f)
+			: 0.0f;
+	}
 
 	return bAnyCargoLost;
 }
