@@ -18,6 +18,7 @@ class UPGRunPauseWidget;
 class UPGRunProgressComponent;
 class UPGSettingsScreenWidget;
 class UPGUserDataSubsystem;
+class UMaterialInstanceDynamic;
 
 /**
  * 로컬 PlayerController가 소유하는 러닝 HUD 관리자입니다.
@@ -95,6 +96,7 @@ private:
 	void RefreshHUDValues();
 	void RefreshCargoList();
 	void UpdateCargoDangerWarning();
+	UMaterialInstanceDynamic* ResolveCargoDangerRing();
 	void ShowPauseScreen();
 	void CleanupPauseScreen(bool bResumeGame);
 	void ShowSettingsScreen();
@@ -149,8 +151,11 @@ private:
 
 	// 적재물 남은 시간/진행률은 매 프레임이 아니라 설정된 간격으로만 갱신합니다.
 	float CargoRefreshElapsed = 0.0f;
-	// Cargo > CargoDangerWarningRatio 복사본입니다. 손실 임박 경고를 켤 최대 수평 이탈 비율(0~1)입니다.
+	// Cargo > CargoDangerWarningRatio 복사본입니다. 손실 임박 경고를 켤 바구니 테두리 대비 이탈 비율(0~1)입니다.
 	float CargoDangerWarningRatio = 1.0f;
 	bool bIsCargoDangerActive = false;
+
+	// 바구니 테두리 경고 링(BP_Bowl의 CargoDangerRing 컴포넌트)의 동적 머티리얼입니다. 바구니는 런마다 새로 생성되므로 약한 참조로 두고 사라지면 다시 찾습니다.
+	TWeakObjectPtr<UMaterialInstanceDynamic> CargoDangerRingMaterial;
 	bool bIsBoundToGameMode = false;
 };

@@ -8,17 +8,36 @@
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "Engine/Texture2D.h"
+#include "Settings/PGGameSettings.h"
 #include "UI/PGUIAnimationUtils.h"
 
 void UPGCargoDeliveryItemWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 	SetRenderOpacity(0.0f);
+
+	if (const UPGGameSettings* Settings = GetDefault<UPGGameSettings>())
+	{
+		CargoDangerWarningRatio = Settings->Cargo.CargoDangerWarningRatio;
+	}
+	// 디자이너가 BP에서 보이게 둬도 경고 테두리는 런타임 상태로만 켠다.
+	if (DangerFrame)
+	{
+		DangerFrame->SetVisibility(DangerAlpha > 0.0f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
 }
 
 void UPGCargoDeliveryItemWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	if (DangerFrame && DangerAlpha > 0.0f)
+	{
+		// 초당 2.5회 사인 펄스. 완전히 꺼지지 않도록 하한을 둬 경고가 끊겨 보이지 않게 한다.
+		DangerPulseElapsed += InDeltaTime;
+		const float Pulse = 0.5f + 0.5f * FMath::Sin(DangerPulseElapsed * 2.0f * PI * 2.5f);
+		DangerFrame->SetRenderOpacity(DangerAlpha * FMath::Lerp(0.35f, 1.0f, Pulse));
+	}
 
 	if (!bIsEntering && !bIsExiting)
 	{
@@ -52,6 +71,7 @@ void UPGCargoDeliveryItemWidget::ConfigureCargoItem(const FPGActiveCargoInfo& Ca
 		CargoInstanceId = CargoInfo.InstanceId;
 		LastDisplayedRemainingSeconds = INDEX_NONE;
 		LastDisplayedThumbnail.Reset();
+		SetDangerRatio(0.0f);
 	}
 
 	if (ThumbnailImage && LastDisplayedThumbnail.Get() != CargoInfo.CargoThumbnail)
@@ -74,6 +94,22 @@ void UPGCargoDeliveryItemWidget::ConfigureCargoItem(const FPGActiveCargoInfo& Ca
 	{
 		DeliveryProgressBar->SetPercent(FMath::Clamp(CargoInfo.DeliveryProgress, 0.0f, 1.0f));
 	}
+
+	SetDangerRatio(CargoInfo.DangerRatio);
+}
+
+void UPGCargoDeliveryItemWidget::SetDangerRatio(float DangerRatio)
+{
+	// 문턱 아래면 숨기고, 문턱에서 약하게 켜져 테두리에 닿을수록 밝아진다. 바구니 링과 같은 기준이다.
+	const float NewDangerAlpha = CargoDangerWarningRatio < 1.0f - KINDA_SMALL_NUMBER && DangerRatio >= CargoDangerWarningRatio
+		? FMath::GetMappedRangeValueClamped(FVector2D(CargoDangerWarningRatio, 1.0f), FVector2D(0.4f, 1.0f), DangerRatio)
+		: 0.0f;
+	if (DangerFrame && (NewDangerAlpha > 0.0f) != (DangerAlpha > 0.0f))
+	{
+		DangerPulseElapsed = 0.0f;
+		DangerFrame->SetVisibility(NewDangerAlpha > 0.0f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	DangerAlpha = NewDangerAlpha;
 }
 
 void UPGCargoDeliveryItemWidget::PlayEnterAnimation()

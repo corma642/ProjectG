@@ -1,7 +1,7 @@
 """위젯 시각·입력 회귀 검증 (헤드리스 에디터 Python).
 
-위젯을 실제 RHI로 그려 PNG를 남기고, 버튼이 장식 위젯에 가려지지 않았는지와 런 이벤트 전조 위젯의 방향 표시를 확인한다.
-대상: Run HUD(배달 카드·점수 표시 포함), 첫 런 가이드(드래그·플릭 단계), 런 이벤트 전조, Home, Settings, Tutorial, Pause, RunResult, Shop, ReceiptShop, 상품 카드, FPS 표시, 카운트다운, 화면 전환 페이드.
+위젯을 실제 RHI로 그려 PNG를 남기고, 버튼이 장식 위젯에 가려지지 않았는지와 런 이벤트 배지의 방향 표시를 확인한다.
+대상: Run HUD(배달 카드·점수 표시·손실 임박 카드 경고 포함), 첫 런 가이드(드래그·플릭 단계), 런 이벤트 배지(전조·발동), Home, Settings, Tutorial, Pause, RunResult, Shop, ReceiptShop, 상품 카드, FPS 표시, 카운트다운, 화면 전환 페이드.
 실행: powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\Tools\\Verify-Project.ps1 -SkipBuild -SkipBlueprints -SkipTests -WidgetQA
 결과: Saved/Verify/WidgetQA/*.png, 로그의 '### WIDGET_QA: PASS' 또는 '### WIDGET_QA: FAIL'
 """
@@ -133,16 +133,6 @@ hud = create('/Game/Blueprints/Widgets/HUD/WBP_RunHUD.WBP_RunHUD_C')
 if hud:
     render(hud, 'RunHUD')
     hud_buttons = check_buttons_reachable(hud, 'RunHUD')
-    danger = hud.get_editor_property('CargoDangerImage')
-    check(danger is not None and danger.get_visibility() == HIDDEN, 'RunHUD: CargoDangerImage is bound and hidden while inactive')
-    hud.set_cargo_danger_warning_active(True)
-    check(danger.get_visibility() == unreal.SlateVisibility.HIT_TEST_INVISIBLE, 'RunHUD: CargoDangerImage is shown without taking input while active')
-    render(hud, 'RunHUD_CargoDanger')
-    check_buttons_reachable(hud, 'RunHUD with danger warning')
-    # 그릴 때마다 Slate 위젯이 다시 만들어진다. 재구성 뒤에도 경고가 켜진 상태로 남아야 위 그림과 검사가 유효하다.
-    check(danger.get_visibility() == unreal.SlateVisibility.HIT_TEST_INVISIBLE, 'RunHUD: CargoDangerImage stays shown after the Slate widget is rebuilt')
-    hud.set_cargo_danger_warning_active(False)
-    check(danger.get_visibility() == HIDDEN, 'RunHUD: CargoDangerImage hides again')
 
     # 배달 카드와 점수 표시는 HUD 안에서만 제 크기로 그려진다. 소유 플레이어가 없어 HUD가 직접 만들지 못하므로 같은 자리에 넣어 준다.
     cargo_items = [create_widget('HUD/WBP_CargoDeliveryItem') for _ in range(3)]
@@ -159,30 +149,50 @@ if hud:
     cargo_hits = hit_counts(hud, entries=cargo_entries, advance=CARGO_SECONDS, ignore_enabled=True)
     check(not any(cargo_hits[child.get_name()] for child in cargo_entries), 'RunHUD: cargo items and score indicator do not take input')
 
-# ---------------------------------------------------------------- run event previews
-WARNINGS = ('LeftWarning', 'CenterWarning', 'RightWarning')
-for label, direction, expected in (('Left', -1.0, 'LeftWarning'), ('Center', 0.0, 'CenterWarning'), ('Right', 1.0, 'RightWarning')):
-    preview = create('/Game/Blueprints/Widgets/RunEvents/WBP_MovingHazardPreview.WBP_MovingHazardPreview_C')
-    if not preview:
-        continue
-    # 게임 코드와 같이 인스턴스 클래스에서 함수를 찾아 호출한다(BP 재정의가 있으면 그쪽이 실행된다).
-    preview.call_method('ConfigureRunEventFeedback', args=(unreal.PGRunEventType.MOVING_HAZARD, unreal.PGRunEventState.PREVIEW, 3.0, 0.0, direction))
-    widgets = children_of(preview)
-    shown = [name for name in WARNINGS if widgets[name].get_visibility() != HIDDEN]
-    check(shown == [expected], f'MovingHazardPreview direction {direction:+.0f} shows only {expected} (got {shown})')
-    render(preview, 'MovingHazardPreview_' + label)
-    check(set(hit_counts(preview, 90)) == {'None'}, f'MovingHazardPreview {label} does not take input')
+    # 손실 임박 카드 경고: 문턱(Cargo > CargoDangerWarningRatio)을 넘은 적재물의 카드만 테두리를 켠다.
+    frames = [children_of(item)['DangerFrame'] for item in cargo_items]
+    check(all(frame.get_visibility() == HIDDEN for frame in frames), 'CargoDeliveryItem: DangerFrame is hidden while safe')
+    cargo_items[0].set_danger_ratio(0.9)
+    cargo_items[1].set_danger_ratio(0.3)
+    check(frames[0].get_visibility() == unreal.SlateVisibility.HIT_TEST_INVISIBLE and frames[1].get_visibility() == HIDDEN,
+          'CargoDeliveryItem: only the endangered card shows DangerFrame without taking input')
+    render(hud, 'RunHUD_CargoDanger', cargo_entries, CARGO_SECONDS)
+    check(frames[0].get_visibility() == unreal.SlateVisibility.HIT_TEST_INVISIBLE, 'CargoDeliveryItem: DangerFrame stays shown after the Slate widget is rebuilt')
+    cargo_items[0].set_danger_ratio(0.0)
+    check(frames[0].get_visibility() == HIDDEN, 'CargoDeliveryItem: DangerFrame hides again')
 
-# 기존 BP 그래프 구현(바람 전조)이 방향에 따라 좌우를 바꿔 표시하는지 확인한다.
-wind = create('/Game/Blueprints/Widgets/RunEvents/WBP_WindPreview.WBP_WindPreview_C')
-if wind:
-    seen = []
-    for direction in (-1.0, 1.0):
-        wind.call_method('ConfigureRunEventFeedback', args=(unreal.PGRunEventType.WIND, unreal.PGRunEventState.PREVIEW, 3.0, 0.0, direction))
-        widgets = children_of(wind)
-        seen.append([name for name in ('LeftWarning', 'RightWarning') if widgets[name].get_render_opacity() > 0.5])
-        render(wind, 'WindPreview_' + ('Negative' if direction < 0 else 'Positive'))
-    check(sorted(seen) == [['LeftWarning'], ['RightWarning']], f'WindPreview blueprint graph switches sides with direction (got {seen})')
+# ---------------------------------------------------------------- run event badges
+# (WBP, 이벤트, 방향 -> 보여야 할 방향 표시 이름. None이면 방향 표시가 없다)
+DIRECTIONS = ('DirectionNegative', 'DirectionZero', 'DirectionPositive')
+BADGES = (
+    ('RunEvents/WBP_RunEventBadge_Wind', unreal.PGRunEventType.WIND, ((-1.0, 'DirectionNegative'), (1.0, 'DirectionPositive'))),
+    ('RunEvents/WBP_RunEventBadge_Snowstorm', unreal.PGRunEventType.SNOWSTORM, ((0.0, None),)),
+    ('RunEvents/WBP_RunEventBadge_MovingHazard', unreal.PGRunEventType.MOVING_HAZARD, ((-1.0, 'DirectionNegative'), (0.0, 'DirectionZero'), (1.0, 'DirectionPositive'))),
+)
+for path, event_type, cases in BADGES:
+    label = path.rsplit('_', 1)[-1]
+    for direction, expected in cases:
+        badge = create_widget(path)
+        if not badge:
+            continue
+        # 게임 코드와 같이 인스턴스 클래스에서 함수를 찾아 호출한다. 전조: 3초 뒤 발동, 링이 1.5초만큼 차오른 장면을 그린다.
+        badge.call_method('ConfigureRunEventFeedback', args=(event_type, unreal.PGRunEventState.PREVIEW, 3.0, 0.0, direction))
+        widgets = children_of(badge)
+        shown = [name for name in DIRECTIONS if name in widgets and widgets[name].get_visibility() != HIDDEN]
+        check(shown == ([expected] if expected else []), f'{label} badge direction {direction:+.0f} shows {expected} (got {shown})')
+        check(widgets['NameText'].get_visibility() != HIDDEN, f'{label} badge shows the event name during preview')
+        suffix = '' if len(cases) == 1 else '_' + ('Negative' if direction < 0 else 'Zero' if direction == 0 else 'Positive')
+        render(badge, f'RunEventBadge_{label}_Preview{suffix}', advance=1.5)
+        check(set(hit_counts(badge, 90, advance=1.5)) == {'None'}, f'{label} badge preview does not take input')
+    # 발동: 이름을 숨기고 칩으로 줄어든 뒤 링이 남은 시간(4초 중 2.5초)만큼 남는다.
+    badge = create_widget(path)
+    if badge:
+        badge.call_method('ConfigureRunEventFeedback', args=(event_type, unreal.PGRunEventState.TRIGGERED, 0.0, 4.0, cases[0][0]))
+        widgets = children_of(badge)
+        check(widgets['NameText'].get_visibility() == HIDDEN, f'{label} badge hides the event name once triggered')
+        render(badge, f'RunEventBadge_{label}_Active', advance=1.5)
+        scale = widgets['BadgePanel'].get_editor_property('render_transform').scale
+        check(abs(scale.x - 0.62) < 0.01, f'{label} badge shrinks to the chip scale after trigger (got {scale.x:.2f})')
 
 # ---------------------------------------------------------------- screens
 # (PNG 이름, 에셋, 진입이 끝나도 게임 규칙상 꺼져 있을 수 있는 버튼)

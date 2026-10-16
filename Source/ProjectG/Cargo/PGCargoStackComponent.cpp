@@ -166,6 +166,7 @@ void UPGCargoStackComponent::GetActiveCargoInfos(TArray<FPGActiveCargoInfo>& Out
 		Info.DeliveryProgress = DeliveryDuration > KINDA_SMALL_NUMBER
 			? FMath::Clamp(CargoInstance.DeliveryElapsedTime / DeliveryDuration, 0.0f, 1.0f)
 			: 1.0f;
+		Info.DangerRatio = CargoInstance.DangerRatio;
 		OutInfos.Add(Info);
 	}
 }
@@ -504,6 +505,7 @@ bool UPGCargoStackComponent::CheckCargoLoss(float DeltaSeconds)
 	bool bAnyCargoLost = false;
 	float MaxHorizontalDistanceSquared = 0.0f;
 	float MaxRimRatio = 0.0f;
+	FVector2D MaxRimOffset = FVector2D::ZeroVector;
 
 	FBoxSphereBounds SupportBounds(ForceInit);
 	float RimRadius = 0.0f;
@@ -545,21 +547,30 @@ bool UPGCargoStackComponent::CheckCargoLoss(float DeltaSeconds)
 
 		// 손실 임박은 바구니 테두리를 기준으로 잰다. 바구니를 벗어난 적재물은 바로 떨어져 0.5초 안에 손실되므로
 		// 러너 기준 손실 거리(200cm)로는 경고가 거의 뜨지 않는다. 테두리를 향해 밀려나는 동안 경고가 켜져야 원인이 보인다.
+		float RimRatio = 0.0f;
 		if (bHasFootprint && CargoActor->GetCargoMeshComponent())
 		{
 			const FVector LocalOffset = GetCargoOffsetInSupport(*CargoActor->GetCargoMeshComponent(), SupportBounds);
 			if (LocalOffset.Z < SupportBounds.BoxExtent.Z + SettledHeightAboveRim)
 			{
 				// 테두리 반지름 밖이거나 바닥 아래면 이미 떨어지는 중이라 1로 본다. 아직 위에서 내려오는 적재물은 세지 않는다.
-				const bool bLeftBowl = FVector2D(LocalOffset).SizeSquared() > FMath::Square(RimRadius) || LocalOffset.Z < -SupportBounds.BoxExtent.Z;
-				MaxRimRatio = FMath::Max(MaxRimRatio, bLeftBowl ? 1.0f : FVector2D(LocalOffset).Size() / RimRadius);
+				const FVector2D RimOffset(LocalOffset);
+				const bool bLeftBowl = RimOffset.SizeSquared() > FMath::Square(RimRadius) || LocalOffset.Z < -SupportBounds.BoxExtent.Z;
+				RimRatio = bLeftBowl ? 1.0f : RimOffset.Size() / RimRadius;
+				if (RimRatio > MaxRimRatio)
+				{
+					MaxRimRatio = RimRatio;
+					MaxRimOffset = RimOffset;
+				}
 			}
 		}
+		CargoInstances[CargoIndex].DangerRatio = FMath::Clamp(RimRatio, 0.0f, 1.0f);
 	}
 
 	if (bHasFootprint)
 	{
 		CargoDangerRatio = FMath::Clamp(MaxRimRatio, 0.0f, 1.0f);
+		CargoDangerDirection = MaxRimOffset.GetSafeNormal();
 	}
 	else
 	{
@@ -567,6 +578,7 @@ bool UPGCargoStackComponent::CheckCargoLoss(float DeltaSeconds)
 		CargoDangerRatio = LossDistanceSquared > KINDA_SMALL_NUMBER
 			? FMath::Clamp(FMath::Sqrt(MaxHorizontalDistanceSquared / LossDistanceSquared), 0.0f, 1.0f)
 			: 0.0f;
+		CargoDangerDirection = FVector2D::ZeroVector;
 	}
 
 	return bAnyCargoLost;

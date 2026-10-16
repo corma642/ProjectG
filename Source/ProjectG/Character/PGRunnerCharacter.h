@@ -73,6 +73,9 @@ public:
 	/** 적재물 드롭과 HUD가 현재 러너의 적재 상태에 접근할 때 사용하는 컴포넌트를 반환합니다. */
 	UPGCargoStackComponent* GetCargoStackComponent() const { return CargoStackComponent; }
 
+	/** 런 중 머리에 붙어 있는 바구니 Actor입니다. 카운트다운 전·실패 후에는 null입니다. */
+	AActor* GetAttachedBowlActor() const { return AttachedBowlActor; }
+
 	/** HUD가 점수, 거리, 영수증 변화를 구독할 때 사용하는 진행 컴포넌트를 반환합니다. */
 	UPGRunProgressComponent* GetRunProgressComponent() const { return RunProgressComponent; }
 

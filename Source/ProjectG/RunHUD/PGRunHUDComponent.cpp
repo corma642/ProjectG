@@ -11,6 +11,7 @@
 #include "GameModes/PGGameModeBase.h"
 #include "Kismet/GameplayStatics.h"
 #include "Loading/PGRuntimePreloadSubsystem.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Player/PGPlayerController.h"
 #include "RunProgress/PGRunProgressComponent.h"
@@ -28,6 +29,11 @@ namespace
 {
 	// 드래그 안내를 끝내는 중심 입력량(절댓값, 0~1). 작은 떨림이 아니라 실제로 끌었다고 볼 수 있는 값이다.
 	constexpr float RunGuideDragInputThreshold = 0.5f;
+
+	// BP_Bowl에서 테두리 경고 링 메시 컴포넌트를 찾는 컴포넌트 태그와, 링 머티리얼(M_CargoDangerRing)의 파라미터 이름.
+	const FName CargoDangerRingTag(TEXT("CargoDangerRing"));
+	const FName CargoDangerRingIntensityParam(TEXT("Intensity"));
+	const FName CargoDangerRingDirectionParam(TEXT("Direction"));
 }
 
 UPGRunHUDComponent::UPGRunHUDComponent()
@@ -141,12 +147,8 @@ void UPGRunHUDComponent::HandleRunFailed(FName FailureReason)
 	SetComponentTickEnabled(false);
 	CargoRefreshElapsed = 0.0f;
 
-	// 결과 화면 뒤에 남는 HUD에서 손실 임박 경고가 계속 깜빡이지 않게 끈다.
+	// 바구니 테두리 링은 슬로모션 동안 마지막 상태로 남겨 실패 원인이 보이게 두고, 결과 화면이 뜰 때 바구니와 함께 사라진다.
 	bIsCargoDangerActive = false;
-	if (HUDWidget)
-	{
-		HUDWidget->SetCargoDangerWarningActive(false);
-	}
 	// 가이드를 끝내지 못한 채 실패하면 완료로 저장하지 않아 다음 런에서 다시 보여준다.
 	CleanupRunGuide(true);
 }
@@ -434,6 +436,7 @@ void UPGRunHUDComponent::BindRunner(APGRunnerCharacter* RunnerCharacter)
 
 void UPGRunHUDComponent::UnbindRunner()
 {
+	CargoDangerRingMaterial = nullptr;
 	if (APGRunnerCharacter* Runner = BoundRunnerCharacter.Get())
 	{
 		Runner->OnJumpStarted.RemoveAll(this);
@@ -610,7 +613,7 @@ void UPGRunHUDComponent::RefreshCargoList()
 
 void UPGRunHUDComponent::UpdateCargoDangerWarning()
 {
-	if (!HUDWidget || !BoundCargoStackComponent)
+	if (!BoundCargoStackComponent)
 	{
 		return;
 	}
@@ -620,17 +623,47 @@ void UPGRunHUDComponent::UpdateCargoDangerWarning()
 	const float DangerRatio = BoundCargoStackComponent->GetCargoDangerRatio();
 	const float ThresholdRatio = bIsCargoDangerActive ? CargoDangerWarningRatio - ExitHysteresis : CargoDangerWarningRatio;
 	const bool bShouldWarn = CargoDangerWarningRatio < 1.0f - KINDA_SMALL_NUMBER && DangerRatio >= ThresholdRatio;
-	if (bShouldWarn == bIsCargoDangerActive)
+	const bool bChanged = bShouldWarn != bIsCargoDangerActive;
+	bIsCargoDangerActive = bShouldWarn;
+	if (bChanged && bShouldWarn)
+	{
+		UPGAudioStatics::PlaySFX2D(this, CachedRunHUDSettings.CargoDangerWarningSound.Get());
+	}
+
+	// 경고 중에만 링을 갱신하고, 꺼지는 순간 한 번 0으로 내린다.
+	if (!bShouldWarn && !bChanged)
 	{
 		return;
 	}
 
-	bIsCargoDangerActive = bShouldWarn;
-	HUDWidget->SetCargoDangerWarningActive(bShouldWarn);
-	if (bShouldWarn)
+	if (UMaterialInstanceDynamic* RingMaterial = ResolveCargoDangerRing())
 	{
-		UPGAudioStatics::PlaySFX2D(this, CachedRunHUDSettings.CargoDangerWarningSound.Get());
+		// 경고 문턱에서 약하게 켜져 테두리에 닿을수록 밝아지고, 적재물이 밀려난 쪽만 빛난다.
+		const float Intensity = bShouldWarn
+			? FMath::GetMappedRangeValueClamped(FVector2D(CargoDangerWarningRatio, 1.0f), FVector2D(0.35f, 1.0f), DangerRatio)
+			: 0.0f;
+		const FVector2D Direction = BoundCargoStackComponent->GetCargoDangerDirection();
+		RingMaterial->SetScalarParameterValue(CargoDangerRingIntensityParam, Intensity);
+		RingMaterial->SetVectorParameterValue(CargoDangerRingDirectionParam, FLinearColor(Direction.X, Direction.Y, 0.0f, 0.0f));
 	}
+}
+
+UMaterialInstanceDynamic* UPGRunHUDComponent::ResolveCargoDangerRing()
+{
+	if (CargoDangerRingMaterial.IsValid())
+	{
+		return CargoDangerRingMaterial.Get();
+	}
+
+	const AActor* BowlActor = BoundRunnerCharacter.IsValid() ? BoundRunnerCharacter->GetAttachedBowlActor() : nullptr;
+	UStaticMeshComponent* RingComponent = BowlActor ? Cast<UStaticMeshComponent>(BowlActor->FindComponentByTag(UStaticMeshComponent::StaticClass(), CargoDangerRingTag)) : nullptr;
+	if (!RingComponent)
+	{
+		return nullptr;
+	}
+
+	CargoDangerRingMaterial = RingComponent->CreateAndSetMaterialInstanceDynamic(0);
+	return CargoDangerRingMaterial.Get();
 }
 
 void UPGRunHUDComponent::ShowPauseScreen()

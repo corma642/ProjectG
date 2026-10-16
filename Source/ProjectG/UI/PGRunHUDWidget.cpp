@@ -23,12 +23,6 @@ void UPGRunHUDWidget::NativeConstruct()
 	{
 		PauseButton->OnClicked.AddDynamic(this, &UPGRunHUDWidget::HandlePauseClicked);
 	}
-
-	// 디자이너가 BP에서 보이게 둬도 경고는 런타임 상태로만 켠다. Slate 위젯이 다시 만들어져도 현재 상태를 그대로 반영한다.
-	if (CargoDangerImage)
-	{
-		CargoDangerImage->SetVisibility(bIsCargoDangerActive ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
-	}
 }
 
 void UPGRunHUDWidget::NativeDestruct()
@@ -44,11 +38,6 @@ void UPGRunHUDWidget::NativeDestruct()
 void UPGRunHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
-
-	if (bIsCargoDangerActive)
-	{
-		UpdateCargoDangerPulse(InDeltaTime);
-	}
 
 	if (!bIsEntering && !bIsExiting)
 	{
@@ -193,21 +182,6 @@ void UPGRunHUDWidget::ShowCargoScoreIndicator(int32 CargoInstanceId, int32 Score
 	IndicatorWidget->PlayScoreIndicator(Score);
 }
 
-void UPGRunHUDWidget::SetCargoDangerWarningActive(bool bActive)
-{
-	if (bIsCargoDangerActive == bActive)
-	{
-		return;
-	}
-
-	bIsCargoDangerActive = bActive;
-	CargoDangerPulseElapsed = 0.0f;
-	if (CargoDangerImage)
-	{
-		CargoDangerImage->SetVisibility(bActive ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
-	}
-}
-
 void UPGRunHUDWidget::PlayEnterAnimation()
 {
 	bIsEntering = true;
@@ -236,19 +210,6 @@ void UPGRunHUDWidget::ApplyAnimationState(float Alpha, bool bExiting)
 	const float YOffset = bExiting ? -60.0f * Alpha : -60.0f * (1.0f - Alpha);
 	SetRenderOpacity(Opacity);
 	SetRenderTranslation(FVector2D(0.0f, YOffset));
-}
-
-void UPGRunHUDWidget::UpdateCargoDangerPulse(float InDeltaTime)
-{
-	if (!CargoDangerImage)
-	{
-		return;
-	}
-
-	// 초당 2.5회 사인 펄스. 완전히 꺼지지 않도록 하한을 둬 경고가 끊겨 보이지 않게 한다.
-	CargoDangerPulseElapsed += InDeltaTime;
-	const float Pulse = 0.5f + 0.5f * FMath::Sin(CargoDangerPulseElapsed * 2.0f * PI * 2.5f);
-	CargoDangerImage->SetRenderOpacity(FMath::Lerp(0.25f, 1.0f, Pulse));
 }
 
 UPGCargoDeliveryItemWidget* UPGRunHUDWidget::AcquireCargoItemWidget()

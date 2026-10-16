@@ -28,8 +28,12 @@ public:
 	/** 퇴장이 끝난 카드 자신을 HUD 카드 풀에 반환하도록 알립니다. */
 	FPGCargoDeliveryItemExitFinishedSignature OnExitAnimationFinished;
 
-	/** 활성 적재물 ID, 썸네일, 남은 시간과 진행률을 카드에 반영합니다. */
+	/** 활성 적재물 ID, 썸네일, 남은 시간, 진행률과 손실 임박 비율을 카드에 반영합니다. */
 	void ConfigureCargoItem(const FPGActiveCargoInfo& CargoInfo);
+
+	/** 손실 임박 비율(0~1, 바구니 테두리 대비)을 받아 경고 문턱을 넘으면 카드 테두리를 깜빡이고, 아래면 숨깁니다. */
+	UFUNCTION(BlueprintCallable, Category = "Cargo HUD")
+	void SetDangerRatio(float DangerRatio);
 
 	/** 카드가 목록에 추가될 때 짧은 진입 애니메이션을 시작합니다. */
 	void PlayEnterAnimation();
@@ -38,10 +42,10 @@ public:
 	void PlayExitAnimation();
 
 protected:
-	/** BP 카드의 초기 투명도를 진입 전 상태로 맞춥니다. */
+	/** BP 카드의 초기 투명도를 진입 전 상태로 맞추고 경고 테두리를 현재 상태에 맞춥니다. */
 	virtual void NativeConstruct() override;
 
-	/** 진입 또는 퇴장 중에만 카드 opacity와 이동 상태를 갱신합니다. */
+	/** 경고 테두리 펄스와, 진입 또는 퇴장 중인 카드의 opacity·이동 상태를 갱신합니다. */
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	// 카드 전체 opacity와 이동 애니메이션을 적용하는 필수 BP 루트입니다.
@@ -60,6 +64,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Cargo HUD")
 	TObjectPtr<UProgressBar> DeliveryProgressBar;
 
+	// 이 적재물이 바구니 테두리로 밀려날 때 카드 둘레에서 깜빡이는 경고 테두리입니다.
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Cargo HUD")
+	TObjectPtr<UWidget> DangerFrame;
+
 private:
 	void ApplyAnimationState(float Alpha, bool bExiting);
 
@@ -71,4 +79,9 @@ private:
 	bool bIsExiting = false;
 	float AnimationElapsed = 0.0f;
 	float AnimationDuration = 0.16f;
+	// 경고 테두리 밝기(0이면 숨김, 문턱에서 테두리까지 0.4~1)와 펄스 시간입니다.
+	float DangerAlpha = 0.0f;
+	float DangerPulseElapsed = 0.0f;
+	// Cargo > CargoDangerWarningRatio 복사본입니다.
+	float CargoDangerWarningRatio = 1.0f;
 };

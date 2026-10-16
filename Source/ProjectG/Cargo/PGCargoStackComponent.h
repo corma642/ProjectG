@@ -44,6 +44,10 @@ struct FPGActiveCargoInfo
 
 	UPROPERTY(BlueprintReadOnly, Category = "Cargo")
 	float DeliveryDuration = 0.0f;
+
+	// 이 적재물의 손실 임박 비율(0~1, 바구니 테두리 반지름 대비 중심 이탈). 카드 경고 표시가 읽습니다.
+	UPROPERTY(BlueprintReadOnly, Category = "Cargo")
+	float DangerRatio = 0.0f;
 };
 
 /**
@@ -62,6 +66,8 @@ struct FPGRuntimeCargoInstance
 
 	int32 InstanceId = INDEX_NONE;
 	float DeliveryElapsedTime = 0.0f;
+	// 직전 손실 판정의 바구니 테두리 대비 중심 이탈(0~1). HUD 카드 경고가 읽습니다.
+	float DangerRatio = 0.0f;
 };
 
 /**
@@ -131,6 +137,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
 	float GetCargoDangerRatio() const { return CargoDangerRatio; }
 
+	/** GetCargoDangerRatio를 만든 적재물이 바구니 중심에서 밀려난 방향(바구니 로컬 XY, 단위 벡터)입니다. 위험이 없으면 0입니다. */
+	FVector2D GetCargoDangerDirection() const { return CargoDangerDirection; }
+
 	/** 위험 Actor 피격처럼 외부 충격이 났을 때 모든 활성 적재물에 러너 우측 축 속도(cm/s)를 더합니다. */
 	void ApplyExternalLateralImpulse(float LateralVelocity);
 
@@ -194,6 +203,8 @@ private:
 	float CargoLossWorldZ = 0.0f;
 	// 직전 손실 판정에서 계산한 손실 임박 비율(0~1, 바구니 테두리 반지름 대비 최대 중심 이탈). HUD 손실 임박 경고가 읽습니다.
 	float CargoDangerRatio = 0.0f;
+	// CargoDangerRatio를 만든 적재물의 바구니 로컬 XY 이탈 방향(단위 벡터). 바구니 테두리 경고 링이 켜질 쪽입니다.
+	FVector2D CargoDangerDirection = FVector2D::ZeroVector;
 	bool bWasAirborneLastFrame = false;
 	bool bHasPreviousAnchorLocation = false;
 	bool bHasCargoLossWorldZ = false;
