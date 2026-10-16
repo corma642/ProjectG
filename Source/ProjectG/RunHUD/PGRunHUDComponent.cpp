@@ -227,11 +227,9 @@ void UPGRunHUDComponent::HandleRunnerJumpStarted()
 		return;
 	}
 
-	UPGUserDataSubsystem* UserData = GetUserDataSubsystem();
-	if (!UserData || !UserData->TryCompleteRunGuide())
+	if (UPGUserDataSubsystem* UserData = GetUserDataSubsystem())
 	{
-		// 저장이 실패해도 이번 런의 안내는 끝낸다. 플래그가 남지 않아 다음 런에서 다시 보여준다.
-		UE_LOG(LogPGRunHUDComponent, Warning, TEXT("Run guide completion could not be saved; it will be shown again next run."));
+		UserData->MarkRunGuideCompleted();
 	}
 	CleanupRunGuide(true);
 }

@@ -129,26 +129,14 @@ bool UPGUserDataSubsystem::IsRunGuideCompleted() const
 	return UserSaveGame && UserSaveGame->bRunGuideCompleted;
 }
 
-bool UPGUserDataSubsystem::TryCompleteRunGuide()
+void UPGUserDataSubsystem::MarkRunGuideCompleted()
 {
-	UPGUserSaveGame* UserData = EnsureUserData();
-	if (!UserData)
+	// 가이드는 첫 점프 순간에 끝나는데, 그 자리에서 저장 파일을 쓰고 재검증하면 점프 중 프레임이 끊긴다.
+	// 플래그만 두고 런 종료 정산 저장에 함께 쓴다.
+	if (UPGUserSaveGame* UserData = EnsureUserData())
 	{
-		return false;
+		UserData->bRunGuideCompleted = true;
 	}
-	if (UserData->bRunGuideCompleted)
-	{
-		return true;
-	}
-
-	UserData->bRunGuideCompleted = true;
-	// 저장에 실패하면 플래그를 되돌려 다음 런에서 가이드를 다시 보여주고 저장을 재시도한다.
-	if (!SaveUserData())
-	{
-		UserData->bRunGuideCompleted = false;
-		return false;
-	}
-	return true;
 }
 
 const UPGCharacterShopCatalog* UPGUserDataSubsystem::GetCharacterCatalog() const

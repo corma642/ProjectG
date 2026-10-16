@@ -79,16 +79,15 @@ int32 UPGRunEventBadgeWidget::NativePaint(const FPaintArgs& Args, const FGeometr
 
 	const FVector2D CenterLocal = AllottedGeometry.AbsoluteToLocal(CenterAbsolute);
 	const int32 Segments = FMath::Max(2, FMath::CeilToInt(RingSegments * Progress));
-	TArray<FVector2D> Points;
-	Points.Reserve(Segments + 1);
+	RingPoints.Reset(Segments + 1);
 	for (int32 Index = 0; Index <= Segments; ++Index)
 	{
 		// 12시 방향에서 시계 방향으로 돈다.
 		const float Angle = -HALF_PI + TWO_PI * Progress * (static_cast<float>(Index) / Segments);
-		Points.Add(CenterLocal + FVector2D(FMath::Cos(Angle), FMath::Sin(Angle)) * RadiusLocal);
+		RingPoints.Add(CenterLocal + FVector2D(FMath::Cos(Angle), FMath::Sin(Angle)) * RadiusLocal);
 	}
 
 	FPaintContext Context(AllottedGeometry, MyCullingRect, OutDrawElements, LayerId + 1, InWidgetStyle, bParentEnabled);
-	UWidgetBlueprintLibrary::DrawLines(Context, Points, FLinearColor::White, true, RingThickness);
+	UWidgetBlueprintLibrary::DrawLines(Context, RingPoints, FLinearColor::White, true, RingThickness);
 	return Context.MaxLayer;
 }

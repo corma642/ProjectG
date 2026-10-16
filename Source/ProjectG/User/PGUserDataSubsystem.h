@@ -54,8 +54,8 @@ public:
 	/** 첫 런 가이드를 끝까지 마친 저장 기록이 있는지 반환합니다. 저장 데이터가 없으면 false입니다. */
 	bool IsRunGuideCompleted() const;
 
-	/** 첫 런 가이드 완료를 저장합니다. 저장에 실패하면 플래그를 되돌리고 false를 반환합니다. */
-	bool TryCompleteRunGuide();
+	/** 첫 런 가이드 완료를 메모리에 표시합니다. 디스크 저장은 런 종료 정산(TrySettleRunRewards)에 묶어 런 중 동기 저장을 피합니다. 정산 전에 앱이 꺼지면 다음 런에 가이드가 다시 나옵니다. */
+	void MarkRunGuideCompleted();
 
 	/** 예열 후 캐시된 캐릭터 상점 카탈로그를 반환합니다. 준비되지 않았으면 nullptr입니다. */
 	const UPGCharacterShopCatalog* GetCharacterCatalog() const;

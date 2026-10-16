@@ -82,6 +82,8 @@ void UPGCargoStackComponent::InitializeCargoStack(const FPGCargoSettings& InCarg
 	AnchorVelocity = FVector::ZeroVector;
 	AirborneCargoAssistRemainingTime = 0.0f;
 	CargoLossWorldZ = 0.0f;
+	CargoDangerRatio = 0.0f;
+	CargoDangerDirection = FVector2D::ZeroVector;
 	bWasAirborneLastFrame = false;
 	bHasPreviousAnchorLocation = true;
 	bHasCargoLossWorldZ = false;

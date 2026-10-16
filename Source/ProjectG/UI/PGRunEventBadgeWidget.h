@@ -55,4 +55,6 @@ private:
 	float ElapsedSeconds = 0.0f;
 	// 전조면 발동까지, 발동이면 끝날 때까지의 전체 시간(초)입니다.
 	float TotalSeconds = 0.0f;
+	// 매 그리기마다 다시 채우는 링 꼭짓점 버퍼입니다. NativePaint가 const라 mutable로 둡니다.
+	mutable TArray<FVector2D> RingPoints;
 };
