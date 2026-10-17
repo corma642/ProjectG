@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "InputCoreTypes.h"
+#include "Player/PGTouchGesture.h"
 #include "Settings/PGGameSettings.h"
 #include "PGPlayerController.generated.h"
 
@@ -80,20 +81,35 @@ private:
 	// 현재 Pawn이 러너 캐릭터라면 점프 요청을 전달합니다.
 	void SendJumpRequest();
 
-	// 터치 시작 위치와 시간을 기록해 드래그/플릭 분류 기준으로 사용합니다.
+	// 첫 터치는 드래그·플릭 주 제스처로, 주 제스처가 있는 동안 들어온 두 번째 터치는 플릭 전용 보조 터치로 기록합니다.
 	void BeginTouchGesture(uint32 Handle, const FVector2D& TouchLocation);
 
-	// 터치 이동량을 -1~1 중심 보정값으로 변환합니다.
+	// 주 터치의 좌우 이동(mm)을 -1~1 중심 보정값으로 바꾸고, 최근 창 안에서 위로 튕겼으면 손을 떼지 않아도 점프합니다.
 	void UpdateTouchGesture(uint32 Handle, const FVector2D& TouchLocation);
 
-	// 터치 종료 시 짧고 빠른 플릭이면 방향별 점프를 실행하고, 아니면 입력만 해제합니다.
+	// 터치 종료 시 최근 창(주 터치) 또는 시작점(보조 터치) 기준 플릭이면 방향별 점프를 실행하고, 아니면 입력만 해제합니다.
 	void EndTouchGesture(uint32 Handle, const FVector2D& TouchLocation);
 
-	// 현재 터치 제스처 상태와 러너 입력을 중립으로 되돌립니다.
+	// 주 터치 제스처 상태와 러너 입력을 중립으로 되돌립니다. 보조 터치는 건드리지 않습니다.
 	void ResetTouchGesture();
 
-	// 종료된 터치 궤적이 왼쪽/오른쪽/위쪽 플릭인지 판정하고 처리합니다.
-	bool TryHandleFlickGesture(const FVector2D& EndLocation, float GestureDurationSeconds);
+	// 보조 터치(두 번째 손가락) 상태를 중립으로 되돌립니다.
+	void ResetSecondaryTouch();
+
+	// 터치 좌표(뷰포트 픽셀)를 mm로 바꾸는 배율을 뷰포트 크기가 바뀌었을 때만 다시 잽니다.
+	void RefreshTouchPixelsPerMm();
+
+	void ClearTouchSamples();
+	void PushTouchSample(float TimeSeconds, const FVector2D& Location);
+
+	// 주 터치의 최근 샘플 창(FlickMaxDuration 이내)에서 현재 위치까지의 이동과 시간을 구합니다. 샘플이 없으면 false입니다.
+	bool GetRecentTouchWindow(const FVector2D& CurrentLocation, float CurrentTimeSeconds, FVector2D& OutDelta, float& OutDurationSeconds) const;
+
+	// 설정의 mm 기준값을 현재 밀도의 픽셀로 바꿔 플릭 방향을 분류합니다.
+	PGTouchGesture::EFlickDirection ClassifyTouchFlick(const FVector2D& DeltaPx, float DurationSeconds, bool bAllowLateral) const;
+
+	// 분류된 플릭을 러너 점프 요청으로 바꿉니다. 요청했으면 true입니다.
+	bool DispatchFlick(PGTouchGesture::EFlickDirection Direction);
 
 	// Q/E 상태가 바뀌거나 Pawn을 다시 소유할 때 데스크탑 테스트 입력을 즉시 전달합니다.
 	void UpdateKeyboardBalanceInput();
@@ -168,4 +184,25 @@ private:
 
 	// 터치 시작 월드 시간
 	float TouchStartTimeSeconds = 0.0f;
+
+	// 주 터치의 최근 궤적 샘플입니다. 드래그 중 위 플릭을 시작점이 아니라 최근 창으로 판정하기 위한 링 버퍼입니다(120Hz 터치에서 약 0.27초).
+	struct FTouchSample
+	{
+		float TimeSeconds = 0.0f;
+		FVector2D Location = FVector2D::ZeroVector;
+	};
+	static constexpr int32 TouchSampleCapacity = 32;
+	FTouchSample TouchSamples[TouchSampleCapacity];
+	int32 TouchSampleCount = 0;
+	int32 TouchSampleHead = 0;
+
+	// 터치 좌표 1mm당 뷰포트 픽셀 수입니다. 기본값은 약 406dpi 휴대폰 기준이며 첫 터치에서 실제 밀도로 바뀝니다.
+	float TouchPixelsPerMm = 16.0f;
+	FIntPoint TouchViewportSize = FIntPoint::ZeroValue;
+
+	// 두 번째 손가락(플릭 전용)의 상태입니다. 균형 드래그를 쥔 채 다른 손가락으로 점프할 수 있게 합니다.
+	bool bHasSecondaryTouch = false;
+	uint32 SecondaryTouchHandle = 0;
+	FVector2D SecondaryTouchStartLocation = FVector2D::ZeroVector;
+	float SecondaryTouchStartTimeSeconds = 0.0f;
 };

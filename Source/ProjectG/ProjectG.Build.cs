@@ -18,6 +18,7 @@ public class ProjectG : ModuleRules
             "CoreUObject",
             "Engine",
             "InputCore",
+            "ApplicationCore",
             "EnhancedInput",
             "DeveloperSettings",
             "UMG",

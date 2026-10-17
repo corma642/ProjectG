@@ -8,6 +8,8 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/Engine.h"
+#include "GenericPlatform/GenericApplication.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "GameModes/PGGameModeBase.h"
 #include "Home/PGHomeFlowComponent.h"
 #include "InputActionValue.h"
@@ -174,6 +176,7 @@ void APGPlayerController::HandleRunCountdownStarted(float Duration)
 	bIsBalanceLeftHeld = false;
 	bIsBalanceRightHeld = false;
 	ResetTouchGesture();
+	ResetSecondaryTouch();
 }
 
 void APGPlayerController::HandleJumpStarted(const FInputActionValue& ActionValue)
@@ -234,20 +237,33 @@ bool APGPlayerController::InputTouch(const FInputDeviceId DeviceId, uint32 Handl
 		break;
 	}
 
-	return bHandledBySuper || bHasActiveTouchGesture;
+	return bHandledBySuper || bHasActiveTouchGesture || bHasSecondaryTouch;
 }
 
 void APGPlayerController::BeginTouchGesture(uint32 Handle, const FVector2D& TouchLocation)
 {
+	const float NowSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+
 	if (bHasActiveTouchGesture)
 	{
+		// 두 번째 손가락은 플릭 전용이다. 균형 드래그를 쥔 채 다른 손가락으로 점프할 수 있게 한다. 세 번째부터는 무시한다.
+		if (!bHasSecondaryTouch && Handle != ActiveTouchHandle)
+		{
+			bHasSecondaryTouch = true;
+			SecondaryTouchHandle = Handle;
+			SecondaryTouchStartLocation = TouchLocation;
+			SecondaryTouchStartTimeSeconds = NowSeconds;
+		}
 		return;
 	}
 
+	RefreshTouchPixelsPerMm();
 	bHasActiveTouchGesture = true;
 	ActiveTouchHandle = Handle;
 	TouchStartLocation = TouchLocation;
-	TouchStartTimeSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	TouchStartTimeSeconds = NowSeconds;
+	ClearTouchSamples();
+	PushTouchSample(NowSeconds, TouchLocation);
 
 	if (APGRunnerCharacter* RunnerCharacter = CachedRunnerCharacter.Get())
 	{
@@ -262,32 +278,67 @@ void APGPlayerController::UpdateTouchGesture(uint32 Handle, const FVector2D& Tou
 		return;
 	}
 
+	// 드래그 입력은 터치 시작점 기준 좌우 이동을 mm로 재서 데드존을 뺀 뒤 FullInputDistance에서 최대 입력에 닿게 한다.
 	const float DragDeltaX = TouchLocation.X - TouchStartLocation.X;
-	const float DeadZone = FMath::Max(0.0f, CachedTouchControlSettings.TouchDragDeadZone);
+	const float DeadZonePx = FMath::Max(0.0f, CachedTouchControlSettings.TouchDragDeadZoneMm) * TouchPixelsPerMm;
+	const float FullInputPx = FMath::Max(CachedTouchControlSettings.TouchDragFullInputDistanceMm * TouchPixelsPerMm, KINDA_SMALL_NUMBER);
+	const float MaxBalanceInput = FMath::Max(0.0f, CachedTouchControlSettings.MaxBalanceInput);
 	float DragInput = 0.0f;
-	if (FMath::Abs(DragDeltaX) > DeadZone)
+	if (FMath::Abs(DragDeltaX) > DeadZonePx)
 	{
-		DragInput = (DragDeltaX - FMath::Sign(DragDeltaX) * DeadZone) * CachedTouchControlSettings.TouchDragSensitivity;
+		DragInput = (FMath::Abs(DragDeltaX) - DeadZonePx) / FullInputPx * MaxBalanceInput * FMath::Sign(DragDeltaX);
 	}
 
-	if (APGRunnerCharacter* RunnerCharacter = CachedRunnerCharacter.Get())
+	APGRunnerCharacter* RunnerCharacter = CachedRunnerCharacter.Get();
+	if (RunnerCharacter)
 	{
 		// 터치 드래그는 직접 위치를 옮기지 않고 기존 Balance 가속도 경로에 넣습니다.
-		const float MaxBalanceInput = FMath::Max(0.0f, CachedTouchControlSettings.MaxBalanceInput);
 		RunnerCharacter->SetBalanceInput(FMath::Clamp(DragInput, -MaxBalanceInput, MaxBalanceInput));
 	}
+
+	// 드래그 중 위로 튕기면 손가락을 떼지 않고 점프한다. 터치 시작점이 아니라 최근 창을 보므로 긴 드래그 끝에서도 인정된다.
+	// 좌우 플릭은 균형 드래그와 구분이 안 돼 드래그 중에는 받지 않는다.
+	const float NowSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : TouchStartTimeSeconds;
+	FVector2D WindowDelta = FVector2D::ZeroVector;
+	float WindowSeconds = 0.0f;
+	if (GetRecentTouchWindow(TouchLocation, NowSeconds, WindowDelta, WindowSeconds)
+		&& ClassifyTouchFlick(WindowDelta, WindowSeconds, false) == PGTouchGesture::EFlickDirection::Up)
+	{
+		if (RunnerCharacter)
+		{
+			RunnerCharacter->RequestJump();
+		}
+		// 점프가 거절(쿨타임·공중)돼도 창을 비운다. 프로젝트는 입력 버퍼를 두지 않는다(PGRunnerMovementComponent::RequestJump 주석).
+		ClearTouchSamples();
+	}
+	PushTouchSample(NowSeconds, TouchLocation);
 }
 
 void APGPlayerController::EndTouchGesture(uint32 Handle, const FVector2D& TouchLocation)
 {
+	const float NowSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+
+	if (bHasSecondaryTouch && Handle == SecondaryTouchHandle)
+	{
+		// 두 번째 손가락은 새 터치라 시작점 기준으로 세 방향 모두 판정한다.
+		DispatchFlick(ClassifyTouchFlick(TouchLocation - SecondaryTouchStartLocation, NowSeconds - SecondaryTouchStartTimeSeconds, true));
+		ResetSecondaryTouch();
+		return;
+	}
+
 	if (!bHasActiveTouchGesture || Handle != ActiveTouchHandle)
 	{
 		return;
 	}
 
-	const float CurrentTimeSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : TouchStartTimeSeconds;
-	const float GestureDurationSeconds = FMath::Max(0.0f, CurrentTimeSeconds - TouchStartTimeSeconds);
-	TryHandleFlickGesture(TouchLocation, GestureDurationSeconds);
+	FVector2D WindowDelta = FVector2D::ZeroVector;
+	float WindowSeconds = 0.0f;
+	if (GetRecentTouchWindow(TouchLocation, NowSeconds, WindowDelta, WindowSeconds))
+	{
+		// 좌우 플릭은 짧은 새 터치에서만 받는다. 긴 드래그 끝에 손을 빠르게 떼는 동작을 측면 점프로 오인하지 않기 위해서다.
+		const bool bAllowLateral = NowSeconds - TouchStartTimeSeconds <= CachedTouchControlSettings.FlickMaxDuration;
+		DispatchFlick(ClassifyTouchFlick(WindowDelta, WindowSeconds, bAllowLateral));
+	}
 	ResetTouchGesture();
 }
 
@@ -297,6 +348,7 @@ void APGPlayerController::ResetTouchGesture()
 	ActiveTouchHandle = 0;
 	TouchStartLocation = FVector2D::ZeroVector;
 	TouchStartTimeSeconds = 0.0f;
+	ClearTouchSamples();
 
 	if (APGRunnerCharacter* RunnerCharacter = CachedRunnerCharacter.Get())
 	{
@@ -304,44 +356,109 @@ void APGPlayerController::ResetTouchGesture()
 	}
 }
 
-bool APGPlayerController::TryHandleFlickGesture(const FVector2D& EndLocation, float GestureDurationSeconds)
+void APGPlayerController::ResetSecondaryTouch()
 {
-	const FVector2D GestureDelta = EndLocation - TouchStartLocation;
-	const float Distance = GestureDelta.Size();
-	const float Duration = FMath::Max(GestureDurationSeconds, KINDA_SMALL_NUMBER);
-	const float Speed = Distance / Duration;
+	bHasSecondaryTouch = false;
+	SecondaryTouchHandle = 0;
+	SecondaryTouchStartLocation = FVector2D::ZeroVector;
+	SecondaryTouchStartTimeSeconds = 0.0f;
+}
 
-	if (GestureDurationSeconds > CachedTouchControlSettings.FlickMaxDuration
-		|| Distance < CachedTouchControlSettings.FlickMinDistance
-		|| Speed < CachedTouchControlSettings.FlickMinSpeed)
+void APGPlayerController::RefreshTouchPixelsPerMm()
+{
+	int32 ViewportX = 0;
+	int32 ViewportY = 0;
+	GetViewportSize(ViewportX, ViewportY);
+	const FIntPoint ViewportSize(ViewportX, ViewportY);
+	if (ViewportSize == TouchViewportSize)
 	{
-		return false;
+		return;
+	}
+	TouchViewportSize = ViewportSize;
+
+	int32 Dpi = 0;
+	FPlatformApplicationMisc::GetPhysicalScreenDensity(Dpi);
+	if (Dpi <= 0)
+	{
+		// 밀도를 모르는 기기는 흔한 휴대폰 값으로 본다. 너무 낮게 잡으면 임계값이 픽셀로는 작아져 과민해진다.
+		Dpi = 420;
 	}
 
+	// 뷰포트가 네이티브 화면보다 작게 렌더되는 기기(r.MobileContentScaleFactor)는 터치 좌표도 그만큼 줄어든다.
+	// 세로·가로 보고 차이를 피하려고 긴 변끼리 비교한다.
+	FDisplayMetrics DisplayMetrics;
+	FDisplayMetrics::RebuildDisplayMetrics(DisplayMetrics);
+	const float DisplayLongSide = static_cast<float>(FMath::Max(DisplayMetrics.PrimaryDisplayWidth, DisplayMetrics.PrimaryDisplayHeight));
+	const float ViewportLongSide = static_cast<float>(FMath::Max(ViewportX, ViewportY));
+	const float ViewportScale = (DisplayLongSide > 0.0f && ViewportLongSide > 0.0f) ? FMath::Min(1.0f, ViewportLongSide / DisplayLongSide) : 1.0f;
+	TouchPixelsPerMm = Dpi / 25.4f * ViewportScale;
+}
+
+void APGPlayerController::ClearTouchSamples()
+{
+	TouchSampleCount = 0;
+	TouchSampleHead = 0;
+}
+
+void APGPlayerController::PushTouchSample(float TimeSeconds, const FVector2D& Location)
+{
+	TouchSamples[TouchSampleHead].TimeSeconds = TimeSeconds;
+	TouchSamples[TouchSampleHead].Location = Location;
+	TouchSampleHead = (TouchSampleHead + 1) % TouchSampleCapacity;
+	TouchSampleCount = FMath::Min(TouchSampleCount + 1, TouchSampleCapacity);
+}
+
+bool APGPlayerController::GetRecentTouchWindow(const FVector2D& CurrentLocation, float CurrentTimeSeconds, FVector2D& OutDelta, float& OutDurationSeconds) const
+{
+	// 오래된 샘플부터 훑어 FlickMaxDuration 안에 드는 첫 샘플을 창의 시작으로 삼는다.
+	for (int32 Index = 0; Index < TouchSampleCount; ++Index)
+	{
+		const FTouchSample& Sample = TouchSamples[(TouchSampleHead - TouchSampleCount + Index + TouchSampleCapacity) % TouchSampleCapacity];
+		const float Elapsed = CurrentTimeSeconds - Sample.TimeSeconds;
+		if (Elapsed <= CachedTouchControlSettings.FlickMaxDuration)
+		{
+			OutDelta = CurrentLocation - Sample.Location;
+			OutDurationSeconds = FMath::Max(0.0f, Elapsed);
+			return true;
+		}
+	}
+	return false;
+}
+
+PGTouchGesture::EFlickDirection APGPlayerController::ClassifyTouchFlick(const FVector2D& DeltaPx, float DurationSeconds, bool bAllowLateral) const
+{
+	return PGTouchGesture::ClassifyFlick(
+		DeltaPx,
+		DurationSeconds,
+		CachedTouchControlSettings.FlickMinDistanceMm * TouchPixelsPerMm,
+		CachedTouchControlSettings.FlickMaxDuration,
+		CachedTouchControlSettings.FlickMinSpeedMmPerSec * TouchPixelsPerMm,
+		CachedTouchControlSettings.FlickDirectionDominance,
+		bAllowLateral);
+}
+
+bool APGPlayerController::DispatchFlick(PGTouchGesture::EFlickDirection Direction)
+{
 	APGRunnerCharacter* RunnerCharacter = CachedRunnerCharacter.Get();
 	if (!RunnerCharacter)
 	{
 		return false;
 	}
 
-	const float AbsX = FMath::Abs(GestureDelta.X);
-	const float AbsY = FMath::Abs(GestureDelta.Y);
-	const float DirectionDominance = FMath::Max(1.0f, CachedTouchControlSettings.FlickDirectionDominance);
-
-	if (AbsX >= AbsY * DirectionDominance)
+	switch (Direction)
 	{
-		RunnerCharacter->RequestFlickJump(GestureDelta.X > 0.0f ? 1.0f : -1.0f);
+	case PGTouchGesture::EFlickDirection::Left:
+		RunnerCharacter->RequestFlickJump(-1.0f);
 		return true;
-	}
-
-	// UE 화면 좌표는 Y가 아래로 증가하므로 위쪽 플릭은 음수 Y 이동입니다.
-	if (GestureDelta.Y < 0.0f && AbsY >= AbsX * DirectionDominance)
-	{
+	case PGTouchGesture::EFlickDirection::Right:
+		RunnerCharacter->RequestFlickJump(1.0f);
+		return true;
+	case PGTouchGesture::EFlickDirection::Up:
 		RunnerCharacter->RequestJump();
 		return true;
+	default:
+		return false;
 	}
-
-	return false;
 }
 
 void APGPlayerController::UpdateKeyboardBalanceInput()

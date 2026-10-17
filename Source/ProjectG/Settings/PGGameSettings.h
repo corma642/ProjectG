@@ -113,29 +113,30 @@ struct FPGTouchControlSettings
 {
 	GENERATED_BODY()
 
-	// 좌우 드래그 픽셀 이동량을 중심 보정 입력으로 바꾸는 민감도입니다.
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Touch", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "0.05"))
-	float TouchDragSensitivity = 0.006f;
-
 	// 드래그, 플릭, 데스크톱 테스트 입력이 만들 수 있는 중심 보정 입력의 최대 절댓값입니다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Touch", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float MaxBalanceInput = 1.0f;
 
-	// 이 픽셀 거리보다 작은 좌우 드래그는 손 떨림으로 보고 무시합니다.
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Touch", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "80.0"))
-	float TouchDragDeadZone = 8.0f;
+	// 거리 기준값은 화면 밀도(dpi)로 픽셀로 바꿔 쓰므로 기기가 달라도 손가락 이동 거리(mm)가 같으면 같은 입력이 됩니다.
+	// 이 거리(mm)보다 작은 좌우 드래그는 손 떨림으로 보고 무시합니다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Touch", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3.0"))
+	float TouchDragDeadZoneMm = 0.5f;
 
-	// 플릭으로 인정할 최소 이동 거리입니다.
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Touch", meta = (ClampMin = "0.0", UIMin = "20.0", UIMax = "240.0"))
-	float FlickMinDistance = 80.0f;
+	// 데드존을 넘은 뒤 중심 보정 입력이 MaxBalanceInput에 닿는 좌우 이동 거리(mm)입니다. 작을수록 민감합니다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Touch", meta = (ClampMin = "0.1", UIMin = "1.0", UIMax = "20.0"))
+	float TouchDragFullInputDistanceMm = 4.5f;
 
-	// 플릭으로 인정할 최대 입력 시간입니다. 이보다 느리면 일반 드래그로 처리합니다.
+	// 플릭으로 인정할 최소 이동 거리(mm)입니다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Touch", meta = (ClampMin = "0.0", UIMin = "1.0", UIMax = "30.0"))
+	float FlickMinDistanceMm = 5.0f;
+
+	// 플릭으로 인정할 최대 입력 시간입니다. 이보다 느리면 일반 드래그로 처리합니다. 드래그 중 위 플릭은 최근 이 시간 안의 이동으로 판정합니다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Touch", meta = (ClampMin = "0.01", UIMin = "0.05", UIMax = "0.5"))
 	float FlickMaxDuration = 0.25f;
 
-	// 플릭으로 인정할 최소 속도입니다.
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Touch", meta = (ClampMin = "0.0", UIMin = "100.0", UIMax = "2000.0"))
-	float FlickMinSpeed = 600.0f;
+	// 플릭으로 인정할 최소 속도(mm/s)입니다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Touch", meta = (ClampMin = "0.0", UIMin = "10.0", UIMax = "500.0"))
+	float FlickMinSpeedMmPerSec = 40.0f;
 
 	// 좌우/상향 플릭 방향을 판정할 때 주축 이동량이 보조축보다 커야 하는 비율입니다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player | Touch", meta = (ClampMin = "1.0", UIMin = "1.0", UIMax = "3.0"))
