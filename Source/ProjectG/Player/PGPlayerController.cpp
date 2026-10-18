@@ -7,6 +7,7 @@
 #include "Debug/PGFPSDisplayComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "Framework/Application/IInputProcessor.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Input/Events.h"
 #include "InputCoreTypes.h"
@@ -23,6 +24,38 @@
 #include "RunResults/PGRunResultFeedbackComponent.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGPlayerController, Log, All);
+
+// 뒤로가기 키를 Slate 라우팅 앞단에서 듣는 입력 전처리기.
+// FSlateApplication::OnApplicationPreInputKeyDownListener는 WITH_EDITOR 전용이라 패키징(게임) 빌드에서는 컴파일되지 않는다.
+class FPGBackKeyInputProcessor : public IInputProcessor
+{
+public:
+	explicit FPGBackKeyInputProcessor(APGPlayerController* InController)
+		: Controller(InController)
+	{
+	}
+
+	virtual void Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor) override
+	{
+	}
+
+	virtual bool HandleKeyDownEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent) override
+	{
+		const FKey Key = InKeyEvent.GetKey();
+		if (!InKeyEvent.IsRepeat() && (Key == EKeys::Android_Back || Key == EKeys::Escape))
+		{
+			if (APGPlayerController* PlayerController = Controller.Get())
+			{
+				PlayerController->HandleBackRequested();
+			}
+		}
+		// 읽기 전용 리스너: 이벤트를 소비하지 않아 위젯의 기존 키 처리는 그대로 진행된다.
+		return false;
+	}
+
+private:
+	TWeakObjectPtr<APGPlayerController> Controller;
+};
 
 APGPlayerController::APGPlayerController()
 {
@@ -51,7 +84,8 @@ void APGPlayerController::BeginPlay()
 	// 뒤로가기는 입력 모드(UIOnly 결과창 포함)와 무관하게 받아야 하므로 PlayerInput이 아니라 Slate 입력 앞단에서 듣는다.
 	if (FSlateApplication::IsInitialized())
 	{
-		BackKeyListenerHandle = FSlateApplication::Get().OnApplicationPreInputKeyDownListener().AddUObject(this, &APGPlayerController::HandleApplicationKeyDown);
+		BackKeyInputProcessor = MakeShared<FPGBackKeyInputProcessor>(this);
+		FSlateApplication::Get().RegisterInputPreProcessor(BackKeyInputProcessor);
 	}
 
 	if (!HasRequiredInputAssets())
@@ -91,9 +125,13 @@ void APGPlayerController::BeginPlay()
 
 void APGPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (FSlateApplication::IsInitialized())
+	if (BackKeyInputProcessor.IsValid())
 	{
-		FSlateApplication::Get().OnApplicationPreInputKeyDownListener().Remove(BackKeyListenerHandle);
+		if (FSlateApplication::IsInitialized())
+		{
+			FSlateApplication::Get().UnregisterInputPreProcessor(BackKeyInputProcessor);
+		}
+		BackKeyInputProcessor.Reset();
 	}
 	if (APGGameModeBase* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APGGameModeBase>() : nullptr)
 	{
@@ -493,20 +531,6 @@ float APGPlayerController::GetKeyboardBalanceInput() const
 	return FMath::Clamp(LeftInput + RightInput, -MaxBalanceInput, MaxBalanceInput);
 }
 
-
-void APGPlayerController::HandleApplicationKeyDown(const FKeyEvent& KeyEvent)
-{
-	if (KeyEvent.IsRepeat())
-	{
-		return;
-	}
-
-	const FKey Key = KeyEvent.GetKey();
-	if (Key == EKeys::Android_Back || Key == EKeys::Escape)
-	{
-		HandleBackRequested();
-	}
-}
 
 void APGPlayerController::HandleBackRequested()
 {

@@ -19,7 +19,6 @@ class UPGRunHUDComponent;
 class UPGRunEventFeedbackComponent;
 class UPGRunResultFeedbackComponent;
 struct FInputActionValue;
-struct FKeyEvent;
 
 /**
  * 모바일 터치 드래그/플릭 입력과 에디터 테스트 입력을 러너 캐릭터에 전달하는 컨트롤러입니다.
@@ -117,10 +116,9 @@ private:
 
 	// Q/E 상태가 바뀌거나 Pawn을 다시 소유할 때 데스크탑 테스트 입력을 즉시 전달합니다.
 	void UpdateKeyboardBalanceInput();
-	void HandleApplicationKeyDown(const FKeyEvent& KeyEvent);
 
-	// Slate 입력 앞단 뒤로가기 키 리스너 핸들입니다.
-	FDelegateHandle BackKeyListenerHandle;
+	// Android 뒤로가기·Escape를 입력 모드와 무관하게 Slate 라우팅 앞단에서 받는 입력 전처리기입니다.
+	TSharedPtr<class IInputProcessor> BackKeyInputProcessor;
 
 	// 데스크탑 테스트용 Q/E 중심 보정 입력을 -1~1 범위로 반환합니다.
 	float GetKeyboardBalanceInput() const;
