@@ -395,3 +395,14 @@ void UPGRunResultWidget::HandleHomeReleased()
 {
 	ApplyWidgetScale(HomeButtonPanel ? HomeButtonPanel.Get() : HomeButton.Get(), ButtonNormalScale);
 }
+
+bool UPGRunResultWidget::RequestHome()
+{
+	if (!HomeButton || !HomeButton->GetIsEnabled())
+	{
+		return false;
+	}
+
+	HandleHomeClicked();
+	return true;
+}

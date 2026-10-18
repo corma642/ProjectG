@@ -55,6 +55,9 @@ public:
 	/** BP 레이아웃을 변경하지 않고 C++ 진입 애니메이션을 처음부터 재생합니다. */
 	void PlayOpenAnimation();
 
+	/** 뒤로가기처럼 외부 요청으로 닫기 버튼과 같은 동작(버튼 잠금·닫기 요청 알림)을 수행합니다. */
+	void RequestClose();
+
 	/** 상위 화면 전환이나 모달 표시 중 상점의 모든 사용자 입력을 일괄 잠급니다. */
 	void SetShopInteractionEnabled(bool bEnabled);
 

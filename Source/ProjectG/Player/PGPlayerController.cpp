@@ -7,6 +7,9 @@
 #include "Debug/PGFPSDisplayComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Input/Events.h"
+#include "InputCoreTypes.h"
 #include "Engine/Engine.h"
 #include "GenericPlatform/GenericApplication.h"
 #include "HAL/PlatformApplicationMisc.h"
@@ -45,6 +48,12 @@ void APGPlayerController::BeginPlay()
 	ApplyGameSettings();
 	CacheRunnerPawn(GetPawn());
 
+	// 뒤로가기는 입력 모드(UIOnly 결과창 포함)와 무관하게 받아야 하므로 PlayerInput이 아니라 Slate 입력 앞단에서 듣는다.
+	if (FSlateApplication::IsInitialized())
+	{
+		BackKeyListenerHandle = FSlateApplication::Get().OnApplicationPreInputKeyDownListener().AddUObject(this, &APGPlayerController::HandleApplicationKeyDown);
+	}
+
 	if (!HasRequiredInputAssets())
 	{
 		UE_LOG(LogPGPlayerController, Error, TEXT("PGPlayerController requires DefaultMappingContext, JumpAction, BalanceLeftAction, and BalanceRightAction."));
@@ -82,6 +91,10 @@ void APGPlayerController::BeginPlay()
 
 void APGPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (FSlateApplication::IsInitialized())
+	{
+		FSlateApplication::Get().OnApplicationPreInputKeyDownListener().Remove(BackKeyListenerHandle);
+	}
 	if (APGGameModeBase* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APGGameModeBase>() : nullptr)
 	{
 		GameMode->OnRunCountdownStarted.RemoveDynamic(this, &APGPlayerController::HandleRunCountdownStarted);
@@ -480,3 +493,34 @@ float APGPlayerController::GetKeyboardBalanceInput() const
 	return FMath::Clamp(LeftInput + RightInput, -MaxBalanceInput, MaxBalanceInput);
 }
 
+
+void APGPlayerController::HandleApplicationKeyDown(const FKeyEvent& KeyEvent)
+{
+	if (KeyEvent.IsRepeat())
+	{
+		return;
+	}
+
+	const FKey Key = KeyEvent.GetKey();
+	if (Key == EKeys::Android_Back || Key == EKeys::Escape)
+	{
+		HandleBackRequested();
+	}
+}
+
+void APGPlayerController::HandleBackRequested()
+{
+	// Home 모달 → 런 중 Pause → 결과창 Home 순서. 처리할 화면이 없으면(전환 중 등) 무시한다.
+	if (HomeFlowComponent && HomeFlowComponent->TryHandleBack())
+	{
+		return;
+	}
+	if (RunHUDComponent && RunHUDComponent->TryHandleBack())
+	{
+		return;
+	}
+	if (RunResultFeedbackComponent)
+	{
+		RunResultFeedbackComponent->TryHandleBack();
+	}
+}

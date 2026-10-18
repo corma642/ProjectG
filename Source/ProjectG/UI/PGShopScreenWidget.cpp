@@ -1076,3 +1076,8 @@ void UPGShopScreenWidget::ApplyActionFeedback(float DeltaSeconds)
 		}
 	}
 }
+
+void UPGShopScreenWidget::RequestClose()
+{
+	HandleCloseClicked();
+}

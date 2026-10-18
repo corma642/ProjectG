@@ -33,6 +33,9 @@ public:
 	/** 위젯을 화면에 추가한 직후 배경 블러/딤과 패널 진입 애니메이션을 시작합니다. */
 	void PlayOpenAnimation();
 
+	/** 뒤로가기처럼 외부 요청으로 닫기 버튼과 같은 동작(저장·닫힘 애니메이션·닫힘 알림)을 수행합니다. */
+	void RequestClose();
+
 protected:
 	/** BP 컨트롤 delegate를 연결하고 저장된 품질·볼륨 값을 UI에 반영합니다. */
 	virtual void NativeConstruct() override;

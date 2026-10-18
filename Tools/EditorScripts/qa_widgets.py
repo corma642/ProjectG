@@ -203,6 +203,7 @@ SCREENS = (
     # 첫 페이지에서는 이전 버튼이 꺼진다.
     ('TutorialScreen', 'Home/WBP_TutorialScreen', ('PrevButton',)),
     ('RunPause', 'HUD/WBP_RunPause', ()),
+    ('QuitConfirm', 'Home/WBP_QuitConfirm', ()),
     ('RunResult', 'RunResult/WBP_RunResult', ()),
     # 유저 데이터가 없어 탭 전환이 꺼진다. 카드 목록은 아래에서 직접 채운다.
     ('ShopScreen', 'Shop/WBP_ShopScreen', ('CharactersTabButton', 'MapsTabButton')),

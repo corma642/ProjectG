@@ -1,0 +1,7 @@
+# seed 2
+# 앱 백그라운드 자동 일시정지 확인용(카운트다운 중): 레벨 로드 → 카운트다운 → 1.5초에 앱 비활성화(PG.Showcase.Background) → Pause 화면이 뜨고 카운트다운이 멈춘다.
+# 시각은 스크립트 시작 기준 초다(WaitForRun 없음). 리로드 예열 약 0.7초 뒤 카운트다운 2초가 시작되므로 1.5초는 카운트다운 중이다. Resume은 사람이 누르는 버튼이라 영상은 Pause 화면에서 끝난다.
+0 r.SetRes 540x1170w
+0 PG.Showcase.AutoPilot 1
+0 PG.Showcase.DumpFrames {OUT} 30 120
+1.5 PG.Showcase.Background

@@ -40,6 +40,9 @@ public:
 	/** 입력을 잠근 뒤 역방향 애니메이션을 재생하고 완료 시 닫힘 delegate를 발생시킵니다. */
 	void PlayCloseAnimation();
 
+	/** 뒤로가기처럼 외부 요청으로 닫기 버튼과 같은 동작을 수행합니다. */
+	void RequestClose();
+
 protected:
 	/** BP 버튼을 연결하고 모달의 진입 전 초기 상태를 준비합니다. */
 	virtual void NativeConstruct() override;

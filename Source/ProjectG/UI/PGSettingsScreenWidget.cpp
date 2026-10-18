@@ -477,3 +477,8 @@ void UPGSettingsScreenWidget::UpdateSFXVolumeText(float Value) const
 			FText::AsNumber(FMath::RoundToInt(Value))));
 	}
 }
+
+void UPGSettingsScreenWidget::RequestClose()
+{
+	HandleCloseClicked();
+}

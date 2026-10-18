@@ -12,6 +12,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Loading/PGRuntimePreloadSubsystem.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Misc/CoreDelegates.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Player/PGPlayerController.h"
 #include "RunProgress/PGRunProgressComponent.h"
@@ -56,6 +57,8 @@ void UPGRunHUDComponent::BeginPlay()
 	LoadSettings();
 	BindGameMode();
 	HandleRunnerPossessed(Cast<APGRunnerCharacter>(OwnerPlayerController->GetPawn()));
+	// Android는 앱이 뒤로 가도 게임 스레드가 계속 돌아 적재물이 떨어지므로, 비활성화 순간 바로 일시정지한다.
+	ApplicationDeactivatedHandle = FCoreDelegates::ApplicationWillDeactivateDelegate.AddUObject(this, &UPGRunHUDComponent::HandleApplicationDeactivated);
 
 	if (BoundGameMode && (BoundGameMode->GetRunState() == EPGRunState::Countdown || BoundGameMode->GetRunState() == EPGRunState::Running))
 	{
@@ -66,6 +69,7 @@ void UPGRunHUDComponent::BeginPlay()
 
 void UPGRunHUDComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	FCoreDelegates::ApplicationWillDeactivateDelegate.Remove(ApplicationDeactivatedHandle);
 	UnbindGameMode();
 	HandleRunnerUnpossessed();
 	CleanupSettingsScreen();
@@ -236,6 +240,12 @@ void UPGRunHUDComponent::HandleRunnerJumpStarted()
 
 void UPGRunHUDComponent::HandlePauseRequested()
 {
+	ShowPauseScreen();
+}
+
+void UPGRunHUDComponent::HandleApplicationDeactivated()
+{
+	// 전화·알림·홈 버튼으로 앱이 뒤로 가면 Running과 Countdown 모두 Pause 화면을 띄운다. 복귀 뒤에는 플레이어가 Resume을 눌러야 이어진다.
 	ShowPauseScreen();
 }
 
@@ -671,9 +681,9 @@ void UPGRunHUDComponent::ShowPauseScreen()
 		return;
 	}
 
-	if (BoundGameMode && BoundGameMode->GetRunState() != EPGRunState::Running)
+	if (BoundGameMode && BoundGameMode->GetRunState() != EPGRunState::Running && BoundGameMode->GetRunState() != EPGRunState::Countdown)
 	{
-		// 카운트다운과 실패 상태에서는 HUD가 보여도 Pause 입력은 허용하지 않는다.
+		// 실패 상태에서는 HUD가 보여도 Pause를 허용하지 않는다. 카운트다운은 HUD Pause 버튼은 잠그되 앱 비활성화 자동 일시정지는 받는다.
 		return;
 	}
 
@@ -799,4 +809,27 @@ void UPGRunHUDComponent::ApplyPauseInputMode() const
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 	OwnerPlayerController->SetInputMode(InputMode);
 	OwnerPlayerController->SetShowMouseCursor(true);
+}
+
+bool UPGRunHUDComponent::TryHandleBack()
+{
+	if (SettingsScreenWidget)
+	{
+		SettingsScreenWidget->RequestClose();
+		return true;
+	}
+	if (PauseWidget)
+	{
+		// Resume 버튼과 같은 닫힘 애니메이션을 거쳐 OnResumeRequested로 돌아온다.
+		PauseWidget->PlayCloseForResume();
+		return true;
+	}
+
+	const EPGRunState RunState = BoundGameMode ? BoundGameMode->GetRunState() : EPGRunState::Home;
+	if (RunState == EPGRunState::Running || RunState == EPGRunState::Countdown)
+	{
+		ShowPauseScreen();
+		return true;
+	}
+	return false;
 }

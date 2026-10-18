@@ -30,6 +30,9 @@ public:
 	/** GameMode delegate, 진행 중인 슬로모션, viewport 결과 위젯을 컴포넌트 종료 전에 정리합니다. */
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	/** 결과 화면이 떠 있으면 뒤로가기를 Home 버튼으로 처리하고 true를 반환합니다. */
+	bool TryHandleBack();
+
 private:
 	UFUNCTION()
 	void HandleRunFailed(FName FailureReason);

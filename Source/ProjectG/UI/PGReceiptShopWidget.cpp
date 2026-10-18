@@ -247,3 +247,8 @@ void UPGReceiptShopWidget::ApplyEntryAnimation(float Alpha) const
 		ShopPanel->SetRenderScale(FVector2D(Scale, Scale));
 	}
 }
+
+void UPGReceiptShopWidget::RequestClose()
+{
+	HandleCloseClicked();
+}

@@ -25,6 +25,7 @@
 #include "Misc/FileHelper.h"
 #include "Movement/PGRunnerMovementComponent.h"
 #include "PBDRigidsSolver.h"
+#include "Player/PGPlayerController.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "Rendering/SlateRenderer.h"
 #include "RunEvents/PGRunEventSubsystem.h"
@@ -47,6 +48,10 @@ DEFINE_LOG_CATEGORY_STATIC(LogPGShowcase, Log, All);
  *   시각은 Play를 호출한 뒤 흐른 게임 프레임 시간이며, 슬로모션의 영향을 받지 않습니다.
  * PG.Showcase.WaitForRun
  *   스크립트 안에서 사용합니다. 런이 시작될(GO) 때까지 스크립트 시계를 멈춰, 이후 명령의 시각이 예열 시간과 무관하게 런 시작 기준이 되게 합니다.
+ * PG.Showcase.Background
+ *   앱이 뒤로 가는 순간(ApplicationWillDeactivateDelegate)을 흉내 내 자동 일시정지를 연출합니다. Resume은 사람이 누르는 버튼이라 명령이 없습니다.
+ * PG.Showcase.Back
+ *   Android 뒤로가기를 흉내 냅니다(APGPlayerController::HandleBackRequested). 모달 닫기, Pause 토글, Home 종료 확인을 연출합니다.
  * PG.Showcase.AutoPilot <0|1>
  *   입력 없이도 러너가 길을 따라가도록 좌우 이동과 점프를 대신 넣습니다.
  * PG.Showcase.Balance <입력 -1~1> [초]
@@ -709,6 +714,26 @@ namespace
 		FConsoleCommandDelegate::CreateLambda([]()
 		{
 			GShowcaseScript.bWaitingForRun = true;
+		}));
+
+	FAutoConsoleCommand GBackCommand(
+		TEXT("PG.Showcase.Back"),
+		TEXT("PG.Showcase.Back: simulates the Android back button (APGPlayerController::HandleBackRequested)."),
+		FConsoleCommandDelegate::CreateLambda([]()
+		{
+			UWorld* World = FindGameWorld();
+			if (APGPlayerController* PlayerController = World ? Cast<APGPlayerController>(World->GetFirstPlayerController()) : nullptr)
+			{
+				PlayerController->HandleBackRequested();
+			}
+		}));
+
+	FAutoConsoleCommand GBackgroundCommand(
+		TEXT("PG.Showcase.Background"),
+		TEXT("PG.Showcase.Background: simulates the app losing focus (ApplicationWillDeactivateDelegate) so the run auto-pauses."),
+		FConsoleCommandDelegate::CreateLambda([]()
+		{
+			FCoreDelegates::ApplicationWillDeactivateDelegate.Broadcast();
 		}));
 }
 

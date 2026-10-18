@@ -315,6 +315,10 @@ struct FPGHomeFlowSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Tutorial")
 	TSoftObjectPtr<UPGTutorialPageSet> TutorialPageSet;
 
+	// Home에서 Android 뒤로가기를 눌렀을 때 앱 종료를 묻는 모달 위젯 클래스
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Home")
+	TSoftClassPtr<UUserWidget> QuitConfirmWidgetClass;
+
 	// Home/Shop/Start처럼 카메라와 UI가 동시에 바뀌는 구간을 덮을 전체 화면 페이드 위젯 클래스
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Transition")
 	TSoftClassPtr<UUserWidget> ScreenTransitionFadeWidgetClass;

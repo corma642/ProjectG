@@ -20,6 +20,7 @@ class UPGScreenTransitionFadeWidget;
 class UPGSettingsScreenWidget;
 class UPGShopScreenWidget;
 class UPGTutorialScreenWidget;
+class UPGQuitConfirmWidget;
 class UPGUserDataSubsystem;
 enum class EPGRuntimePreloadGroup : uint8;
 
@@ -63,6 +64,9 @@ public:
 
 	/** 등록한 delegate와 이 컴포넌트가 생성한 모든 위젯을 수명 종료 전에 해제합니다. */
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	/** 뒤로가기를 열린 Home 모달 닫기 → Home 종료 확인 순으로 처리하고 처리했으면 true를 반환합니다. 런 중에는 false입니다. */
+	bool TryHandleBack();
 
 private:
 	UFUNCTION()
@@ -125,6 +129,10 @@ private:
 	void ShowSettingsScreen();
 	void ShowTutorialScreen();
 	void ShowReceiptShopScreen();
+	void ShowQuitConfirm();
+	void RemoveQuitConfirmWidget();
+	void HandleQuitConfirmed();
+	void HandleQuitCancelled();
 	void ApplyHomeInputMode();
 	void ApplyGameInputMode();
 
@@ -164,6 +172,10 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPGTutorialScreenWidget> TutorialScreenWidget;
+
+	// Home에서 뒤로가기로 띄우는 앱 종료 확인 모달입니다.
+	UPROPERTY(Transient)
+	TObjectPtr<UPGQuitConfirmWidget> QuitConfirmWidget;
 
 	// 태그 검색 비용을 반복하지 않도록 Home/Shop 카메라를 최초 탐색 후 캐시합니다.
 	TWeakObjectPtr<ACameraActor> CachedHomeCameraActor;

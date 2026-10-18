@@ -217,3 +217,9 @@ APGRunnerCharacter* UPGRunResultFeedbackComponent::GetRunnerCharacter() const
 	const APlayerController* PlayerController = GetOwningPlayerController();
 	return PlayerController ? Cast<APGRunnerCharacter>(PlayerController->GetPawn()) : nullptr;
 }
+
+bool UPGRunResultFeedbackComponent::TryHandleBack()
+{
+	UPGRunResultWidget* RunResultWidget = Cast<UPGRunResultWidget>(ResultWidget);
+	return RunResultWidget && RunResultWidget->RequestHome();
+}

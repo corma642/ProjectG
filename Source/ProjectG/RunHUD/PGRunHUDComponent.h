@@ -39,6 +39,9 @@ public:
 	/** Pause/Settings 모달, HUD, delegate 참조를 수명 종료 전에 정리합니다. 일시정지 해제는 하지 않습니다. */
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	/** 뒤로가기를 Pause 위 Settings 닫기 → Pause 해제 → Running·Countdown 일시정지 순으로 처리하고 처리했으면 true를 반환합니다. */
+	bool TryHandleBack();
+
 	/** 활성 Cargo 카드의 남은 시간처럼 이벤트만으로 갱신할 수 없는 HUD 상태를 제한 주기로 새로 고칩니다. */
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
@@ -71,6 +74,7 @@ private:
 	void HandleCargoDelivered(int32 CargoInstanceId, int32 Score, int32 Receipts, FVector DeliveryLocation);
 	void HandleRunnerJumpStarted();
 	void HandlePauseRequested();
+	void HandleApplicationDeactivated();
 	void HandleResumeRequested();
 	void HandlePauseSettingsRequested();
 	void HandlePauseHomeRequested();
@@ -138,6 +142,9 @@ private:
 
 	// 가이드 단계 판정(드래그 입력량, 점프 시작)에 쓰는 현재 러너입니다. GameMode가 소유하므로 약한 참조만 둡니다.
 	TWeakObjectPtr<APGRunnerCharacter> BoundRunnerCharacter;
+
+	// 앱 비활성화(전화·알림·홈 버튼·화면 꺼짐) 자동 일시정지 바인딩입니다.
+	FDelegateHandle ApplicationDeactivatedHandle;
 
 	// 현재 가이드가 기다리는 조작 단계입니다. None이면 가이드가 없습니다.
 	EPGRunGuideStep RunGuideStep = EPGRunGuideStep::None;

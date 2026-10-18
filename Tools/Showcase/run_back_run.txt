@@ -1,0 +1,8 @@
+# seed 2
+# Android 뒤로가기 확인용(러닝): GO 2초 뒤 뒤로가기(PG.Showcase.Back) → Pause 화면 → 4초에 다시 뒤로가기 → Resume → 러닝 계속. 시각은 런 시작(GO) 기준 초다.
+0 r.SetRes 540x1170w
+0 PG.Showcase.AutoPilot 1
+0 PG.Showcase.WaitForRun
+0 PG.Showcase.DumpFrames {OUT} 30 210
+2.0 PG.Showcase.Back
+4.0 PG.Showcase.Back

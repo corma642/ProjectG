@@ -1,0 +1,7 @@
+# seed 2
+# 앱 백그라운드 자동 일시정지 확인용(러닝 중): GO 3초 뒤 앱 비활성화(PG.Showcase.Background) → Pause 화면이 뜨고 러너·적재물이 멈춘다. 시각은 런 시작(GO) 기준 초다.
+0 r.SetRes 540x1170w
+0 PG.Showcase.AutoPilot 1
+0 PG.Showcase.WaitForRun
+0 PG.Showcase.DumpFrames {OUT} 30 180
+3.0 PG.Showcase.Background

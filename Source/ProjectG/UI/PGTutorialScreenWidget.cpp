@@ -257,3 +257,8 @@ float UPGTutorialScreenWidget::GetPageTravelDistance() const
 
 	return 900.0f;
 }
+
+void UPGTutorialScreenWidget::RequestClose()
+{
+	HandleCloseClicked();
+}

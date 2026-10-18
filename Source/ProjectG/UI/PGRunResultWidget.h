@@ -25,6 +25,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | UI")
 	void ConfigureRunResult(FName FailureReason, float RunTimeSeconds, float DistanceMeters, int32 Score, int32 Receipts, int32 OrdersDelivered);
 
+	/** 뒤로가기로 Home 버튼과 같은 동작을 수행합니다. 버튼이 아직 잠겨 있으면(진입 애니메이션 중) false를 반환합니다. */
+	bool RequestHome();
+
 protected:
 	/** BP 버튼·행 캐시를 연결하고 ConfigureRunResult 이전에도 안전한 초기 표현을 준비합니다. */
 	virtual void NativeConstruct() override;

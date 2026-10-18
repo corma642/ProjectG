@@ -27,6 +27,9 @@ public:
 	/** 닫힌 튜토리얼 모달을 Home 흐름에 알립니다. */
 	FPGTutorialClosedSignature OnTutorialClosed;
 
+	/** 뒤로가기처럼 외부 요청으로 닫기 버튼과 같은 동작을 수행합니다. */
+	void RequestClose();
+
 	/** 튜토리얼 페이지셋을 연결하고 첫 페이지를 표시합니다. null이면 빈 상태를 유지합니다. */
 	void InitializeTutorial(UPGTutorialPageSet* InPageSet);
 

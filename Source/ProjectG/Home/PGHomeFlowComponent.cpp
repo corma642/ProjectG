@@ -10,11 +10,13 @@
 #include "GameModes/PGGameModeBase.h"
 #include "Loading/PGRuntimePreloadSubsystem.h"
 #include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "Misc/PackageName.h"
 #include "Player/PGPlayerController.h"
 #include "Shop/PGMapDefinition.h"
 #include "Shop/PGMapShopCatalog.h"
 #include "UI/PGHomeScreenWidget.h"
+#include "UI/PGQuitConfirmWidget.h"
 #include "UI/PGReceiptShopPackItemWidget.h"
 #include "UI/PGReceiptShopWidget.h"
 #include "UI/PGRunCountdownWidget.h"
@@ -470,6 +472,7 @@ void UPGHomeFlowComponent::CleanupWidgets()
 	RemoveReceiptShopWidget();
 	RemoveSettingsScreenWidget();
 	RemoveTutorialScreenWidget();
+	RemoveQuitConfirmWidget();
 }
 
 void UPGHomeFlowComponent::RemoveHomeScreenWidget()
@@ -1111,7 +1114,8 @@ void UPGHomeFlowComponent::HandleRuntimePreloadCompleted(EPGRuntimePreloadGroup 
 		return;
 	}
 
-	if (Group == EPGRuntimePreloadGroup::Home)
+	// Retry 리로드는 Home UI를 만들지 않으므로, 예열이 뒤늦게 끝나도 카운트다운 위에 Home 화면을 띄우지 않는다.
+	if (Group == EPGRuntimePreloadGroup::Home && !bRetryCountdownRequested)
 	{
 		if (TryRedirectToEquippedStartupMap())
 		{
@@ -1194,4 +1198,105 @@ void UPGHomeFlowComponent::ApplyGameInputMode()
 
 	OwnerPlayerController->SetInputMode(FInputModeGameOnly());
 	OwnerPlayerController->bShowMouseCursor = false;
+}
+
+bool UPGHomeFlowComponent::TryHandleBack()
+{
+	if (!BoundGameMode || BoundGameMode->GetRunState() != EPGRunState::Home)
+	{
+		return false;
+	}
+	if (bIsScreenTransitionActive)
+	{
+		// 페이드 전환 중 입력은 삼켜 전환이 끝난 뒤 화면이 엇갈리지 않게 한다.
+		return true;
+	}
+
+	// 가장 위에 뜬 모달부터 닫는다. 각 위젯의 닫기 버튼과 같은 경로라 애니메이션·저장·알림이 같다.
+	if (QuitConfirmWidget)
+	{
+		HandleQuitCancelled();
+		return true;
+	}
+	if (ReceiptShopWidget)
+	{
+		ReceiptShopWidget->RequestClose();
+		return true;
+	}
+	if (SettingsScreenWidget)
+	{
+		SettingsScreenWidget->RequestClose();
+		return true;
+	}
+	if (TutorialScreenWidget)
+	{
+		TutorialScreenWidget->RequestClose();
+		return true;
+	}
+	if (ShopScreenWidget)
+	{
+		ShopScreenWidget->RequestClose();
+		return true;
+	}
+	if (HomeScreenWidget)
+	{
+		ShowQuitConfirm();
+		return true;
+	}
+	return false;
+}
+
+void UPGHomeFlowComponent::ShowQuitConfirm()
+{
+	if (!OwnerPlayerController || QuitConfirmWidget)
+	{
+		return;
+	}
+
+	UClass* WidgetClass = CachedHomeFlowSettings.QuitConfirmWidgetClass.Get();
+	if (!WidgetClass || !WidgetClass->IsChildOf(UPGQuitConfirmWidget::StaticClass()))
+	{
+		UE_LOG(LogPGHomeFlow, Warning, TEXT("QuitConfirmWidgetClass must be assigned and inherit UPGQuitConfirmWidget."));
+		return;
+	}
+
+	QuitConfirmWidget = CreateWidget<UPGQuitConfirmWidget>(OwnerPlayerController, TSubclassOf<UPGQuitConfirmWidget>(WidgetClass));
+	if (!QuitConfirmWidget)
+	{
+		return;
+	}
+
+	QuitConfirmWidget->OnQuitConfirmed.AddUObject(this, &UPGHomeFlowComponent::HandleQuitConfirmed);
+	QuitConfirmWidget->OnQuitCancelled.AddUObject(this, &UPGHomeFlowComponent::HandleQuitCancelled);
+	QuitConfirmWidget->AddToViewport(80);
+	if (HomeScreenWidget)
+	{
+		HomeScreenWidget->SetHomeButtonsEnabled(false);
+	}
+}
+
+void UPGHomeFlowComponent::RemoveQuitConfirmWidget()
+{
+	if (QuitConfirmWidget)
+	{
+		QuitConfirmWidget->OnQuitConfirmed.RemoveAll(this);
+		QuitConfirmWidget->OnQuitCancelled.RemoveAll(this);
+		QuitConfirmWidget->RemoveFromParent();
+		QuitConfirmWidget = nullptr;
+	}
+}
+
+void UPGHomeFlowComponent::HandleQuitConfirmed()
+{
+	// Home은 정산할 런이 없어 저장 없이 바로 끝낸다. Android에서는 프로세스를 종료한다.
+	UKismetSystemLibrary::QuitGame(this, OwnerPlayerController, EQuitPreference::Quit, false);
+}
+
+void UPGHomeFlowComponent::HandleQuitCancelled()
+{
+	RemoveQuitConfirmWidget();
+	if (HomeScreenWidget)
+	{
+		HomeScreenWidget->SetHomeButtonsEnabled(true);
+	}
 }

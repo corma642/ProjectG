@@ -141,6 +141,7 @@ void UPGRuntimePreloadSubsystem::CollectPrimaryResourcePaths(EPGRuntimePreloadGr
 	case EPGRuntimePreloadGroup::Home:
 		AddUniquePath(OutPaths, Settings->HomeFlow.HomeScreenWidgetClass.ToSoftObjectPath());
 		AddUniquePath(OutPaths, Settings->HomeFlow.SettingsScreenWidgetClass.ToSoftObjectPath());
+		AddUniquePath(OutPaths, Settings->HomeFlow.QuitConfirmWidgetClass.ToSoftObjectPath());
 		AddUniquePath(OutPaths, Settings->HomeFlow.ScreenTransitionFadeWidgetClass.ToSoftObjectPath());
 		AddUniquePath(OutPaths, Settings->DebugUI.FPSDisplayWidgetClass.ToSoftObjectPath());
 		AddUniquePath(OutPaths, Settings->Shop.CharacterShopCatalog.ToSoftObjectPath());

@@ -1,0 +1,7 @@
+# seed 2
+# Android 뒤로가기 확인용(Home): 앱 시작 → Home 화면 → 1.5초에 뒤로가기(PG.Showcase.Back) → 종료 확인 모달 → 3.0초에 다시 뒤로가기 → 모달 닫힘(Home 버튼 복구).
+# 시각은 스크립트 시작 기준 초다(WaitForRun 없음). Home 화면은 StartFlow 옵션 없이 열어야 하므로 녹화 명령에 -Map '/Game/Level/Coastal/LV_Coastal'을 준다.
+0 r.SetRes 540x1170w
+0 PG.Showcase.DumpFrames {OUT} 30 150
+1.5 PG.Showcase.Back
+3.0 PG.Showcase.Back

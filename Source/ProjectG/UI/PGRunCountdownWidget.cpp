@@ -5,6 +5,7 @@
 #include "Audio/PGAudioStatics.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
+#include "Kismet/GameplayStatics.h"
 #include "Settings/PGGameSettings.h"
 #include "UI/PGUIAnimationUtils.h"
 
@@ -23,13 +24,14 @@ void UPGRunCountdownWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
-	if (!bIsCountdownActive)
+	// 일시정지 중에는 GameMode 타이머가 멈추므로 같이 멈춘다. 월드 델타는 일시정지 중에도 0이 아니다.
+	const UWorld* World = GetWorld();
+	if (!bIsCountdownActive || UGameplayStatics::IsGamePaused(World))
 	{
 		return;
 	}
 
 	// 실제 런 시작은 GameMode의 월드 타이머가 정하므로 같은 시계를 쓴다. Slate 델타는 히치 때 0.125초로 잘려 GO! 표시가 뒤처진다.
-	const UWorld* World = GetWorld();
 	CountdownElapsed += World ? World->GetDeltaSeconds() : InDeltaTime;
 	const float StepDuration = CountdownDuration > KINDA_SMALL_NUMBER ? CountdownDuration / 4.0f : 0.0f;
 	const int32 StepIndex = StepDuration > KINDA_SMALL_NUMBER
