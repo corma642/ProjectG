@@ -1,0 +1,895 @@
+{
+	"FormatVersion": 2,
+	"Namespace": "",
+	"Children": [
+		{
+			"Source": {
+				"Text": "$0.99"
+			},
+			"Translation": {
+				"Text": ""
+			},
+			"Key": "CC9F662D4D1E3996DD7B3E94DF4E4AF1"
+		},
+		{
+			"Source": {
+				"Text": "+500"
+			},
+			"Translation": {
+				"Text": ""
+			},
+			"Key": "89C9F572441E9448BF747FA02F6A2785"
+		},
+		{
+			"Source": {
+				"Text": "1234"
+			},
+			"Translation": {
+				"Text": ""
+			},
+			"Key": "B4EEB33E4419F0FAA62ED89CC2908DED"
+		},
+		{
+			"Source": {
+				"Text": "1234"
+			},
+			"Translation": {
+				"Text": ""
+			},
+			"Key": "479F532E492650B532D1CBAE4C020B2B"
+		},
+		{
+			"Source": {
+				"Text": "125,680"
+			},
+			"Translation": {
+				"Text": ""
+			},
+			"Key": "BEE502F045CD12BF6B1BF89D56F4C485"
+		},
+		{
+			"Source": {
+				"Text": "20"
+			},
+			"Translation": {
+				"Text": ""
+			},
+			"Key": "DC4821CD4BC9D138E4F6FE8CC8C0874F"
+		},
+		{
+			"Source": {
+				"Text": "30"
+			},
+			"Translation": {
+				"Text": ""
+			},
+			"Key": "5AE8712E4068FB0D12664080F8DCDD73"
+		},
+		{
+			"Source": {
+				"Text": "30000"
+			},
+			"Translation": {
+				"Text": ""
+			},
+			"Key": "FC9CACE848D13C43CF224D954A5B740F"
+		},
+		{
+			"Source": {
+				"Text": "50장"
+			},
+			"Translation": {
+				"Text": "x50"
+			},
+			"Key": "60EFD97C434DFBFD8AAFF99E906A3301"
+		},
+		{
+			"Source": {
+				"Text": "75%"
+			},
+			"Translation": {
+				"Text": ""
+			},
+			"Key": "150D5CEC49C391E40D4EA2BB948BAE79"
+		},
+		{
+			"Source": {
+				"Text": "9999999"
+			},
+			"Translation": {
+				"Text": ""
+			},
+			"Key": "47FACE3743A6FD12A024299984D31AB9"
+		},
+		{
+			"Source": {
+				"Text": "9999999"
+			},
+			"Translation": {
+				"Text": ""
+			},
+			"Key": "E42178B04788539DF9FF6D94B2D440F2"
+		},
+		{
+			"Source": {
+				"Text": "9999999"
+			},
+			"Translation": {
+				"Text": ""
+			},
+			"Key": "3F2CFEAE46CD55AAB69E9A8759FF6779"
+		},
+		{
+			"Source": {
+				"Text": "99999999"
+			},
+			"Translation": {
+				"Text": ""
+			},
+			"Key": "70BC8EBD40052B8476000D8D644D1F54"
+		},
+		{
+			"Source": {
+				"Text": "Bottle_01"
+			},
+			"Translation": {
+				"Text": ""
+			},
+			"Key": "366285BD4763E1021A737884E3CB0B29"
+		},
+		{
+			"Source": {
+				"Text": "Bottle_02"
+			},
+			"Translation": {
+				"Text": ""
+			},
+			"Key": "24AA89B44E01685A740499A448696FF9"
+		},
+		{
+			"Source": {
+				"Text": "Bottle_03"
+			},
+			"Translation": {
+				"Text": ""
+			},
+			"Key": "69D5504949424FE687069AB365E6C52A"
+		},
+		{
+			"Source": {
+				"Text": "English"
+			},
+			"Translation": {
+				"Text": "English"
+			},
+			"Key": "SettingsLanguageEnglish"
+		},
+		{
+			"Source": {
+				"Text": "FPS 표시"
+			},
+			"Translation": {
+				"Text": "Show FPS"
+			},
+			"Key": "2409D9AB4FEF9E8840D6D48341B276A5"
+		},
+		{
+			"Source": {
+				"Text": "NewsPaper"
+			},
+			"Translation": {
+				"Text": ""
+			},
+			"Key": "38A9589F4C32DFD1A8DC49A75DB553FA"
+		},
+		{
+			"Source": {
+				"Text": "Pile_01"
+			},
+			"Translation": {
+				"Text": ""
+			},
+			"Key": "385927454215C88A405921B3B8C1EF83"
+		},
+		{
+			"Source": {
+				"Text": "Pile_02"
+			},
+			"Translation": {
+				"Text": ""
+			},
+			"Key": "0EF3A5EB4EB59D8B6B22DF9AB0A8069F"
+		},
+		{
+			"Source": {
+				"Text": "Pile_03"
+			},
+			"Translation": {
+				"Text": ""
+			},
+			"Key": "44228D7640DDEF16F2AE5095BC2EC4CF"
+		},
+		{
+			"Source": {
+				"Text": "Pot_01"
+			},
+			"Translation": {
+				"Text": ""
+			},
+			"Key": "18A4F91043C7959FF4F14685FA7DFF67"
+		},
+		{
+			"Source": {
+				"Text": "Pot_02"
+			},
+			"Translation": {
+				"Text": ""
+			},
+			"Key": "7F3319CD424E1B08E7AC9E8C672B43DD"
+		},
+		{
+			"Source": {
+				"Text": "개인정보처리방침"
+			},
+			"Translation": {
+				"Text": "Privacy Policy"
+			},
+			"Key": "SettingsPrivacyPolicy"
+		},
+		{
+			"Source": {
+				"Text": "거리"
+			},
+			"Translation": {
+				"Text": "Distance"
+			},
+			"Key": "2F85FB2A460791E1D5FCF1B686C8ACCB"
+		},
+		{
+			"Source": {
+				"Text": "게임을 종료할까요?"
+			},
+			"Translation": {
+				"Text": "QUIT GAME?"
+			},
+			"Key": "QuitConfirmTitle"
+		},
+		{
+			"Source": {
+				"Text": "계속하기"
+			},
+			"Translation": {
+				"Text": "RESUME"
+			},
+			"Key": "A3EB1F164E0BBCDEFF650F8404144BB1"
+		},
+		{
+			"Source": {
+				"Text": "균형"
+			},
+			"Translation": {
+				"Text": "Balanced"
+			},
+			"Key": "F631D45341CD708CEB37DA86C5BAC570"
+		},
+		{
+			"Source": {
+				"Text": "그래픽 품질"
+			},
+			"Translation": {
+				"Text": "Graphics Quality"
+			},
+			"Key": "89A3A0474DA2601D8026429C34B29011"
+		},
+		{
+			"Source": {
+				"Text": "까마귀"
+			},
+			"Translation": {
+				"Text": "CROWS"
+			},
+			"Key": "BadgeCrowsName"
+		},
+		{
+			"Source": {
+				"Text": "낮음"
+			},
+			"Translation": {
+				"Text": "Low"
+			},
+			"Key": "3F62E8254A32EBF99E8094B9D01348E5"
+		},
+		{
+			"Source": {
+				"Text": "높음"
+			},
+			"Translation": {
+				"Text": "High"
+			},
+			"Key": "4D923CFB488FC7E2A82338B3D8AB7FD1"
+		},
+		{
+			"Source": {
+				"Text": "눈보라"
+			},
+			"Translation": {
+				"Text": "SNOWSTORM"
+			},
+			"Key": "BadgeSnowstormName"
+		},
+		{
+			"Source": {
+				"Text": "다시 도전"
+			},
+			"Translation": {
+				"Text": "RETRY"
+			},
+			"Key": "C9E612C24B6C186A1C2F43BED6CBEACD"
+		},
+		{
+			"Source": {
+				"Text": "데이지"
+			},
+			"Translation": {
+				"Text": "Daisy"
+			},
+			"Key": "C72765B0447DD497A398179AEE311B84"
+		},
+		{
+			"Source": {
+				"Text": "드래그로 균형 잡기"
+			},
+			"Translation": {
+				"Text": "DRAG TO BALANCE"
+			},
+			"Key": "RunGuideDrag"
+		},
+		{
+			"Source": {
+				"Text": "러너(남자)"
+			},
+			"Translation": {
+				"Text": "Male Runner"
+			},
+			"Key": "8468B35242BE49F6CEA95993F761CACE"
+		},
+		{
+			"Source": {
+				"Text": "루나"
+			},
+			"Translation": {
+				"Text": "Luna"
+			},
+			"Key": "7CF8277242B4FD396CC3AF8BF603947D"
+		},
+		{
+			"Source": {
+				"Text": "맵"
+			},
+			"Translation": {
+				"Text": "MAPS"
+			},
+			"Key": "F39877BC494536558BA8809BDB94CF41"
+		},
+		{
+			"Source": {
+				"Text": "머리 위 배달물이 떨어졌어요!"
+			},
+			"Translation": {
+				"Text": "A delivery fell off your head!"
+			},
+			"Key": "RunResultFailureReasonPlaceholder"
+		},
+		{
+			"Source": {
+				"Text": "바람"
+			},
+			"Translation": {
+				"Text": "WIND"
+			},
+			"Key": "BadgeWindName"
+		},
+		{
+			"Source": {
+				"Text": "배달 실패"
+			},
+			"Translation": {
+				"Text": "DELIVERY FAILED"
+			},
+			"Key": "3BACD120401E8EC16BE4F59FB29813EF"
+		},
+		{
+			"Source": {
+				"Text": "배달 완료"
+			},
+			"Translation": {
+				"Text": "Orders Delivered"
+			},
+			"Key": "49FBBD16437081361FAD13BF90C70346"
+		},
+		{
+			"Source": {
+				"Text": "배달은 언제든 다시 시작할 수 있어요."
+			},
+			"Translation": {
+				"Text": "Your deliveries will wait for you."
+			},
+			"Key": "QuitConfirmMessage"
+		},
+		{
+			"Source": {
+				"Text": "브리즈 시티로드"
+			},
+			"Translation": {
+				"Text": "Breeze City Road"
+			},
+			"Key": "4A7247614500B4872D493F87024F1B74"
+		},
+		{
+			"Source": {
+				"Text": "사용 중"
+			},
+			"Translation": {
+				"Text": "CURRENT"
+			},
+			"Key": "E60F89654791C6F5D1282D8CEAF425CC"
+		},
+		{
+			"Source": {
+				"Text": "사용 중"
+			},
+			"Translation": {
+				"Text": "CURRENT"
+			},
+			"Key": "A4F17A2A4842D17F7022F9A7CCBED747"
+		},
+		{
+			"Source": {
+				"Text": "상점"
+			},
+			"Translation": {
+				"Text": "SHOP"
+			},
+			"Key": "10E869C544B00B1CEFB880BED9A618E3"
+		},
+		{
+			"Source": {
+				"Text": "선샤인 해안길"
+			},
+			"Translation": {
+				"Text": "Sunshine Coast Road"
+			},
+			"Key": "3E1BFD2C492C13CFFD81619F420160F8"
+		},
+		{
+			"Source": {
+				"Text": "설정"
+			},
+			"Translation": {
+				"Text": "SETTINGS"
+			},
+			"Key": "F81CEB3049B26BE25C3063991B40A189"
+		},
+		{
+			"Source": {
+				"Text": "설정"
+			},
+			"Translation": {
+				"Text": "SETTINGS"
+			},
+			"Key": "5B94EAF34BEA262C81CEE1BADDDCF5F9"
+		},
+		{
+			"Source": {
+				"Text": "스몰 팩"
+			},
+			"Translation": {
+				"Text": "SMALL PACK"
+			},
+			"Key": "8DB39AEA41DBD180FC91EC8C39297134"
+		},
+		{
+			"Source": {
+				"Text": "언어"
+			},
+			"Translation": {
+				"Text": "Language"
+			},
+			"Key": "SettingsLanguageLabel"
+		},
+		{
+			"Source": {
+				"Text": "여성"
+			},
+			"Translation": {
+				"Text": "FEMALE"
+			},
+			"Key": "458A76004FE34FF0DC81DCA2192F4040"
+		},
+		{
+			"Source": {
+				"Text": "영수증"
+			},
+			"Translation": {
+				"Text": "Receipts"
+			},
+			"Key": "77A27B7047B734019736E4BF472A6339"
+		},
+		{
+			"Source": {
+				"Text": "위로 튕겨 점프"
+			},
+			"Translation": {
+				"Text": "FLICK UP TO JUMP"
+			},
+			"Key": "RunGuideFlick"
+		},
+		{
+			"Source": {
+				"Text": "음악"
+			},
+			"Translation": {
+				"Text": "Music"
+			},
+			"Key": "9AC3410545551CF046D3FA8DC4D71E84"
+		},
+		{
+			"Source": {
+				"Text": "장착 중"
+			},
+			"Translation": {
+				"Text": "EQUIPPED"
+			},
+			"Key": "802DC78D4A8616DF19E6D295FADC9EE8"
+		},
+		{
+			"Source": {
+				"Text": "점수"
+			},
+			"Translation": {
+				"Text": "Score"
+			},
+			"Key": "71B20877467B3E9DCD842487A977D42F"
+		},
+		{
+			"Source": {
+				"Text": "종료"
+			},
+			"Translation": {
+				"Text": "QUIT"
+			},
+			"Key": "QuitConfirmConfirm"
+		},
+		{
+			"Source": {
+				"Text": "출발!"
+			},
+			"Translation": {
+				"Text": "GO!"
+			},
+			"Key": "1B06C52B422CABB1084BAFBCAC456361"
+		},
+		{
+			"Source": {
+				"Text": "취소"
+			},
+			"Translation": {
+				"Text": "STAY"
+			},
+			"Key": "QuitConfirmCancel"
+		},
+		{
+			"Source": {
+				"Text": "캐릭터"
+			},
+			"Translation": {
+				"Text": "CHARACTERS"
+			},
+			"Key": "A311DC444C181ACE258DE0B7B920C390"
+		},
+		{
+			"Source": {
+				"Text": "타이론"
+			},
+			"Translation": {
+				"Text": "Tyron"
+			},
+			"Key": "319DC86841AFC82C2C697FA80F73A78C"
+		},
+		{
+			"Source": {
+				"Text": "한국어"
+			},
+			"Translation": {
+				"Text": "한국어"
+			},
+			"Key": "SettingsLanguageKorean"
+		},
+		{
+			"Source": {
+				"Text": "해상도"
+			},
+			"Translation": {
+				"Text": "Resolution"
+			},
+			"Key": "A5B525E04126440277B30A86ED93325A"
+		},
+		{
+			"Source": {
+				"Text": "홈"
+			},
+			"Translation": {
+				"Text": "HOME"
+			},
+			"Key": "E7AE05B942CDCF3BC984FFA42108C2CD"
+		},
+		{
+			"Source": {
+				"Text": "홈"
+			},
+			"Translation": {
+				"Text": "HOME"
+			},
+			"Key": "6F3CE0F845FD328F8FBBF9B2B93FFE75"
+		},
+		{
+			"Source": {
+				"Text": "효과음"
+			},
+			"Translation": {
+				"Text": "Sound Effects"
+			},
+			"Key": "A0E32DB14D00D0B838C1608DD1C4DA91"
+		}
+	],
+	"Subnamespaces": [
+		{
+			"Namespace": "PGCargoDeliveryItem",
+			"Children": [
+				{
+					"Source": {
+						"Text": "{0}초"
+					},
+					"Translation": {
+						"Text": "{0}s"
+					},
+					"Key": "RemainingTimeFormat"
+				}
+			]
+		},
+		{
+			"Namespace": "PGCargoScoreIndicator",
+			"Children": [
+				{
+					"Source": {
+						"Text": "+{0}"
+					},
+					"Translation": {
+						"Text": ""
+					},
+					"Key": "ScoreFormat"
+				}
+			]
+		},
+		{
+			"Namespace": "PGFPSDisplay",
+			"Children": [
+				{
+					"Source": {
+						"Text": "{0} FPS"
+					},
+					"Translation": {
+						"Text": ""
+					},
+					"Key": "FPSFormat"
+				}
+			]
+		},
+		{
+			"Namespace": "PGReceiptShop",
+			"Children": [
+				{
+					"Source": {
+						"Text": "메가 팩"
+					},
+					"Translation": {
+						"Text": "MEGA PACK"
+					},
+					"Key": "PackMega"
+				},
+				{
+					"Source": {
+						"Text": "밸류 팩"
+					},
+					"Translation": {
+						"Text": "VALUE PACK"
+					},
+					"Key": "PackValue"
+				},
+				{
+					"Source": {
+						"Text": "스몰 팩"
+					},
+					"Translation": {
+						"Text": "SMALL PACK"
+					},
+					"Key": "PackSmall"
+				},
+				{
+					"Source": {
+						"Text": "스탠다드 팩"
+					},
+					"Translation": {
+						"Text": "STANDARD PACK"
+					},
+					"Key": "PackStandard"
+				}
+			]
+		},
+		{
+			"Namespace": "PGRunCountdown",
+			"Children": [
+				{
+					"Source": {
+						"Text": "출발!"
+					},
+					"Translation": {
+						"Text": "GO!"
+					},
+					"Key": "Go"
+				}
+			]
+		},
+		{
+			"Namespace": "PGRunHUD",
+			"Children": [
+				{
+					"Source": {
+						"Text": "{0} m"
+					},
+					"Translation": {
+						"Text": ""
+					},
+					"Key": "DistanceMetersFormat"
+				}
+			]
+		},
+		{
+			"Namespace": "PGRunResult",
+			"Children": [
+				{
+					"Source": {
+						"Text": "{0} m"
+					},
+					"Translation": {
+						"Text": ""
+					},
+					"Key": "DistanceMetersFormat"
+				},
+				{
+					"Source": {
+						"Text": "길 밖으로 떨어졌어요!"
+					},
+					"Translation": {
+						"Text": "You fell off the track!"
+					},
+					"Key": "FailureFall"
+				},
+				{
+					"Source": {
+						"Text": "머리 위 배달물이 떨어졌어요!"
+					},
+					"Translation": {
+						"Text": "A delivery fell off your head!"
+					},
+					"Key": "FailureCargoLost"
+				}
+			]
+		},
+		{
+			"Namespace": "PGSettingsScreen",
+			"Children": [
+				{
+					"Source": {
+						"Text": "{0}%"
+					},
+					"Translation": {
+						"Text": ""
+					},
+					"Key": "ResolutionScaleFormat"
+				},
+				{
+					"Source": {
+						"Text": "{0}%"
+					},
+					"Translation": {
+						"Text": ""
+					},
+					"Key": "SFXVolumeFormat"
+				},
+				{
+					"Source": {
+						"Text": "{0}%"
+					},
+					"Translation": {
+						"Text": ""
+					},
+					"Key": "MusicVolumeFormat"
+				}
+			]
+		},
+		{
+			"Namespace": "ProjectGReceiptShop",
+			"Children": [
+				{
+					"Source": {
+						"Text": "{0}장"
+					},
+					"Translation": {
+						"Text": "x{0}"
+					},
+					"Key": "ReceiptAmountFormat"
+				}
+			]
+		},
+		{
+			"Namespace": "ProjectGShop",
+			"Children": [
+				{
+					"Source": {
+						"Text": "구매"
+					},
+					"Translation": {
+						"Text": "BUY"
+					},
+					"Key": "BuyMap"
+				},
+				{
+					"Source": {
+						"Text": "구매"
+					},
+					"Translation": {
+						"Text": "BUY"
+					},
+					"Key": "BuyCharacter"
+				},
+				{
+					"Source": {
+						"Text": "보유 중"
+					},
+					"Translation": {
+						"Text": "OWNED"
+					},
+					"Key": "HeldMap"
+				},
+				{
+					"Source": {
+						"Text": "선택됨"
+					},
+					"Translation": {
+						"Text": "SELECTED"
+					},
+					"Key": "SelectedMap"
+				},
+				{
+					"Source": {
+						"Text": "장착"
+					},
+					"Translation": {
+						"Text": "EQUIP"
+					},
+					"Key": "EquipCharacter"
+				},
+				{
+					"Source": {
+						"Text": "장착 중"
+					},
+					"Translation": {
+						"Text": "EQUIPPED"
+					},
+					"Key": "EquippedCharacter"
+				}
+			]
+		}
+	]
+}

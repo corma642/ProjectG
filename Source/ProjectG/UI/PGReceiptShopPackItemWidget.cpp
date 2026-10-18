@@ -16,11 +16,11 @@ void UPGReceiptShopPackItemWidget::InitializePack(const FPGReceiptShopPack& InPa
 
 	if (PackNameText)
 	{
-		PackNameText->SetText(FText::FromString(PackData.PackName));
+		PackNameText->SetText(PackData.PackName);
 	}
 	if (ReceiptAmountText)
 	{
-		ReceiptAmountText->SetText(FText::Format(NSLOCTEXT("ProjectGReceiptShop", "ReceiptAmountFormat", "x{0}"), FText::AsNumber(FMath::Max(0, PackData.ReceiptAmount))));
+		ReceiptAmountText->SetText(FText::Format(NSLOCTEXT("ProjectGReceiptShop", "ReceiptAmountFormat", "{0}장"), FText::AsNumber(FMath::Max(0, PackData.ReceiptAmount))));
 	}
 	if (PriceText)
 	{

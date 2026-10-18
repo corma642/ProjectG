@@ -4,11 +4,17 @@
 
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/TextBlock.h"
 #include "Editor.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "ImageCore.h"
 #include "ImageUtils.h"
 #include "Input/HittestGrid.h"
+#include "Internationalization/TextLocalizationManager.h"
+#include "Internationalization/TextNamespaceUtil.h"
+#include "Internationalization/TextPackageNamespaceUtil.h"
+#include "LocalizationSettings.h"
+#include "LocalizationTargetTypes.h"
 #include "Misc/App.h"
 #include "RenderingThread.h"
 #include "Settings/PGGameSettings.h"
@@ -70,6 +76,37 @@ namespace
 		FlushRenderingCommands();
 		BeginCleanup(Renderer);
 		return Window;
+	}
+
+	void CollectOverflowingTextBlocks(const UWidgetTree* Tree, const float Tolerance, TArray<FString>& OutOverflows)
+	{
+		if (!Tree)
+		{
+			return;
+		}
+		Tree->ForEachWidget([Tolerance, &OutOverflows](UWidget* Child)
+		{
+			// 배달 카드처럼 중첩된 UserWidget은 자기 트리를 따로 가진다.
+			if (const UUserWidget* Nested = Cast<UUserWidget>(Child))
+			{
+				CollectOverflowingTextBlocks(Nested->WidgetTree, Tolerance, OutOverflows);
+				return;
+			}
+			const UTextBlock* TextBlock = Cast<UTextBlock>(Child);
+			if (!TextBlock || !TextBlock->GetCachedWidget().IsValid() || !TextBlock->IsVisible())
+			{
+				return;
+			}
+			// 그려진 뒤의 캐시 지오메트리가 배정 크기다. 부모가 접혀 있으면 0이라 건너뛴다.
+			const FVector2D Allotted = TextBlock->GetCachedGeometry().GetLocalSize();
+			const FVector2D Desired = TextBlock->GetDesiredSize();
+			if (Allotted.IsNearlyZero() || (Desired.X <= Allotted.X + Tolerance && Desired.Y <= Allotted.Y + Tolerance))
+			{
+				return;
+			}
+			OutOverflows.Add(FString::Printf(TEXT("%s: desired %.0fx%.0f > allotted %.0fx%.0f (\"%s\")"),
+				*TextBlock->GetName(), Desired.X, Desired.Y, Allotted.X, Allotted.Y, *TextBlock->GetText().ToString()));
+		});
 	}
 }
 
@@ -187,4 +224,91 @@ TArray<FName> UPGEditorAutomationLibrary::FindHitWidgetNames(UUserWidget* Widget
 	}
 
 	return HitNames;
+}
+
+TArray<FString> UPGEditorAutomationLibrary::FindOverflowingTextBlocks(UUserWidget* Widget, FIntPoint Size, float AdvanceSeconds, float Tolerance)
+{
+	TArray<FString> Overflows;
+	FHittestGrid HitTestGrid;
+	UTextureRenderTarget2D* Target = nullptr;
+	const TSharedPtr<SVirtualWindow> Window = DrawWidgetOffscreen(Widget, Size, FLinearColor::Black, AdvanceSeconds, HitTestGrid, Target);
+	if (Window.IsValid())
+	{
+		CollectOverflowingTextBlocks(Widget->WidgetTree, Tolerance, Overflows);
+	}
+	return Overflows;
+}
+
+FText UPGEditorAutomationLibrary::MakeLocalizedText(UObject* PackageOwner, const FString& Key, const FString& SourceString)
+{
+	const FString PackageNamespace = PackageOwner ? TextNamespaceUtil::EnsurePackageNamespace(PackageOwner) : FString();
+	const FString Namespace = TextNamespaceUtil::BuildFullNamespace(FString(), PackageNamespace, /*bAlwaysApplyPackageNamespace*/ true);
+	return FText::ChangeKey(Namespace, Key, FText::FromString(SourceString));
+}
+
+void UPGEditorAutomationLibrary::SetGameLocalizationPreview(const FString& Culture)
+{
+	if (Culture.IsEmpty())
+	{
+		FTextLocalizationManager::Get().DisableGameLocalizationPreview();
+	}
+	else
+	{
+		FTextLocalizationManager::Get().EnableGameLocalizationPreview(Culture);
+	}
+}
+
+bool UPGEditorAutomationLibrary::RegisterGameLocalizationTarget(const FString& TargetName, const TArray<FString>& Cultures, int32 NativeCultureIndex, const TArray<FString>& PackageExcludePaths)
+{
+	ULocalizationTargetSet* TargetSet = ULocalizationSettings::GetGameTargetSet();
+	if (!TargetSet || TargetName.IsEmpty() || !Cultures.IsValidIndex(NativeCultureIndex))
+	{
+		return false;
+	}
+
+	ULocalizationTarget* Target = nullptr;
+	for (ULocalizationTarget* Existing : TargetSet->TargetObjects)
+	{
+		if (Existing && Existing->Settings.Name == TargetName)
+		{
+			Target = Existing;
+		}
+	}
+	if (!Target)
+	{
+		Target = NewObject<ULocalizationTarget>(TargetSet);
+		Target->Settings.Guid = FGuid::NewGuid();
+		TargetSet->TargetObjects.Add(Target);
+	}
+
+	FLocalizationTargetSettings& Settings = Target->Settings;
+	Settings.Name = TargetName;
+	Settings.SupportedCulturesStatistics.Reset();
+	for (const FString& Culture : Cultures)
+	{
+		Settings.SupportedCulturesStatistics.Add(FCultureStatistics(Culture));
+	}
+	Settings.NativeCultureIndex = NativeCultureIndex;
+	Settings.GatherFromTextFiles.IsEnabled = true;
+	Settings.GatherFromTextFiles.SearchDirectories.Reset();
+	for (const TCHAR* Directory : { TEXT("Source"), TEXT("Config") })
+	{
+		FGatherTextSearchDirectory& SearchDirectory = Settings.GatherFromTextFiles.SearchDirectories.AddDefaulted_GetRef();
+		SearchDirectory.Path = Directory;
+	}
+	Settings.GatherFromTextFiles.FileExtensions = { FGatherTextFileExtension{TEXT("h")}, FGatherTextFileExtension{TEXT("cpp")}, FGatherTextFileExtension{TEXT("ini")} };
+	Settings.GatherFromPackages.IsEnabled = true;
+	Settings.GatherFromPackages.IncludePathWildcards.Reset();
+	Settings.GatherFromPackages.IncludePathWildcards.AddDefaulted_GetRef().Pattern = TEXT("Content/*");
+	Settings.GatherFromPackages.ExcludePathWildcards.Reset();
+	for (const FString& ExcludePath : PackageExcludePaths)
+	{
+		Settings.GatherFromPackages.ExcludePathWildcards.AddDefaulted_GetRef().Pattern = ExcludePath;
+	}
+	Settings.GatherFromPackages.FileExtensions = { FGatherTextFileExtension{TEXT("umap")}, FGatherTextFileExtension{TEXT("uasset")} };
+
+	// Dashboard와 같은 경로: TargetObjects를 config 배열로 복사하고 DefaultEditor.ini를 갱신한다.
+	FPropertyChangedEvent Event(nullptr);
+	GetMutableDefault<ULocalizationSettings>()->PostEditChangeProperty(Event);
+	return true;
 }

@@ -86,7 +86,7 @@ void UPGCargoDeliveryItemWidget::ConfigureCargoItem(const FPGActiveCargoInfo& Ca
 	{
 		LastDisplayedRemainingSeconds = RemainingSeconds;
 		RemainingTimeText->SetText(FText::Format(
-			NSLOCTEXT("PGCargoDeliveryItem", "RemainingTimeFormat", "{0}s"),
+			NSLOCTEXT("PGCargoDeliveryItem", "RemainingTimeFormat", "{0}초"),
 			FText::AsNumber(RemainingSeconds)));
 	}
 

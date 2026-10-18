@@ -727,9 +727,9 @@ void UPGShopScreenWidget::RefreshSelectedCharacterState()
 		bEquipped,
 		SelectedCharacterIndex,
 		CharacterSkins.Num(),
-		NSLOCTEXT("ProjectGShop", "BuyCharacter", "BUY"),
-		NSLOCTEXT("ProjectGShop", "EquipCharacter", "EQUIP"),
-		NSLOCTEXT("ProjectGShop", "EquippedCharacter", "EQUIPPED"));
+		NSLOCTEXT("ProjectGShop", "BuyCharacter", "구매"),
+		NSLOCTEXT("ProjectGShop", "EquipCharacter", "장착"),
+		NSLOCTEXT("ProjectGShop", "EquippedCharacter", "장착 중"));
 }
 
 void UPGShopScreenWidget::RefreshSelectedMapState()
@@ -762,9 +762,9 @@ void UPGShopScreenWidget::RefreshSelectedMapState()
 		bEquipped,
 		SelectedMapIndex,
 		Maps.Num(),
-		NSLOCTEXT("ProjectGShop", "BuyMap", "BUY"),
-		NSLOCTEXT("ProjectGShop", "HeldMap", "HOLDED"),
-		NSLOCTEXT("ProjectGShop", "SelectedMap", "SELECTED"));
+		NSLOCTEXT("ProjectGShop", "BuyMap", "구매"),
+		NSLOCTEXT("ProjectGShop", "HeldMap", "보유 중"),
+		NSLOCTEXT("ProjectGShop", "SelectedMap", "선택됨"));
 }
 
 void UPGShopScreenWidget::ClearSelectedItemPresentation(bool bClearMapThumbnail) const

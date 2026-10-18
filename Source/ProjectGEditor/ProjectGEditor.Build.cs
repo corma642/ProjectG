@@ -14,6 +14,7 @@ public class ProjectGEditor : ModuleRules
             "CoreUObject",
             "Engine",
             "ImageCore",
+            "Localization",
             "ProjectG",
             "RenderCore",
             "Slate",

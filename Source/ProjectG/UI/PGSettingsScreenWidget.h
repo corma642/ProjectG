@@ -110,6 +110,14 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
 	TObjectPtr<UButton> PrivacyPolicyButton;
 
+	/** 게임 언어를 한국어로 바꾸는 필수 버튼입니다. 현재 언어의 버튼은 선택 표시로 꺼집니다. */
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
+	TObjectPtr<UButton> KoreanLanguageButton;
+
+	/** 게임 언어를 영어로 바꾸는 필수 버튼입니다. */
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "Settings")
+	TObjectPtr<UButton> EnglishLanguageButton;
+
 private:
 	UFUNCTION()
 	void HandleCloseClicked();
@@ -125,6 +133,12 @@ private:
 
 	UFUNCTION()
 	void HandleHighPresetClicked();
+
+	UFUNCTION()
+	void HandleKoreanLanguageClicked();
+
+	UFUNCTION()
+	void HandleEnglishLanguageClicked();
 
 	UFUNCTION()
 	void HandleResolutionScaleChanged(float Value);
@@ -152,6 +166,8 @@ private:
 	void ApplyAnimationState(float Alpha);
 	void SetAllButtonsEnabled(bool bEnabled) const;
 	void SetPresetSelectionState(EPGMobileQualityPreset Preset) const;
+	void ApplyLanguage(const FString& Culture);
+	void SetLanguageSelectionState() const;
 	void SetShowFPSCheckState(bool bShowFPS) const;
 	void UpdateResolutionScaleText(float Value) const;
 	void UpdateMusicVolumeText(float Value) const;

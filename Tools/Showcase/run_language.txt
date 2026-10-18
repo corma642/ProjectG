@@ -1,0 +1,12 @@
+# 언어 전환: 러닝 HUD(한국어) → 뒤로가기로 Pause → English → 한국어 → Resume → 러닝 중 English → 한국어.
+# 열려 있는 화면의 문구가 리로드 없이 그 자리에서 바뀌는지 본다. 녹화 기본 언어는 DefaultGame.ini의 ko다.
+# seed 2
+0 r.SetRes 540x1170w
+0 PG.Showcase.DumpFrames {OUT} 30 400
+0 PG.Showcase.WaitForRun
+2.0 PG.Showcase.Back
+3.5 PG.Showcase.Language en
+5.5 PG.Showcase.Language ko
+7.0 PG.Showcase.Back
+7.4 PG.Showcase.Language en
+8.4 PG.Showcase.Language ko

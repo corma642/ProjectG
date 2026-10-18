@@ -368,9 +368,9 @@ struct FPGReceiptShopPack
 {
 	GENERATED_BODY()
 
-	// 상품 행에 표시할 패키지 이름입니다. 예: SMALL PACK
+	// 상품 행에 표시할 패키지 이름입니다. 현지화 대상이라 ini에서는 NSLOCTEXT("PGReceiptShop","PackSmall","스몰 팩")처럼 적습니다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Receipt Shop")
-	FString PackName = TEXT("SMALL PACK");
+	FText PackName;
 
 	// 구매 버튼을 누르면 즉시 추가할 영수증 수량입니다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Receipt Shop", meta = (ClampMin = "1", UIMin = "1", UIMax = "5000"))

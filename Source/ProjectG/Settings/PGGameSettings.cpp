@@ -39,7 +39,7 @@ UPGGameSettings::UPGGameSettings()
 
 	if (Shop.ReceiptPacks.Num() == 0)
 	{
-		auto AddReceiptPack = [this](const TCHAR* PackName, int32 ReceiptAmount, const TCHAR* PriceText)
+		auto AddReceiptPack = [this](const FText& PackName, int32 ReceiptAmount, const TCHAR* PriceText)
 		{
 			FPGReceiptShopPack Pack;
 			Pack.PackName = PackName;
@@ -48,9 +48,9 @@ UPGGameSettings::UPGGameSettings()
 			Shop.ReceiptPacks.Add(Pack);
 		};
 
-		AddReceiptPack(TEXT("SMALL PACK"), 50, TEXT("$0.99"));
-		AddReceiptPack(TEXT("STANDARD PACK"), 120, TEXT("$2.99"));
-		AddReceiptPack(TEXT("VALUE PACK"), 260, TEXT("$5.99"));
-		AddReceiptPack(TEXT("MEGA PACK"), 700, TEXT("$12.99"));
+		AddReceiptPack(NSLOCTEXT("PGReceiptShop", "PackSmall", "스몰 팩"), 50, TEXT("$0.99"));
+		AddReceiptPack(NSLOCTEXT("PGReceiptShop", "PackStandard", "스탠다드 팩"), 120, TEXT("$2.99"));
+		AddReceiptPack(NSLOCTEXT("PGReceiptShop", "PackValue", "밸류 팩"), 260, TEXT("$5.99"));
+		AddReceiptPack(NSLOCTEXT("PGReceiptShop", "PackMega", "메가 팩"), 700, TEXT("$12.99"));
 	}
 }

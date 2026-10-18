@@ -180,14 +180,18 @@ if ($WidgetQA) {
     Write-Step 'Widget QA (render + hit test)'
     Invoke-Timed 'Widget QA' {
         $script = Join-Path $PSScriptRoot 'EditorScripts\qa_widgets.py'
-        $logPath = Invoke-EditorCmd 'WidgetQA.log' @("-ExecutePythonScript=$script") -Render
-        Select-String -LiteralPath $logPath -Pattern 'LogPython: ### (.*)$' | ForEach-Object { Write-Host "   $($_.Matches[0].Groups[1].Value)" }
-        $pythonErrors = Select-String -LiteralPath $logPath -Pattern 'LogPython: Error'
-        if ($pythonErrors -or -not (Select-String -LiteralPath $logPath -Pattern '### WIDGET_QA: PASS' -Quiet)) {
-            $pythonErrors | Select-Object -First 10 | ForEach-Object { Write-Host "   $($_.Line)" -ForegroundColor Yellow }
-            throw "Widget QA failed. See $logPath and $(Join-Path $LogRoot 'WidgetQA')"
+        # 원어(한국어 원문)와 영어 번역을 각각 그린다. 영어는 Content/Localization/Game/en/Game.locres를 미리보기로 읽는다.
+        foreach ($culture in @('', 'en')) {
+            $suffix = if ($culture) { "_$culture" } else { '' }
+            $logPath = Invoke-EditorCmd "WidgetQA$suffix.log" @("-ExecutePythonScript=$script $culture".TrimEnd()) -Render
+            Select-String -LiteralPath $logPath -Pattern 'LogPython: ### (.*)$' | ForEach-Object { Write-Host "   $($_.Matches[0].Groups[1].Value)" }
+            $pythonErrors = Select-String -LiteralPath $logPath -Pattern 'LogPython: Error'
+            if ($pythonErrors -or -not (Select-String -LiteralPath $logPath -Pattern '### WIDGET_QA: PASS' -Quiet)) {
+                $pythonErrors | Select-Object -First 10 | ForEach-Object { Write-Host "   $($_.Line)" -ForegroundColor Yellow }
+                throw "Widget QA ($(if ($culture) { $culture } else { 'native' })) failed. See $logPath and $(Join-Path $LogRoot 'WidgetQA')"
+            }
         }
-        Write-Host "   PNG: $(Join-Path $LogRoot 'WidgetQA')"
+        Write-Host "   PNG: $(Join-Path $LogRoot 'WidgetQA') (+ en\)"
     }
 }
 

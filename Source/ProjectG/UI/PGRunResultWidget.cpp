@@ -129,11 +129,11 @@ FText UPGRunResultWidget::GetFailureReasonText(FName FailureReason)
 	// 원인 이름은 러너가 GameMode에 넘기는 값(CargoLost/Fall)과 같다. 실패가 억울하지 않도록 무엇 때문에 끝났는지 한 줄로 알린다.
 	if (FailureReason == TEXT("CargoLost"))
 	{
-		return NSLOCTEXT("PGRunResult", "FailureCargoLost", "A delivery fell off your head!");
+		return NSLOCTEXT("PGRunResult", "FailureCargoLost", "머리 위 배달물이 떨어졌어요!");
 	}
 	if (FailureReason == TEXT("Fall"))
 	{
-		return NSLOCTEXT("PGRunResult", "FailureFall", "You fell off the track!");
+		return NSLOCTEXT("PGRunResult", "FailureFall", "길 밖으로 떨어졌어요!");
 	}
 	return FText::GetEmpty();
 }

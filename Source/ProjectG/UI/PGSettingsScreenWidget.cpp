@@ -11,6 +11,7 @@
 #include "Components/Widget.h"
 #include "GameFramework/GameUserSettings.h"
 #include "HAL/PlatformProcess.h"
+#include "Kismet/KismetInternationalizationLibrary.h"
 #include "Settings/PGGameUserSettings.h"
 #include "UI/PGUIAnimationUtils.h"
 
@@ -50,6 +51,14 @@ void UPGSettingsScreenWidget::NativeConstruct()
 	if (HighPresetButton)
 	{
 		HighPresetButton->OnClicked.AddDynamic(this, &UPGSettingsScreenWidget::HandleHighPresetClicked);
+	}
+	if (KoreanLanguageButton)
+	{
+		KoreanLanguageButton->OnClicked.AddDynamic(this, &UPGSettingsScreenWidget::HandleKoreanLanguageClicked);
+	}
+	if (EnglishLanguageButton)
+	{
+		EnglishLanguageButton->OnClicked.AddDynamic(this, &UPGSettingsScreenWidget::HandleEnglishLanguageClicked);
 	}
 	if (ResolutionScaleSlider)
 	{
@@ -104,6 +113,14 @@ void UPGSettingsScreenWidget::NativeDestruct()
 	if (HighPresetButton)
 	{
 		HighPresetButton->OnClicked.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleHighPresetClicked);
+	}
+	if (KoreanLanguageButton)
+	{
+		KoreanLanguageButton->OnClicked.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleKoreanLanguageClicked);
+	}
+	if (EnglishLanguageButton)
+	{
+		EnglishLanguageButton->OnClicked.RemoveDynamic(this, &UPGSettingsScreenWidget::HandleEnglishLanguageClicked);
 	}
 	if (ResolutionScaleSlider)
 	{
@@ -217,6 +234,26 @@ void UPGSettingsScreenWidget::HandleHighPresetClicked()
 {
 	UPGAudioStatics::PlayCommonButtonClick(this);
 	ApplyPreset(EPGMobileQualityPreset::High);
+}
+
+void UPGSettingsScreenWidget::HandleKoreanLanguageClicked()
+{
+	UPGAudioStatics::PlayCommonButtonClick(this);
+	ApplyLanguage(TEXT("ko"));
+}
+
+void UPGSettingsScreenWidget::HandleEnglishLanguageClicked()
+{
+	UPGAudioStatics::PlayCommonButtonClick(this);
+	ApplyLanguage(TEXT("en"));
+}
+
+void UPGSettingsScreenWidget::ApplyLanguage(const FString& Culture)
+{
+	// 모든 UI 문구가 FText라 열려 있는 화면도 그 자리에서 바뀐다. 게임 빌드에서는 GameUserSettings.ini [Internationalization] Culture에 저장돼
+	// DefaultGame.ini의 기본 언어(ko)보다 우선한다. 에디터(PIE)에서는 에디터 언어까지 함께 바뀌는 엔진 동작이라 저장하지 않는다.
+	UKismetInternationalizationLibrary::SetCurrentCulture(Culture, true);
+	SetLanguageSelectionState();
 }
 
 void UPGSettingsScreenWidget::HandleResolutionScaleChanged(float Value)
@@ -340,6 +377,7 @@ void UPGSettingsScreenWidget::RefreshControlsFromSettings()
 	bIsUpdatingControls = false;
 
 	SetPresetSelectionState(UserSettings->GetSelectedMobileQualityPreset());
+	SetLanguageSelectionState();
 }
 
 void UPGSettingsScreenWidget::ApplyPreset(EPGMobileQualityPreset Preset)
@@ -406,6 +444,14 @@ void UPGSettingsScreenWidget::SetAllButtonsEnabled(bool bEnabled) const
 	{
 		HighPresetButton->SetIsEnabled(bEnabled);
 	}
+	if (KoreanLanguageButton)
+	{
+		KoreanLanguageButton->SetIsEnabled(bEnabled);
+	}
+	if (EnglishLanguageButton)
+	{
+		EnglishLanguageButton->SetIsEnabled(bEnabled);
+	}
 	if (ResolutionScaleSlider)
 	{
 		ResolutionScaleSlider->SetIsEnabled(bEnabled);
@@ -437,6 +483,20 @@ void UPGSettingsScreenWidget::SetPresetSelectionState(EPGMobileQualityPreset Pre
 	if (HighPresetButton)
 	{
 		HighPresetButton->SetIsEnabled(Preset != EPGMobileQualityPreset::High);
+	}
+}
+
+void UPGSettingsScreenWidget::SetLanguageSelectionState() const
+{
+	// 품질 프리셋과 같은 선택 표시: 현재 언어의 버튼만 꺼 둔다. 언어 이름은 ko-KR처럼 지역이 붙을 수 있어 앞부분으로 비교한다.
+	const FString Language = UKismetInternationalizationLibrary::GetCurrentLanguage();
+	if (KoreanLanguageButton)
+	{
+		KoreanLanguageButton->SetIsEnabled(!Language.StartsWith(TEXT("ko")));
+	}
+	if (EnglishLanguageButton)
+	{
+		EnglishLanguageButton->SetIsEnabled(!Language.StartsWith(TEXT("en")));
 	}
 }
 

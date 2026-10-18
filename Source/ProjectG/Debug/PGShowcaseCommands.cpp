@@ -25,6 +25,7 @@
 #include "Misc/FileHelper.h"
 #include "Movement/PGRunnerMovementComponent.h"
 #include "PBDRigidsSolver.h"
+#include "Kismet/KismetInternationalizationLibrary.h"
 #include "Player/PGPlayerController.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "Rendering/SlateRenderer.h"
@@ -52,6 +53,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogPGShowcase, Log, All);
  *   앱이 뒤로 가는 순간(ApplicationWillDeactivateDelegate)을 흉내 내 자동 일시정지를 연출합니다. Resume은 사람이 누르는 버튼이라 명령이 없습니다.
  * PG.Showcase.Back
  *   Android 뒤로가기를 흉내 냅니다(APGPlayerController::HandleBackRequested). 모달 닫기, Pause 토글, Home 종료 확인을 연출합니다.
+ * PG.Showcase.Language <ko|en>
+ *   게임 언어를 바꿉니다(저장하지 않음). 열려 있는 화면의 문구가 그 자리에서 바뀌는지 연출합니다.
  * PG.Showcase.AutoPilot <0|1>
  *   입력 없이도 러너가 길을 따라가도록 좌우 이동과 점프를 대신 넣습니다.
  * PG.Showcase.Balance <입력 -1~1> [초]
@@ -734,6 +737,17 @@ namespace
 		FConsoleCommandDelegate::CreateLambda([]()
 		{
 			FCoreDelegates::ApplicationWillDeactivateDelegate.Broadcast();
+		}));
+
+	FAutoConsoleCommand GLanguageCommand(
+		TEXT("PG.Showcase.Language"),
+		TEXT("PG.Showcase.Language <culture>: switches the game language (ko, en) without saving it."),
+		FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
+		{
+			if (Args.Num() > 0)
+			{
+				UKismetInternationalizationLibrary::SetCurrentCulture(Args[0], false);
+			}
 		}));
 }
 

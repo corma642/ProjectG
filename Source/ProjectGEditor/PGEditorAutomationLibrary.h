@@ -50,4 +50,35 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Editor Automation")
 	static TArray<FName> FindHitWidgetNames(UUserWidget* Widget, FIntPoint Size, const TArray<FVector2D>& Points, float AdvanceSeconds = 0.0f, bool bIgnoreEnabledState = false);
+
+	/**
+	 * 위젯을 그린 뒤 원하는 크기가 배정된 크기보다 큰(잘리거나 이웃과 겹치는) TextBlock을 "이름: desired WxH > allotted WxH ("문구")" 형식으로 반환합니다.
+	 * 현지화로 문구 길이가 바뀌어 UI가 밀리는지 확인할 때 씁니다. 숨겨진 TextBlock과 중첩 UserWidget 안의 TextBlock도 검사합니다.
+	 * Tolerance(px)보다 작은 초과는 무시합니다.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ProjectG | Editor Automation")
+	static TArray<FString> FindOverflowingTextBlocks(UUserWidget* Widget, FIntPoint Size, float AdvanceSeconds = 0.0f, float Tolerance = 1.0f);
+
+	/**
+	 * 디자이너가 만든 텍스트처럼 패키지 네임스페이스와 Key를 가진 현지화 가능 텍스트를 만듭니다.
+	 * Python의 문자열→Text 변환은 문화권 불변(INVTEXT)이라 현지화 수집에서 빠지므로, Python으로 WBP 문구를 넣을 때는 이 함수를 거칩니다.
+	 * PackageOwner는 그 WBP(에셋)이고, 네임스페이스가 없으면 새로 만듭니다.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ProjectG | Editor Automation")
+	static FText MakeLocalizedText(UObject* PackageOwner, const FString& Key, const FString& SourceString);
+
+	/**
+	 * 게임 텍스트의 현지화 미리보기를 해당 문화권으로 켭니다(에디터 언어는 바뀌지 않음). 빈 문자열이면 끕니다.
+	 * 에디터 프로세스는 게임 locres를 자동으로 읽지 않으므로, 위젯 QA에서 번역된 문구를 그리려면 먼저 호출합니다.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ProjectG | Editor Automation")
+	static void SetGameLocalizationPreview(const FString& Culture);
+
+	/**
+	 * Localization Dashboard가 읽는 게임 현지화 타깃을 Config/DefaultEditor.ini에 등록합니다(같은 이름이 있으면 갱신).
+	 * Cultures의 NativeCultureIndex번째가 원어 문화권입니다. 수집 범위는 Source·Config의 h/cpp/ini와 Content의 uasset/umap입니다.
+	 * PackageExcludePaths는 수집에서 뺄 Content 경로 와일드카드(예: Content/L10N/*, 외부 에셋 팩)입니다.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ProjectG | Editor Automation")
+	static bool RegisterGameLocalizationTarget(const FString& TargetName, const TArray<FString>& Cultures, int32 NativeCultureIndex, const TArray<FString>& PackageExcludePaths);
 };

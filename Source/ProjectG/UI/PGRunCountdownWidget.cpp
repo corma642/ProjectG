@@ -79,8 +79,9 @@ void UPGRunCountdownWidget::UpdateCountdownText(int32 StepIndex)
 		return;
 	}
 
-	static const TCHAR* CountdownLabels[] = { TEXT("3"), TEXT("2"), TEXT("1"), TEXT("GO!") };
-	CountdownText->SetText(FText::FromString(CountdownLabels[FMath::Clamp(StepIndex, 0, 3)]));
+	// 숫자는 언어와 무관하니 문화권 불변으로 두고, 마지막 출발 문구만 현지화한다.
+	static const FText CountdownLabels[] = { FText::AsCultureInvariant(TEXT("3")), FText::AsCultureInvariant(TEXT("2")), FText::AsCultureInvariant(TEXT("1")), NSLOCTEXT("PGRunCountdown", "Go", "출발!") };
+	CountdownText->SetText(CountdownLabels[FMath::Clamp(StepIndex, 0, 3)]);
 
 	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
 	const float VolumeMultiplier = StepIndex == 3 && Settings ? Settings->SFX.CountdownGoVolumeMultiplier : 1.0f;

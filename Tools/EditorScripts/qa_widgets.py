@@ -4,14 +4,23 @@
 대상: Run HUD(배달 카드·점수 표시·손실 임박 카드 경고 포함), 첫 런 가이드(드래그·플릭 단계), 런 이벤트 배지(전조·발동), Home, Settings, Tutorial, Pause, RunResult, Shop, ReceiptShop, 상품 카드, FPS 표시, 카운트다운, 화면 전환 페이드.
 실행: powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\Tools\\Verify-Project.ps1 -SkipBuild -SkipBlueprints -SkipTests -WidgetQA
 결과: Saved/Verify/WidgetQA/*.png, 로그의 '### WIDGET_QA: PASS' 또는 '### WIDGET_QA: FAIL'
+언어: 스크립트 인자로 문화권(en)을 주면 그 언어의 locres(Content/Localization/Game)를 미리보기로 적용해 Saved/Verify/WidgetQA/<문화권>/에 그린다.
+      인자가 없으면 원어(한국어 원문)로 그린다. Verify-Project.ps1은 두 번(원어, en) 실행한다.
+      그린 화면마다 문구가 배정된 칸보다 커서 잘리거나 겹치는 TextBlock이 없는지(find_overflowing_text_blocks) 함께 검사한다.
 """
 import os
+import sys
 from collections import Counter
 
 import unreal
 
 LIB = unreal.PGEditorAutomationLibrary
 OUT = os.path.join(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_saved_dir()), 'Verify', 'WidgetQA')
+CULTURE = sys.argv[1] if len(sys.argv) > 1 else ''
+if CULTURE:
+    # 에디터 프로세스는 게임 locres를 자동으로 읽지 않으므로 미리보기로 켠다(에디터 언어는 그대로).
+    LIB.set_game_localization_preview(CULTURE)
+    OUT = os.path.join(OUT, CULTURE)
 WIDGETS = '/Game/Blueprints/Widgets/'
 # 위젯 디자인 기준 해상도. DPI 배율 없이 1:1로 그린다.
 SIZE = unreal.IntPoint(1080, 2340)
@@ -66,6 +75,10 @@ def render(widget, name, entries=(), advance=0.0):
     unreal.AutomationLibrary.finish_loading_before_screenshot()
     enter(entries)
     check(LIB.render_widget_to_png(widget, SIZE, BACKGROUND, path, advance), f'render {name}.png')
+    # 현지화로 길어진 문구가 칸을 넘치면 잘리거나 이웃과 겹친다. 그린 상태 그대로 TextBlock의 원하는 크기와 배정 크기를 비교한다.
+    enter(entries)
+    overflow = [str(item) for item in LIB.find_overflowing_text_blocks(widget, SIZE, advance)]
+    check(not overflow, f'{name}: every text fits its box' + (f' {overflow}' if overflow else ''))
 
 
 def children_of(widget):
@@ -198,8 +211,8 @@ for path, event_type, cases in BADGES:
 # (PNG 이름, 에셋, 진입이 끝나도 게임 규칙상 꺼져 있을 수 있는 버튼)
 SCREENS = (
     ('HomeScreen', 'Home/WBP_HomeScreen', ()),
-    # 지금 선택된 품질 프리셋 버튼은 선택 표시로 꺼진다. 어느 것인지는 이 PC의 저장된 설정에 따른다.
-    ('HomeSettingsScreen', 'Home/WBP_HomeSettingsScreen', ('LowPresetButton', 'BalancedPresetButton', 'HighPresetButton')),
+    # 지금 선택된 품질 프리셋 버튼은 선택 표시로 꺼진다. 어느 것인지는 이 PC의 저장된 설정에 따른다. 현재 언어의 버튼도 같은 방식으로 꺼진다(에디터는 영어).
+    ('HomeSettingsScreen', 'Home/WBP_HomeSettingsScreen', ('LowPresetButton', 'BalancedPresetButton', 'HighPresetButton', 'KoreanLanguageButton', 'EnglishLanguageButton')),
     # 첫 페이지에서는 이전 버튼이 꺼진다.
     ('TutorialScreen', 'Home/WBP_TutorialScreen', ('PrevButton',)),
     ('RunPause', 'HUD/WBP_RunPause', ()),
@@ -221,6 +234,9 @@ for name, path, may_be_locked in SCREENS:
     if name == 'RunResult':
         # 자릿수가 많은 값으로 줄바꿈·잘림이 없는지 본다.
         screen.configure_run_result('Fall', 83.0, 1234.0, 125680, 12, 7)
+    if name == 'ShopScreen':
+        # 선택 이름은 런타임 데이터(캐릭터·맵 이름)라 가장 긴 이름으로 명판 안에 들어가는지 본다. 긴 이름은 ScaleBox(DownOnly)가 줄인다.
+        children_of(screen)['SelectedItemNameText'].set_text(unreal.Text('Sunshine Coast\u00a0Road' if CULTURE == 'en' else '브리즈 시티로드'))
     list_name, item_paths = LIST_ITEMS.get(name, (None, ()))
     items = [create_widget(item_path) for item_path in item_paths]
     for item in items:
@@ -269,4 +285,5 @@ if fade:
     render(fade, 'ScreenTransitionFade', [fade], 1.0)
     log(f'note ScreenTransitionFade input takers while covering: {hit_counts(fade, entries=[fade], advance=1.0).most_common(3)}')
 
-log('WIDGET_QA: ' + ('PASS' if not failures else f'FAIL ({len(failures)}): ' + ' | '.join(failures)))
+log(f'WIDGET_QA culture={CULTURE or "native"}: ' + ('PASS' if not failures else f'FAIL ({len(failures)}): ' + ' | '.join(failures)))
+log('WIDGET_QA: ' + ('PASS' if not failures else f'FAIL ({len(failures)})'))
