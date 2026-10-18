@@ -333,10 +333,11 @@ bool APGRunnerCharacter::ApplyCharacterSkin(const UPGCharacterSkinDefinition* Sk
 	return true;
 }
 
-void APGRunnerCharacter::PrepareTransformForRunStart()
+void APGRunnerCharacter::PrepareTransformForRunStart(float ForwardOffset)
 {
-	// Home/Shop에서는 자유로운 프리뷰 회전을 쓰지만, 실제 러닝은 현재 위치에서 월드 0 회전 기준으로 시작한다.
-	const FVector CurrentLocation = GetActorLocation();
+	// Home/Shop에서는 자유로운 프리뷰 회전을 쓰지만, 실제 러닝은 월드 0 회전(+X) 기준으로 시작한다.
+	// Retry는 카운트다운이 짧은 만큼 덜 달리므로 그 거리를 앞에서 출발시켜 GO 지점을 첫 START와 같게 맞춘다. 시작 구간 바닥은 평탄하다는 전제라 Z는 그대로 둔다.
+	const FVector CurrentLocation = GetActorLocation() + FVector(ForwardOffset, 0.0f, 0.0f);
 	const FRotator RunStartRotation = FRotator::ZeroRotator;
 
 	SetActorLocationAndRotation(CurrentLocation, RunStartRotation, false, nullptr, ETeleportType::TeleportPhysics);

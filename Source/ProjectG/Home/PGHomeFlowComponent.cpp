@@ -64,6 +64,9 @@ void UPGHomeFlowComponent::BeginPlay()
 	{
 		if (bRetryCountdownRequested)
 		{
+			// 카운트다운이 시작돼 러너 카메라로 넘어가기 전까지 PlayerController 기본 카메라(레벨 임의 지점)가 노출되지 않도록 HomeCamera를 먼저 잡는다.
+			SetHomeCameraViewTarget();
+
 			// Retry 레벨 로드는 Home UI를 건너뛰지만, 카운트다운을 이 프레임에 바로 시작하면
 			// PlayerController의 입력 및 델리게이트 초기화보다 앞설 수 있다.
 			GetWorld()->GetTimerManager().SetTimerForNextTick(this, &UPGHomeFlowComponent::HandleRetryCountdownInitializationReady);
@@ -89,7 +92,7 @@ void UPGHomeFlowComponent::BeginPlay()
 	}
 	else if (BoundGameMode && BoundGameMode->GetRunState() == EPGRunState::Countdown)
 	{
-		HandleRunCountdownStarted(CachedHomeFlowSettings.RunStartCountdownDuration);
+		HandleRunCountdownStarted(BoundGameMode->GetRunCountdownDuration());
 	}
 	else if (BoundGameMode && BoundGameMode->GetRunState() == EPGRunState::Running)
 	{

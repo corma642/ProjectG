@@ -350,6 +350,10 @@ struct FPGHomeFlowSettings
 	// 3-2-1-Go 카운트다운 전체 시간
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Countdown", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "10.0"))
 	float RunStartCountdownDuration = 3.0f;
+
+	// Retry로 같은 레벨을 다시 열었을 때의 3-2-1-Go 전체 시간. 플레이어가 이미 준비돼 있으므로 첫 시작보다 짧게 둬 실패→재도전 대기를 줄인다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Countdown", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "10.0"))
+	float RetryCountdownDuration = 2.0f;
 };
 
 /**

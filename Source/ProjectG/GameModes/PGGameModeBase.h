@@ -65,6 +65,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run")
 	EPGRunState GetRunState() const { return RunState; }
 
+	/** 현재(또는 마지막) 카운트다운의 초 단위 길이입니다. 카운트다운 도중 늦게 바인딩한 UI가 GameMode 타이머와 같은 길이를 쓰기 위한 값입니다. */
+	float GetRunCountdownDuration() const { return RunCountdownDuration; }
+
 	/** 카운트다운 시작과 초 단위 Duration을 UI, 러너, 트랙 시스템에 전달합니다. */
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run")
 	FPGRunCountdownStartedSignature OnRunCountdownStarted;
@@ -89,6 +92,9 @@ private:
 
 	FTimerHandle RunCountdownTimerHandle;
 	FTimerHandle RetryCountdownFallbackTimerHandle;
+	// StartFlow=RetryCountdown URL 옵션으로 열린 레벨이면 첫 시작 대신 짧은 Retry 카운트다운을 쓴다.
+	bool bIsRetryEntry = false;
+	float RunCountdownDuration = 0.0f;
 	bool bRunRewardsSettled = false;
 	bool bIsCurrentMapSetupValid = false;
 };

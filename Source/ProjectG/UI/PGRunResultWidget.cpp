@@ -31,7 +31,7 @@ constexpr float RowAnimationDelay = 0.09f;
 constexpr float RowAnimationStartDelay = 0.26f;
 constexpr float ButtonAnimationDuration = 0.28f;
 constexpr float ButtonAnimationDelay = 0.12f;
-constexpr float ButtonAnimationStartDelay = 0.72f;
+constexpr float ButtonAnimationStartDelay = 0.3f;
 constexpr float ButtonNormalScale = 1.0f;
 constexpr float ButtonPressedScale = 0.96f;
 constexpr float BackgroundStartScale = 0.96f;
@@ -274,7 +274,7 @@ void UPGRunResultWidget::UpdateEntryAnimation(float DeltaTime)
 	bool bAllButtonsFinished = true;
 	for (int32 Index = 0; Index < AnimatedButtons.Num(); ++Index)
 	{
-		// Retry/Home은 결과값이 모두 보인 뒤 마지막 행동 선택지로 등장한다.
+		// Retry/Home은 결과 행과 거의 같이 올라온다(2026-10-18 재도전 대기 단축으로 0.72초에서 0.3초로).
 		// 애니메이션 완료 전 입력을 막아 투명 버튼 클릭을 방지한다.
 		const float ButtonTime = EntryAnimationElapsed - ButtonAnimationStartDelay - static_cast<float>(Index) * ButtonAnimationDelay;
 		const float ButtonAlpha = PGUIAnimation::EaseOutCubic(ButtonTime / ButtonAnimationDuration);
@@ -282,10 +282,15 @@ void UPGRunResultWidget::UpdateEntryAnimation(float DeltaTime)
 		ApplyWidgetAnimationState(AnimatedButtons[Index], FVector2D(0.0f, FMath::Lerp(ButtonStartYOffset, 0.0f, ButtonAlpha)), ButtonAlpha);
 	}
 
+	if (bAllButtonsFinished && RetryButton && !RetryButton->GetIsEnabled())
+	{
+		// 행 애니메이션이 끝나기를 기다리지 않고 버튼이 다 보이는 즉시 재도전을 받는다.
+		SetActionButtonsEnabled(true);
+	}
+
 	if (RootAlpha >= 1.0f && BackgroundAlpha >= 1.0f && TitleAlpha >= 1.0f && bAllRowsFinished && bAllButtonsFinished)
 	{
 		bEntryAnimationFinished = true;
-		SetActionButtonsEnabled(true);
 	}
 }
 

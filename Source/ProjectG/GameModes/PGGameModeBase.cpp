@@ -37,7 +37,8 @@ void APGGameModeBase::BeginPlay()
 
 	const UWorld* World = GetWorld();
 	const FString StartFlowOption = World ? World->URL.GetOption(TEXT("StartFlow="), TEXT("")) : FString();
-	if (StartFlowOption.Equals(TEXT("RetryCountdown"), ESearchCase::IgnoreCase))
+	bIsRetryEntry = StartFlowOption.Equals(TEXT("RetryCountdown"), ESearchCase::IgnoreCase);
+	if (bIsRetryEntry)
 	{
 		GetWorldTimerManager().SetTimer(RetryCountdownFallbackTimerHandle, this, &APGGameModeBase::HandleRetryCountdownFallback, 1.0f, false);
 	}
@@ -70,8 +71,15 @@ void APGGameModeBase::RequestStartDelivery()
 		return;
 	}
 
+	// Retry 진입은 플레이어가 이미 준비돼 있으므로 더 짧은 카운트다운으로 실패→재도전 대기를 줄인다.
 	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
-	const float CountdownDuration = Settings ? FMath::Max(0.0f, Settings->HomeFlow.RunStartCountdownDuration) : 3.0f;
+	const float CountdownDuration = Settings ? FMath::Max(0.0f, bIsRetryEntry ? Settings->HomeFlow.RetryCountdownDuration : Settings->HomeFlow.RunStartCountdownDuration) : 3.0f;
+	RunCountdownDuration = CountdownDuration;
+	// 시작 구간은 첫 START 카운트다운 동안 달리는 거리(RunStartCountdownDuration × ForwardSpeed)에 맞춰 배치돼 있다.
+	// Retry는 짧은 카운트다운만큼 덜 달리므로 그 차이만큼 앞에서 출발시켜 GO 지점과 거리 기준을 첫 START와 같게 유지한다.
+	const float RunStartForwardOffset = bIsRetryEntry && Settings
+		? FMath::Max(0.0f, Settings->HomeFlow.RunStartCountdownDuration - CountdownDuration) * Settings->Runner.ForwardSpeed
+		: 0.0f;
 
 	APGRunnerCharacter* RunnerCharacter = EnsureRunnerPossessedForRun();
 	if (!RunnerCharacter)
@@ -79,7 +87,7 @@ void APGGameModeBase::RequestStartDelivery()
 		UE_LOG(LogPGGameModeBase, Warning, TEXT("Start delivery aborted: no playable runner is possessed."));
 		return;
 	}
-	RunnerCharacter->PrepareTransformForRunStart();
+	RunnerCharacter->PrepareTransformForRunStart(RunStartForwardOffset);
 
 	RunState = EPGRunState::Countdown;
 	bRunRewardsSettled = false;

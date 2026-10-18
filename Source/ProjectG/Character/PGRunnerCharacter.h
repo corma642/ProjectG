@@ -82,8 +82,8 @@ public:
 	/** 선택한 스킨의 메시·애님 클래스를 적용하고, 필수 에셋이 없으면 false를 반환합니다. */
 	bool ApplyCharacterSkin(const UPGCharacterSkinDefinition* SkinDefinition);
 
-	/** Home/Shop 프리뷰 회전과 분리해 실제 런 시작을 위치 유지와 yaw 0 기준으로 정렬합니다. */
-	void PrepareTransformForRunStart();
+	/** Home/Shop 프리뷰 회전과 분리해 실제 런 시작을 yaw 0 기준으로 정렬합니다. ForwardOffset(cm)만큼 월드 +X로 옮겨 시작합니다(Retry의 짧은 카운트다운 보정). */
+	void PrepareTransformForRunStart(float ForwardOffset = 0.0f);
 
 	/** Home 화면에 다시 표시될 때 BeginPlay에서 저장한 배치 Transform으로 복구합니다. */
 	void RestoreHomePreviewTransform();
