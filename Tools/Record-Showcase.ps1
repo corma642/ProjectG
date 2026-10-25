@@ -6,7 +6,7 @@
     시나리오는 "<초> <콘솔 명령>" 줄로 이루어진 텍스트이며 PG.Showcase.* 명령(Source/ProjectG/Debug/PGShowcaseCommands.cpp)으로 게임을 진행시킵니다.
     시나리오 안의 {OUT}은 프레임 출력 폴더로 바뀌고, "# seed N" 줄은 트랙 세그먼트 순서를 고정합니다.
     녹화 중 런 결과가 개발자 세이브(Saved\SaveGames)에 반영되지 않도록 실행 전에 백업하고 끝나면 되돌립니다.
-    결과물은 Saved\Verify\Showcase\<이름>.mp4 이고 소리는 없습니다. 인코딩에는 Blender에 포함된 FFmpeg를 씁니다.
+    결과물은 Temp\Showcase\<이름>.mp4 이고 소리는 없습니다(Git 제외, 언제든 비워도 됨). 인코딩에는 Blender에 포함된 FFmpeg를 씁니다.
 
 .EXAMPLE
     powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Tools\Record-Showcase.ps1
@@ -43,7 +43,7 @@ foreach ($required in @($Editor, $Blender)) {
     }
 }
 
-$OutRoot = Join-Path $ProjectRoot 'Saved\Verify\Showcase'
+$OutRoot = Join-Path $ProjectRoot 'Temp\Showcase'
 $FrameDir = Join-Path $OutRoot "$Name\frames"
 $ScriptFile = Join-Path $OutRoot "$Name\script.txt"
 $LogFile = Join-Path $OutRoot "$Name\game.log"

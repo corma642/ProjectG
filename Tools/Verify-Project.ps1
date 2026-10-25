@@ -3,7 +3,7 @@
     ProjectG 변경 검증을 한 번에 실행합니다: Editor 빌드 → Blueprint 전체 컴파일 → 자동화 테스트 → (선택) 위젯 QA → (선택) Android 릴리스 패키징.
 
 .DESCRIPTION
-    각 단계는 실패하면 즉시 멈추고 종료 코드 1을 반환합니다. 로그는 Saved\Verify 아래에 남습니다.
+    각 단계는 실패하면 즉시 멈추고 종료 코드 1을 반환합니다. 로그는 Temp\Verify 아래에 남습니다(Git 제외, 언제든 비워도 됨).
     완료 기준은 프로젝트 복구 가이드와 같습니다: UBT Succeeded, Blueprint 오류 0 / 경고 0 / 로드 실패 0, ProjectG.Core 테스트 전부 Success.
 
     -Package는 Google Play 업로드용 릴리스 경로입니다. 항상 전체 검증을 먼저 통과해야 하고(-Skip* 불가), 작업 트리에 커밋되지 않은 변경이 있으면 거부합니다(-AllowDirty로 로컬 테스트 빌드만 허용).
@@ -44,7 +44,7 @@ $ProjectFile = Join-Path $ProjectRoot 'ProjectG.uproject'
 $EditorCmd = Join-Path $EngineRoot 'Engine\Binaries\Win64\UnrealEditor-Cmd.exe'
 $BuildBat = Join-Path $EngineRoot 'Engine\Build\BatchFiles\Build.bat'
 $RunUAT = Join-Path $EngineRoot 'Engine\Build\BatchFiles\RunUAT.bat'
-$LogRoot = Join-Path $ProjectRoot 'Saved\Verify'
+$LogRoot = Join-Path $ProjectRoot 'Temp\Verify'
 
 foreach ($required in @($ProjectFile, $EditorCmd, $BuildBat)) {
     if (-not (Test-Path -LiteralPath $required)) {

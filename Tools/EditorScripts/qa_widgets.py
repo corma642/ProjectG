@@ -3,12 +3,12 @@
 위젯을 실제 RHI로 그려 PNG를 남기고, 버튼이 장식 위젯에 가려지지 않았는지와 런 이벤트 배지의 방향 표시를 확인한다.
 대상: Run HUD(배달 카드·점수 표시·손실 임박 카드 경고 포함), 첫 런 가이드(드래그·플릭 단계), 런 이벤트 배지(전조·발동), Home, Settings, Tutorial, Pause, RunResult, Shop, ReceiptShop, 상품 카드, FPS 표시, 카운트다운, 화면 전환 페이드.
 실행: powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\Tools\\Verify-Project.ps1 -SkipBuild -SkipBlueprints -SkipTests -WidgetQA
-결과: Saved/Verify/WidgetQA/*.png, 로그의 '### WIDGET_QA: PASS' 또는 '### WIDGET_QA: FAIL'
-언어: 스크립트 인자로 문화권(en)을 주면 그 언어의 locres(Content/Localization/Game)를 미리보기로 적용해 Saved/Verify/WidgetQA/<문화권>/에 그린다.
+결과: Temp/Verify/WidgetQA/*.png(Git 제외, 언제든 비워도 됨), 로그의 '### WIDGET_QA: PASS' 또는 '### WIDGET_QA: FAIL'
+언어: 스크립트 인자로 문화권(en)을 주면 그 언어의 locres(Content/Localization/Game)를 미리보기로 적용해 Temp/Verify/WidgetQA/<문화권>/에 그린다.
       인자가 없으면 원어(한국어 원문)로 그린다. Verify-Project.ps1은 두 번(원어, en) 실행한다.
       그린 화면마다 문구가 배정된 칸보다 커서 잘리거나 겹치는 TextBlock이 없는지(find_overflowing_text_blocks) 함께 검사한다.
 화면 비율·절개 영역: 디자인 해상도(1080×2340) 뒤에 16:9, 태블릿 16:10, 21:9와 펀치홀 위 여백(96px, SafeZone 흉내)으로 HUD·화면을 다시 그려
-      Saved/Verify/WidgetQA/<문화권>/<패스>/에 남기고 버튼 도달·문구 넘침을 같은 기준으로 검사한다. 로딩 화면은 LoadingScreen.png로 그린다.
+      Temp/Verify/WidgetQA/<문화권>/<패스>/에 남기고 버튼 도달·문구 넘침을 같은 기준으로 검사한다. 로딩 화면은 LoadingScreen.png로 그린다.
 """
 import os
 import sys
@@ -17,7 +17,7 @@ from collections import Counter
 import unreal
 
 LIB = unreal.PGEditorAutomationLibrary
-OUT = os.path.join(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_saved_dir()), 'Verify', 'WidgetQA')
+OUT = os.path.join(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()), 'Temp', 'Verify', 'WidgetQA')
 CULTURE = sys.argv[1] if len(sys.argv) > 1 else ''
 if CULTURE:
     # 에디터 프로세스는 게임 locres를 자동으로 읽지 않으므로 미리보기로 켠다(에디터 언어는 그대로).

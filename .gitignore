@@ -58,6 +58,9 @@ Config/User*.ini
 # Release artifacts (AAB, universal APK, symbols, build-info) written by Tools/Verify-Project.ps1 -Package
 Releases/
 
+# Disposable tool output (verify logs, widget QA captures, showcase videos, cook checks, survey JSON). Safe to empty at any time.
+Temp/
+
 # Builds
 Build/*
 
