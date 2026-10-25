@@ -21,6 +21,9 @@ const FVector2D ReceiptEntryOffset(280.0f, -120.0f);
 const FVector2D LogoExitOffset(0.0f, -620.0f);
 const FVector2D MenuExitOffset(0.0f, 760.0f);
 const FVector2D ReceiptExitOffset(320.0f, -160.0f);
+// 도움말 버튼은 오른쪽 위 가장자리 요소라 메뉴 묶음(가운데 ScaleBox)에 넣지 않고 영수증 패널을 좌우 반전한 경로로 움직인다.
+const FVector2D HelpEntryOffset(-280.0f, -120.0f);
+const FVector2D HelpExitOffset(-320.0f, -160.0f);
 
 }
 
@@ -225,6 +228,7 @@ void UPGHomeScreenWidget::ApplyEntryAnimation(float Alpha)
 	ApplyWidgetAnimationState(LogoImage, LogoEntryOffset, LogoAnimationDelay, AnimationTime, false, 0.96f, 1.0f);
 	ApplyWidgetAnimationState(MenuPanel, MenuEntryOffset, MenuAnimationDelay, AnimationTime, false, 0.96f, 1.0f);
 	ApplyWidgetAnimationState(ReceiptPanel, ReceiptEntryOffset, ReceiptAnimationDelay, AnimationTime, false, 1.0f, 1.0f);
+	ApplyWidgetAnimationState(HelpButton, HelpEntryOffset, ReceiptAnimationDelay, AnimationTime, false, 1.0f, 1.0f);
 }
 
 void UPGHomeScreenWidget::ApplyExitAnimation(float Alpha)
@@ -233,6 +237,7 @@ void UPGHomeScreenWidget::ApplyExitAnimation(float Alpha)
 	ApplyWidgetAnimationState(LogoImage, LogoExitOffset, LogoAnimationDelay, AnimationTime, true, 1.0f, 0.92f);
 	ApplyWidgetAnimationState(MenuPanel, MenuExitOffset, MenuAnimationDelay, AnimationTime, true, 1.0f, 0.92f);
 	ApplyWidgetAnimationState(ReceiptPanel, ReceiptExitOffset, ReceiptAnimationDelay, AnimationTime, true, 1.0f, 0.92f);
+	ApplyWidgetAnimationState(HelpButton, HelpExitOffset, ReceiptAnimationDelay, AnimationTime, true, 1.0f, 0.92f);
 }
 
 void UPGHomeScreenWidget::ApplyWidgetAnimationState(UWidget* Widget, const FVector2D& StartOffset, float Delay, float AnimationTime, bool bReverse, float StartScale, float EndScale) const

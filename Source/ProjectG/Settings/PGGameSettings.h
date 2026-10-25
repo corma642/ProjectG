@@ -361,6 +361,48 @@ struct FPGHomeFlowSettings
 };
 
 /**
+ * 레벨 전환(Retry, Home 복귀, 맵 변경) 동안 보여 줄 로딩 화면 설정입니다.
+ * 엔진 MoviePlayer가 별도 스레드에서 그리므로 게임 스레드가 로드에 막혀 있어도 회전 표시가 움직입니다.
+ */
+USTRUCT(BlueprintType)
+struct FPGLoadingScreenSettings
+{
+	GENERATED_BODY()
+
+	// 로딩 화면 사용 여부. 끄면 전환 중 마지막 프레임이 멈춘 채 보인다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Loading Screen")
+	bool bEnabled = true;
+
+	// 로딩 화면 가운데 로고 텍스처. 비어 있으면 배경과 회전 표시만 그린다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Loading Screen")
+	TSoftObjectPtr<UTexture2D> LogoTexture;
+
+	// 로고 폭(1080px 폭 기준 디자인 픽셀). 화면 폭에 비례해 커진다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Loading Screen", meta = (ClampMin = "64.0", UIMin = "200.0", UIMax = "1080.0"))
+	float LogoWidth = 640.0f;
+
+	// 배경색(선형). 기본값은 Home 화면 하늘색이라 Home→로딩→Home이 한 색으로 이어진다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Loading Screen")
+	FLinearColor BackgroundColor = FLinearColor(0.20f, 0.36f, 0.52f, 1.0f);
+
+	// 로고 아래 회전 표시의 색. 기본값은 명판 종이색이다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Loading Screen")
+	FLinearColor ThrobberColor = FLinearColor(1.0f, 0.93f, 0.78f, 1.0f);
+
+	// 회전 표시 반지름(디자인 픽셀)
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Loading Screen", meta = (ClampMin = "4.0", UIMin = "10.0", UIMax = "80.0"))
+	float ThrobberRadius = 28.0f;
+
+	// 로고와 회전 표시 사이 간격(디자인 픽셀)
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Loading Screen", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "300.0"))
+	float ThrobberSpacing = 90.0f;
+
+	// 최소 표시 시간(초). 로드가 이보다 빨리 끝나도 이 시간은 보여 한 프레임 깜빡임을 막는다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Loading Screen", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "3.0"))
+	float MinimumDisplayTime = 0.5f;
+};
+
+/**
  * 영수증 상점에서 표시하고 테스트 지급에 사용하는 상품 한 건의 설정입니다.
  */
 USTRUCT(BlueprintType)
@@ -889,6 +931,10 @@ public:
 	// 홈 화면과 러닝 시작 카운트다운 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI")
 	FPGHomeFlowSettings HomeFlow;
+
+	// 레벨 전환 동안 보여 줄 로딩 화면 설정
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI")
+	FPGLoadingScreenSettings LoadingScreen;
 
 	// 홈/러닝 배경음 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Audio")

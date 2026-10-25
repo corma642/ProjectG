@@ -7,6 +7,8 @@
 언어: 스크립트 인자로 문화권(en)을 주면 그 언어의 locres(Content/Localization/Game)를 미리보기로 적용해 Saved/Verify/WidgetQA/<문화권>/에 그린다.
       인자가 없으면 원어(한국어 원문)로 그린다. Verify-Project.ps1은 두 번(원어, en) 실행한다.
       그린 화면마다 문구가 배정된 칸보다 커서 잘리거나 겹치는 TextBlock이 없는지(find_overflowing_text_blocks) 함께 검사한다.
+화면 비율·절개 영역: 디자인 해상도(1080×2340) 뒤에 16:9, 태블릿 16:10, 21:9와 펀치홀 위 여백(96px, SafeZone 흉내)으로 HUD·화면을 다시 그려
+      Saved/Verify/WidgetQA/<문화권>/<패스>/에 남기고 버튼 도달·문구 넘침을 같은 기준으로 검사한다. 로딩 화면은 LoadingScreen.png로 그린다.
 """
 import os
 import sys
@@ -227,28 +229,34 @@ LIST_ITEMS = {
     'ShopScreen': ('ItemListBox', ('Shop/WBP_CharacterShopItem', 'Shop/WBP_CharacterShopItem', 'Shop/WBP_MapShopItem', 'Shop/WBP_MapShopItem')),
     'ReceiptShop': ('PackListBox', ('ReceiptShop/WBP_ReceiptShopPackItem',) * 4),
 }
-for name, path, may_be_locked in SCREENS:
-    screen = create_widget(path)
-    if not screen:
-        continue
-    if name == 'RunResult':
-        # 자릿수가 많은 값으로 줄바꿈·잘림이 없는지 본다.
-        screen.configure_run_result('Fall', 83.0, 1234.0, 125680, 12, 7)
-    if name == 'ShopScreen':
-        # 선택 이름은 런타임 데이터(캐릭터·맵 이름)라 가장 긴 이름으로 명판 안에 들어가는지 본다. 긴 이름은 ScaleBox(DownOnly)가 줄인다.
-        children_of(screen)['SelectedItemNameText'].set_text(unreal.Text('Sunshine Coast\u00a0Road' if CULTURE == 'en' else '브리즈 시티로드'))
-    list_name, item_paths = LIST_ITEMS.get(name, (None, ()))
-    items = [create_widget(item_path) for item_path in item_paths]
-    for item in items:
-        screen.get_editor_property(list_name).add_child(item)
-    render(screen, name, [screen], SETTLE_SECONDS)
-    check_buttons_reachable(screen, name, [screen], SETTLE_SECONDS, may_be_locked)
-    if items:
-        # 카드 내부는 중첩 위젯이라 카드 이름으로 집계된다. 카드 자체의 버튼은 아래 단독 검사에서 본다.
-        item_hits = hit_counts(screen, entries=[screen], advance=SETTLE_SECONDS, ignore_enabled=True)
+def qa_screens(label_suffix=''):
+    """목록 화면 8종을 실제 데이터(긴 이름·큰 점수·카드)로 그리고 버튼 도달과 문구 넘침을 검사한다. 비율·절개 패스에서도 같은 기준으로 다시 돈다."""
+    for name, path, may_be_locked in SCREENS:
+        screen = create_widget(path)
+        if not screen:
+            continue
+        label = name + label_suffix
+        if name == 'RunResult':
+            # 자릿수가 많은 값으로 줄바꿈·잘림이 없는지 본다.
+            screen.configure_run_result('Fall', 83.0, 1234.0, 125680, 12, 7)
+        if name == 'ShopScreen':
+            # 선택 이름은 런타임 데이터(캐릭터·맵 이름)라 가장 긴 이름으로 명판 안에 들어가는지 본다. 긴 이름은 ScaleBox(DownOnly)가 줄인다.
+            children_of(screen)['SelectedItemNameText'].set_text(unreal.Text('Sunshine Coast\u00a0Road' if CULTURE == 'en' else '브리즈 시티로드'))
+        list_name, item_paths = LIST_ITEMS.get(name, (None, ()))
+        items = [create_widget(item_path) for item_path in item_paths]
         for item in items:
-            samples = item_hits[item.get_name()]
-            check(samples >= MIN_BUTTON_SAMPLES, f'{name}: list item {item.get_name()} is not covered by another widget ({samples} samples, need {MIN_BUTTON_SAMPLES})')
+            screen.get_editor_property(list_name).add_child(item)
+        render(screen, name, [screen], SETTLE_SECONDS)
+        check_buttons_reachable(screen, label, [screen], SETTLE_SECONDS, may_be_locked)
+        if items:
+            # 카드 내부는 중첩 위젯이라 카드 이름으로 집계된다. 카드 자체의 버튼은 아래 단독 검사에서 본다.
+            item_hits = hit_counts(screen, entries=[screen], advance=SETTLE_SECONDS, ignore_enabled=True)
+            for item in items:
+                samples = item_hits[item.get_name()]
+                check(samples >= MIN_BUTTON_SAMPLES, f'{label}: list item {item.get_name()} is not covered by another widget ({samples} samples, need {MIN_BUTTON_SAMPLES})')
+
+
+qa_screens()
 
 # 카드는 단독으로 그리면 화면 크기로 늘어나 그림이 의미가 없다. PNG는 위 목록 화면으로 대신하고 여기서는 카드 안 버튼만 본다.
 for path in ('Shop/WBP_CharacterShopItem', 'Shop/WBP_MapShopItem', 'ReceiptShop/WBP_ReceiptShopPackItem'):
@@ -284,6 +292,51 @@ fade = create_widget('Etc/WBP_ScreenTransitionFade')
 if fade:
     render(fade, 'ScreenTransitionFade', [fade], 1.0)
     log(f'note ScreenTransitionFade input takers while covering: {hit_counts(fade, entries=[fade], advance=1.0).most_common(3)}')
+
+# ---------------------------------------------------------------- 로딩 화면
+# 레벨 전환 중 MoviePlayer가 그리는 로딩 화면(UPGLoadingScreenSubsystem)은 PIE·헤드리스에서 볼 수 없어 같은 Slate 위젯을 캡처한다.
+loading_path = os.path.join(OUT, 'LoadingScreen.png')
+LIB.render_loading_screen_to_png(SIZE, loading_path)
+unreal.AutomationLibrary.finish_loading_before_screenshot()
+check(LIB.render_loading_screen_to_png(SIZE, loading_path), 'render LoadingScreen.png')
+
+# ---------------------------------------------------------------- 다른 화면 비율·절개 영역
+# 디자인 해상도 밖의 비율에서 HUD와 화면이 잘리거나 겹치지 않는지, 절개 영역(SafeZone) 여백이 가장자리 UI를 안쪽으로 옮기는지 본다.
+# 크기는 DPI 규칙(짧은 변 1080 = 배율 1) 기준 디자인 픽셀이다: 태블릿 1600×2560은 배율 1.48이라 1080×1728로 그린다.
+LAYOUT_PASSES = (
+    ('16x9', unreal.IntPoint(1080, 1920), 0.0),
+    ('tablet16x10', unreal.IntPoint(1080, 1728), 0.0),
+    ('21x9', unreal.IntPoint(1080, 2520), 0.0),
+    # 펀치홀·노치 기기의 위쪽 절개 여백. S24+·Z Flip4 상태 표시줄 높이를 1080px 폭 기준으로 환산한 값이다.
+    ('cutout96', unreal.IntPoint(1080, 2340), 96.0),
+)
+# 절개 패스에서 SafeZone 안의 가장자리 UI(점수·Pause·영수증·도움말·닫기)가 여백 아래로 내려와야 하는 위젯.
+SAFE_ZONE_WIDGETS = ('HUD/WBP_RunHUD', 'Home/WBP_HomeScreen', 'Shop/WBP_ShopScreen', 'Home/WBP_TutorialScreen', 'Etc/WBP_FPSDisplay')
+BASE_OUT, BASE_SIZE = OUT, SIZE
+for pass_label, pass_size, safe_top in LAYOUT_PASSES:
+    OUT, SIZE = os.path.join(BASE_OUT, pass_label), pass_size
+    os.makedirs(OUT, exist_ok=True)
+    LIB.set_safe_zone_emulation(SIZE, unreal.Margin(0.0, safe_top, 0.0, 0.0))
+    suffix = f'@{pass_label}'
+    hud = create('/Game/Blueprints/Widgets/HUD/WBP_RunHUD.WBP_RunHUD_C')
+    if hud:
+        render(hud, 'RunHUD')
+        check_buttons_reachable(hud, 'RunHUD' + suffix)
+    qa_screens(suffix)
+    if safe_top > 0.0:
+        # 여백 위 격자 줄(y < safe_top)에 버튼(과 그 내용물)이 있으면 안 된다. 전체 화면 장식 그림이 입력을 막는 것은 상관없다.
+        rows_above = int(safe_top) // 30 + (1 if int(safe_top) % 30 > 15 else 0)
+        columns = len(range(15, SIZE.x, 30))
+        for path in SAFE_ZONE_WIDGETS:
+            widget = create_widget(path)
+            if not widget:
+                continue
+            buttons = set().union(*(descendants(child) for child in children_of(widget).values() if isinstance(child, BUTTON_TYPES)))
+            hits = hit_names(widget, entries=[widget], advance=SETTLE_SECONDS, ignore_enabled=True)
+            intruders = sorted({hit for hit in hits[:rows_above * columns] if hit in buttons})
+            check(not intruders, f'{path.rsplit("/", 1)[-1]}{suffix}: no button above the cutout inset (got {intruders})')
+    LIB.set_safe_zone_emulation(SIZE, unreal.Margin(0.0, 0.0, 0.0, 0.0))
+OUT, SIZE = BASE_OUT, BASE_SIZE
 
 log(f'WIDGET_QA culture={CULTURE or "native"}: ' + ('PASS' if not failures else f'FAIL ({len(failures)}): ' + ' | '.join(failures)))
 log('WIDGET_QA: ' + ('PASS' if not failures else f'FAIL ({len(failures)})'))

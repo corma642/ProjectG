@@ -81,4 +81,18 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Editor Automation")
 	static bool RegisterGameLocalizationTarget(const FString& TargetName, const TArray<FString>& Cultures, int32 NativeCultureIndex, const TArray<FString>& PackageExcludePaths);
+
+	/**
+	 * 이후 그리기·히트 테스트에서 WBP의 SafeZone이 절개 영역(노치·펀치홀) 여백을 PixelPadding(px)만큼 두도록 흉내 냅니다.
+	 * Size는 그릴 화면 크기이고, 여백이 모두 0이면 흉내를 끕니다. 에디터는 실제 기기 여백을 모르므로 QA가 값을 정해 넣습니다.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ProjectG | Editor Automation")
+	static void SetSafeZoneEmulation(FIntPoint Size, FMargin PixelPadding);
+
+	/**
+	 * 게임이 레벨 전환 중 띄우는 로딩 화면(UPGLoadingScreenSubsystem, 설정 Go Deliver! Settings > Loading Screen)을 같은 함수로 만들어 PNG로 그립니다.
+	 * 로딩 화면은 MoviePlayer 위젯이라 PIE·헤드리스에서 볼 수 없으므로 모양 확인은 이 캡처로 합니다.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ProjectG | Editor Automation")
+	static bool RenderLoadingScreenToPng(FIntPoint Size, const FString& PngPath);
 };

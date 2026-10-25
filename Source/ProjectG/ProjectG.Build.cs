@@ -27,6 +27,11 @@ public class ProjectG : ModuleRules
             "Niagara"
         });
 
+        PrivateDependencyModuleNames.AddRange(new string[] {
+            // 레벨 전환 로딩 화면(UPGLoadingScreenSubsystem)
+            "MoviePlayer"
+        });
+
         if (Target.Platform == UnrealTargetPlatform.Android)
         {
             // UE 5.6 기본 Android 템플릿이 추가하는 미사용 Play Games/OBB 선언을 프로젝트 범위에서 제거합니다.

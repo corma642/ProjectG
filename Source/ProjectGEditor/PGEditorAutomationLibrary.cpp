@@ -4,6 +4,7 @@
 
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/SafeZone.h"
 #include "Components/TextBlock.h"
 #include "Editor.h"
 #include "Engine/TextureRenderTarget2D.h"
@@ -13,8 +14,11 @@
 #include "Internationalization/TextLocalizationManager.h"
 #include "Internationalization/TextNamespaceUtil.h"
 #include "Internationalization/TextPackageNamespaceUtil.h"
+#include "Loading/PGLoadingScreenSubsystem.h"
 #include "LocalizationSettings.h"
 #include "LocalizationTargetTypes.h"
+#include "Engine/Texture2D.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Misc/App.h"
 #include "RenderingThread.h"
 #include "Settings/PGGameSettings.h"
@@ -29,11 +33,60 @@
 #include "UI/PGShopScreenWidget.h"
 #include "UI/PGTutorialScreenWidget.h"
 #include "Widgets/Colors/SColorBlock.h"
+#include "Widgets/Layout/SSafeZone.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/SVirtualWindow.h"
 
 namespace
 {
+	void ApplySafeZoneScreenSize(const UWidgetTree* Tree, const FVector2D& ScreenSize)
+	{
+		if (!Tree)
+		{
+			return;
+		}
+		Tree->ForEachWidget([&ScreenSize](UWidget* Child)
+		{
+			if (const UUserWidget* Nested = Cast<UUserWidget>(Child))
+			{
+				ApplySafeZoneScreenSize(Nested->WidgetTree, ScreenSize);
+				return;
+			}
+			if (const USafeZone* SafeZone = Cast<USafeZone>(Child))
+			{
+				// 에디터의 SSafeZone은 게임 뷰포트가 없으면 여백을 계산하지 않는다. 디자이너처럼 화면 크기를 넘겨 SetSafeZoneEmulation의 여백이 적용되게 한다.
+				if (const TSharedPtr<SSafeZone> SlateSafeZone = StaticCastSharedPtr<SSafeZone>(SafeZone->GetCachedWidget()))
+				{
+					SlateSafeZone->SetOverrideScreenInformation(ScreenSize, 1.0f);
+				}
+			}
+		});
+	}
+
+	/** Slate 위젯 하나를 가상 창에 올려 PNG로 저장합니다. */
+	bool RenderSlateWidgetToPng(const TSharedRef<SWidget>& Content, const FIntPoint Size, const FString& PngPath)
+	{
+		if (Size.X <= 0 || Size.Y <= 0 || !FApp::CanEverRender())
+		{
+			return false;
+		}
+		const FVector2D DrawSize(Size);
+		TSharedRef<SVirtualWindow> Window = SNew(SVirtualWindow).Size(DrawSize);
+		Window->SetContent(Content);
+		Window->Resize(DrawSize);
+
+		constexpr bool bUseGammaCorrection = true;
+		UTextureRenderTarget2D* Target = FWidgetRenderer::CreateTargetFor(DrawSize, TF_Bilinear, bUseGammaCorrection);
+		FWidgetRenderer* Renderer = new FWidgetRenderer(bUseGammaCorrection);
+		FHittestGrid HitTestGrid;
+		Renderer->DrawWindow(Target, HitTestGrid, Window, 1.0f, DrawSize, 0.0f);
+		FlushRenderingCommands();
+		BeginCleanup(Renderer);
+
+		FImage Image;
+		return Target && FImageUtils::GetRenderTargetImage(Target, Image) && FImageUtils::SaveImageByExtension(*PngPath, Image);
+	}
+
 	/**
 	 * 위젯을 가상 창에 올려 렌더 타깃에 그리고 히트 테스트 그리드를 채웁니다.
 	 * 반환한 창은 그리드가 가리키는 Slate 위젯을 살려 두므로, 그리드를 조회하는 동안 호출 측이 유지해야 합니다.
@@ -62,6 +115,7 @@ namespace
 				Widget->TakeWidget()
 			]);
 		Window->Resize(DrawSize);
+		ApplySafeZoneScreenSize(Widget->WidgetTree, DrawSize);
 
 		// PNG로 바로 내보낼 것이므로 화면 표시용(감마 공간) 출력으로 그린다.
 		constexpr bool bUseGammaCorrection = true;
@@ -311,4 +365,33 @@ bool UPGEditorAutomationLibrary::RegisterGameLocalizationTarget(const FString& T
 	FPropertyChangedEvent Event(nullptr);
 	GetMutableDefault<ULocalizationSettings>()->PostEditChangeProperty(Event);
 	return true;
+}
+
+void UPGEditorAutomationLibrary::SetSafeZoneEmulation(FIntPoint Size, FMargin PixelPadding)
+{
+	if (!FSlateApplication::IsInitialized())
+	{
+		return;
+	}
+	FSlateApplicationBase& Application = FSlateApplicationBase::Get();
+	const bool bHasPadding = PixelPadding.Left > 0.0f || PixelPadding.Top > 0.0f || PixelPadding.Right > 0.0f || PixelPadding.Bottom > 0.0f;
+	if (!bHasPadding || Size.X <= 0 || Size.Y <= 0)
+	{
+		Application.ResetCustomSafeZone();
+		return;
+	}
+	// Slate는 여백을 비율 × 화면 크기 / 2로 되돌려 계산하므로 픽셀 여백을 그 역으로 바꿔 넣는다.
+	Application.SetCustomSafeZone(FMargin(
+		2.0f * PixelPadding.Left / static_cast<float>(Size.X), 2.0f * PixelPadding.Top / static_cast<float>(Size.Y),
+		2.0f * PixelPadding.Right / static_cast<float>(Size.X), 2.0f * PixelPadding.Bottom / static_cast<float>(Size.Y)));
+}
+
+bool UPGEditorAutomationLibrary::RenderLoadingScreenToPng(FIntPoint Size, const FString& PngPath)
+{
+	const FPGLoadingScreenSettings& Settings = GetDefault<UPGGameSettings>()->LoadingScreen;
+	UTexture2D* LogoTexture = Settings.LogoTexture.LoadSynchronous();
+	FSlateBrush LogoBrush;
+	const bool bHasLogo = UPGLoadingScreenSubsystem::MakeLogoBrush(Settings, LogoTexture, LogoBrush);
+	// 게임과 같은 1080px 기준 배율 1로 그린다. 브러시는 그리는 동안만 살아 있으면 된다.
+	return RenderSlateWidgetToPng(UPGLoadingScreenSubsystem::MakeLoadingScreenWidget(Settings, bHasLogo ? &LogoBrush : nullptr, 1.0f), Size, PngPath);
 }
