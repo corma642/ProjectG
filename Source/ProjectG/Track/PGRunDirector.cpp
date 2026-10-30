@@ -51,6 +51,8 @@ void APGRunDirector::BeginPlay()
 		GameMode->OnRunCountdownStarted.AddDynamic(this, &APGRunDirector::HandleRunCountdownStarted);
 		GameMode->OnRunStarted.AddDynamic(this, &APGRunDirector::HandleRunStarted);
 		GameMode->OnRunFailed.AddDynamic(this, &APGRunDirector::HandleRunFailed);
+		GameMode->OnRunContinueCountdownStarted.AddDynamic(this, &APGRunDirector::HandleRunCountdownStarted);
+		GameMode->OnRunResumed.AddDynamic(this, &APGRunDirector::HandleRunResumed);
 
 		if (GameMode->GetRunState() == EPGRunState::Countdown)
 		{
@@ -70,6 +72,8 @@ void APGRunDirector::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		GameMode->OnRunCountdownStarted.RemoveDynamic(this, &APGRunDirector::HandleRunCountdownStarted);
 		GameMode->OnRunStarted.RemoveDynamic(this, &APGRunDirector::HandleRunStarted);
 		GameMode->OnRunFailed.RemoveDynamic(this, &APGRunDirector::HandleRunFailed);
+		GameMode->OnRunContinueCountdownStarted.RemoveDynamic(this, &APGRunDirector::HandleRunCountdownStarted);
+		GameMode->OnRunResumed.RemoveDynamic(this, &APGRunDirector::HandleRunResumed);
 	}
 
 	Super::EndPlay(EndPlayReason);
@@ -128,6 +132,14 @@ void APGRunDirector::HandleRunFailed(FName FailureReason)
 	bIsRunActive = false;
 	bIsDifficultyActive = false;
 	SetActorTickEnabled(false);
+}
+
+void APGRunDirector::HandleRunResumed()
+{
+	// 이어하기는 난이도 시간을 이어 간다. 새 런처럼 0으로 되돌리지 않는다.
+	bIsRunActive = true;
+	bIsDifficultyActive = true;
+	SetActorTickEnabled(true);
 }
 
 void APGRunDirector::InitializeRunnerReference()

@@ -125,7 +125,73 @@ void APGGameModeBase::FinishRunCountdown()
 	}
 
 	RunState = EPGRunState::Running;
+	if (bIsContinueCountdown)
+	{
+		bIsContinueCountdown = false;
+		OnRunResumed.Broadcast();
+		return;
+	}
 	OnRunStarted.Broadcast();
+}
+
+bool APGGameModeBase::IsContinueOffered() const
+{
+	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
+	return RunState == EPGRunState::Failed && Settings && Settings->RunResult.bEnableContinue && ContinueCount < Settings->RunResult.MaxContinuesPerRun;
+}
+
+bool APGGameModeBase::CanContinueRun() const
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	const UPGUserDataSubsystem* UserDataSubsystem = GameInstance ? GameInstance->GetSubsystem<UPGUserDataSubsystem>() : nullptr;
+	return IsContinueOffered() && UserDataSubsystem && UserDataSubsystem->GetReceiptBalance() >= GetContinueReceiptCost();
+}
+
+int32 APGGameModeBase::GetContinueReceiptCost() const
+{
+	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
+	return Settings ? FMath::Max(0, Settings->RunResult.ContinueReceiptCost) : 0;
+}
+
+bool APGGameModeBase::RequestContinueRun()
+{
+	APGRunnerCharacter* RunnerCharacter = GetPlayableRunnerCharacter();
+	UGameInstance* GameInstance = GetGameInstance();
+	UPGUserDataSubsystem* UserDataSubsystem = GameInstance ? GameInstance->GetSubsystem<UPGUserDataSubsystem>() : nullptr;
+	if (!CanContinueRun() || !RunnerCharacter || !UserDataSubsystem)
+	{
+		return false;
+	}
+
+	const int32 Cost = GetContinueReceiptCost();
+	if (Cost > 0 && !UserDataSubsystem->TrySpendReceipts(Cost, TEXT("RunContinue")))
+	{
+		return false;
+	}
+
+	++ContinueCount;
+	if (bRunRewardsSettled)
+	{
+		// 실패 시 정산한 런 영수증은 이미 지갑에 들어갔다. 다음 정산은 재개 뒤 새로 번 영수증만 더하고, 최고 점수는 최댓값 갱신이라 다시 넣어도 같다.
+		SettledRunReceipts = RunnerCharacter->GetRunReceipts();
+	}
+	bRunRewardsSettled = false;
+
+	// 플레이어는 이미 상황을 알고 있으므로 Retry와 같은 짧은 카운트다운을 쓴다. 러너 위치는 러너가 OnRunContinueCountdownStarted에서 스스로 바로잡는다.
+	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
+	RunCountdownDuration = Settings ? FMath::Max(0.0f, Settings->HomeFlow.RetryCountdownDuration) : 2.0f;
+	RunState = EPGRunState::Countdown;
+	bIsContinueCountdown = true;
+	OnRunContinueCountdownStarted.Broadcast(RunCountdownDuration);
+
+	if (RunCountdownDuration <= KINDA_SMALL_NUMBER)
+	{
+		FinishRunCountdown();
+		return true;
+	}
+
+	GetWorldTimerManager().SetTimer(RunCountdownTimerHandle, this, &APGGameModeBase::FinishRunCountdown, RunCountdownDuration, false);
+	return true;
 }
 
 void APGGameModeBase::HandleRetryCountdownFallback()
@@ -276,7 +342,8 @@ bool APGGameModeBase::SettleCurrentRunRewards(FName Reason)
 
 	UWorld* World = GetWorld();
 	const APGRunnerCharacter* RunnerCharacter = GetPlayableRunnerCharacter();
-	const int32 RunReceipts = RunnerCharacter ? RunnerCharacter->GetRunReceipts() : 0;
+	// 이어하기 전에 정산한 영수증은 빼고 그 뒤에 번 만큼만 더한다.
+	const int32 RunReceipts = RunnerCharacter ? RunnerCharacter->GetRunReceipts() - SettledRunReceipts : 0;
 	const int32 RunScore = RunnerCharacter ? RunnerCharacter->GetRunScore() : 0;
 	if (RunReceipts <= 0 && RunScore <= 0)
 	{

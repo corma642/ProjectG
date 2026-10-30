@@ -103,6 +103,9 @@ private:
 	UFUNCTION()
 	void HandleRunFailed(FName FailureReason);
 
+	UFUNCTION()
+	void HandleRunResumed();
+
 	void LoadSettings();
 	void InitializeRunnerReferences();
 	void BindGameMode();

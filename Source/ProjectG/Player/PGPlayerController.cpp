@@ -108,6 +108,7 @@ void APGPlayerController::BeginPlay()
 	if (GameMode)
 	{
 		GameMode->OnRunCountdownStarted.AddDynamic(this, &APGPlayerController::HandleRunCountdownStarted);
+		GameMode->OnRunContinueCountdownStarted.AddDynamic(this, &APGPlayerController::HandleRunCountdownStarted);
 
 		// Retry는 Home 화면을 건너뛰므로 Controller가 델리게이트를 구독하기 전에
 		// 카운트다운이 시작됐더라도 현재 상태를 기준으로 입력 초기화를 복구한다.
@@ -136,6 +137,7 @@ void APGPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (APGGameModeBase* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APGGameModeBase>() : nullptr)
 	{
 		GameMode->OnRunCountdownStarted.RemoveDynamic(this, &APGPlayerController::HandleRunCountdownStarted);
+		GameMode->OnRunContinueCountdownStarted.RemoveDynamic(this, &APGPlayerController::HandleRunCountdownStarted);
 	}
 
 	if (ULocalPlayer* LocalPlayer = GetLocalPlayer())

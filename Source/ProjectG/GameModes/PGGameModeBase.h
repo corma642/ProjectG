@@ -57,6 +57,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Run")
 	bool SettleCurrentRunRewards(FName Reason);
 
+	/** Failed 상태에서 결과 화면에 이어하기 버튼을 보여 줄지 반환합니다. 기능이 켜져 있고 이번 런의 이어하기 횟수가 남았을 때 true입니다. */
+	UFUNCTION(BlueprintPure, Category = "ProjectG | Run")
+	bool IsContinueOffered() const;
+
+	/** 이어하기 버튼을 누를 수 있는지 반환합니다. IsContinueOffered에 더해 지갑 영수증이 비용 이상일 때 true입니다. */
+	UFUNCTION(BlueprintPure, Category = "ProjectG | Run")
+	bool CanContinueRun() const;
+
+	/** 이어하기 1회에 차감하는 영수증 수를 반환합니다. */
+	UFUNCTION(BlueprintPure, Category = "ProjectG | Run")
+	int32 GetContinueReceiptCost() const;
+
+	/** 영수증을 차감하고 실패 지점에서 Retry와 같은 길이의 카운트다운 뒤 런을 재개합니다. 차감·저장에 실패하면 false를 반환하고 상태를 바꾸지 않습니다. */
+	UFUNCTION(BlueprintCallable, Category = "ProjectG | Run")
+	bool RequestContinueRun();
+
 	/** 현재 플레이 러너를 반환합니다. Possess 전에는 검증된 레벨 배치 러너를 반환하며 없으면 null입니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run")
 	APGRunnerCharacter* GetPlayableRunnerCharacter() const;
@@ -80,6 +96,14 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run")
 	FPGRunFailedSignature OnRunFailed;
 
+	/** 이어하기 카운트다운 시작과 초 단위 Duration을 전달합니다. 러너는 실패 지점에 다시 서고 결과 화면은 닫힙니다. */
+	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run")
+	FPGRunCountdownStartedSignature OnRunContinueCountdownStarted;
+
+	/** 이어하기 카운트다운이 끝나 점수·거리·남은 적재물을 유지한 채 런을 다시 시작할 때 발생합니다. */
+	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run")
+	FPGRunStartedSignature OnRunResumed;
+
 private:
 	void FinishRunCountdown();
 	void HandleRetryCountdownFallback();
@@ -97,4 +121,9 @@ private:
 	float RunCountdownDuration = 0.0f;
 	bool bRunRewardsSettled = false;
 	bool bIsCurrentMapSetupValid = false;
+	// 이번 런에서 이어하기를 쓴 횟수와, 실패 시 이미 지갑에 정산한 런 영수증. 재개 뒤 정산은 그 차액만 더한다.
+	int32 ContinueCount = 0;
+	int32 SettledRunReceipts = 0;
+	// 진행 중인 카운트다운이 이어하기용이면 끝날 때 OnRunStarted 대신 OnRunResumed를 보낸다.
+	bool bIsContinueCountdown = false;
 };

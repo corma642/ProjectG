@@ -45,6 +45,9 @@ public:
 	/** 양수 영수증을 추가해 저장까지 성공하면 true를 반환하고 잔액 delegate를 발생시킵니다. */
 	bool TryAddReceipts(int32 Amount, FName Reason);
 
+	/** 양수 영수증을 차감해 저장까지 성공하면 true를 반환하고 잔액 delegate를 발생시킵니다. 잔액이 모자라면 아무것도 바꾸지 않고 false입니다. */
+	bool TrySpendReceipts(int32 Amount, FName Reason);
+
 	/** Home과 결과 화면에서 사용하는 저장된 최고 런 점수를 반환합니다. */
 	int32 GetBestRunScore() const;
 

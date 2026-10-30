@@ -1,0 +1,21 @@
+# seed 2
+# 실패→이어하기 확인용 시나리오: 실패 → 슬로모션 → 결과창(이어하기 티켓이 맨 위, 다시 도전·홈은 반폭) → 이어하기 버튼이 하는 일(영수증 20 차감, 같은 자리에서 짧은 카운트다운) → GO → 점수·거리·남은 적재물을 유지한 채 계속 달림.
+# UI·연출 확인용이라 CargoWatch는 켜지 않는다. 시각은 첫 런 시작(GO) 기준 초다. 지갑은 녹화 전 백업되므로 이어하기 비용만큼만 미리 넣는다.
+0 r.SetRes 540x1170w
+0 PG.Showcase.Receipts 20
+0 PG.Showcase.AutoPilot 1
+0 PG.Showcase.WaitForRun
+0 PG.Showcase.DumpFrames {OUT} 30 900
+# 공중과 착지 직후에는 적재물이 바구니에 묶여 충격이 먹히지 않는다. 땅을 달리는 순간에 걸리도록 여러 번 준다.
+5.0 PG.Showcase.CargoImpulse 700
+5.6 PG.Showcase.CargoImpulse 700
+6.2 PG.Showcase.CargoImpulse 700
+6.8 PG.Showcase.CargoImpulse 700
+7.4 PG.Showcase.CargoImpulse 700
+8.0 PG.Showcase.CargoImpulse 700
+# 충격으로 적재물이 안 떨어지면 자동 조종을 끄고 오른쪽으로 끝까지 기울여 트랙 밖으로 떨어지게 해 실패를 보장한다.
+8.5 PG.Showcase.AutoPilot 0
+8.6 PG.Showcase.Balance 1 3
+# 결과창 버튼이 활성화된 뒤 이어하기 버튼이 하는 일을 콘솔로 대신한다. 러너가 트랙 중앙에 다시 서고 2초 카운트다운 뒤 GO. 자동 조종을 다시 켠다.
+15.0 PG.Showcase.Continue
+15.1 PG.Showcase.AutoPilot 1

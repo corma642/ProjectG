@@ -122,6 +122,7 @@ void UPGMusicComponent::BindGameMode()
 	BoundGameMode->OnRunCountdownStarted.AddDynamic(this, &UPGMusicComponent::HandleRunCountdownStarted);
 	BoundGameMode->OnRunStarted.AddDynamic(this, &UPGMusicComponent::HandleRunStarted);
 	BoundGameMode->OnRunFailed.AddDynamic(this, &UPGMusicComponent::HandleRunFailed);
+	BoundGameMode->OnRunContinueCountdownStarted.AddDynamic(this, &UPGMusicComponent::HandleRunCountdownStarted);
 	bIsBoundToGameMode = true;
 }
 
@@ -132,6 +133,7 @@ void UPGMusicComponent::UnbindGameMode()
 		BoundGameMode->OnRunCountdownStarted.RemoveDynamic(this, &UPGMusicComponent::HandleRunCountdownStarted);
 		BoundGameMode->OnRunStarted.RemoveDynamic(this, &UPGMusicComponent::HandleRunStarted);
 		BoundGameMode->OnRunFailed.RemoveDynamic(this, &UPGMusicComponent::HandleRunFailed);
+		BoundGameMode->OnRunContinueCountdownStarted.RemoveDynamic(this, &UPGMusicComponent::HandleRunCountdownStarted);
 	}
 
 	BoundGameMode = nullptr;

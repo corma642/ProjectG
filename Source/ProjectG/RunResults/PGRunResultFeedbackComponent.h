@@ -37,6 +37,9 @@ private:
 	UFUNCTION()
 	void HandleRunFailed(FName FailureReason);
 
+	UFUNCTION()
+	void HandleRunContinueCountdownStarted(float Duration);
+
 	void HandleSlowMotionFinished();
 	void ShowResultWidget(FName FailureReason);
 	void RestoreTimeDilation();

@@ -107,6 +107,14 @@ public:
 	UFUNCTION()
 	void HandleRunStarted();
 
+	/** 이어하기 카운트다운 시작 시 실패 자세를 풀고 마지막으로 서 있던 자리 근처의 트랙 중앙 지면에 다시 세웁니다. 카운트다운 동안은 서 있고 적재물은 바구니에 고정된 채입니다. */
+	UFUNCTION()
+	void HandleRunContinueCountdownStarted(float Duration);
+
+	/** 이어하기 카운트다운이 끝나면 달리던 속도로 바로 재개하고 입력·환경·진행도·적재물 물리를 다시 켭니다. 점수·거리·영수증은 유지합니다. */
+	UFUNCTION()
+	void HandleRunResumed();
+
 	/** 실제 점프가 시작된 직후 발생합니다. 첫 런 가이드가 플릭 단계 완료 판정에 사용합니다. */
 	FSimpleMulticastDelegate OnJumpStarted;
 
@@ -161,6 +169,9 @@ private:
 
 	// 시작 높이 기준 추락 실패 조건을 확인하고 GameMode 실패 흐름으로 전달한다.
 	void CheckFallFailure();
+
+	// 이어하기에서 러너를 세울 자리. 마지막으로 서 있던 X에서 최대 5m 뒤까지 트랙 중앙(런 시작선 Y)의 지면을 찾고, 없으면 마지막으로 서 있던 위치를 그대로 쓴다.
+	FVector FindContinueLocation() const;
 
 	// 직선 주행 중 자동으로 발생하는 좌우 중심 흔들림을 갱신한다.
 	void UpdateBaseInstability(float DeltaSeconds);
@@ -230,6 +241,9 @@ private:
 
 	// 런 진행 거리 계산 기준이 되는 시작 월드 위치
 	FVector RunStartLocation = FVector::ZeroVector;
+
+	// 지면 위에서 갱신하는 마지막 착지 위치. 추락·적재물 손실 뒤 이어하기의 복귀 기준이다.
+	FVector LastGroundedLocation = FVector::ZeroVector;
 
 	// 런 진행 거리 계산에 사용하는 시작 시점 전방 방향
 	FVector RunStartForwardVector = FVector::ForwardVector;

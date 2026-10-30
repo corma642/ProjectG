@@ -37,7 +37,8 @@ void UPGRunProgressComponent::UpdateRunProgress(const FVector& CurrentLocation)
 		return;
 	}
 
-	RawDistanceMeters = CalculateRawDistanceMeters(CurrentLocation);
+	// 이어하기는 러너를 마지막으로 서 있던 자리까지 조금 뒤로 되돌린다. 거리와 거리 점수가 줄어 보이지 않게 최댓값만 유지한다.
+	RawDistanceMeters = FMath::Max(RawDistanceMeters, CalculateRawDistanceMeters(CurrentLocation));
 	const float NewDisplayedDistanceMeters = QuantizeDistanceMeters(RawDistanceMeters);
 	if (!FMath::IsNearlyEqual(NewDisplayedDistanceMeters, DisplayedDistanceMeters))
 	{

@@ -53,9 +53,16 @@ void UPGRunResultWidget::NativeConstruct()
 	AnimatedRows.Add(OrdersRow);
 
 	AnimatedButtons.Reset();
+	AnimatedButtons.Add(ContinueButtonPanel);
 	AnimatedButtons.Add(RetryButtonPanel);
 	AnimatedButtons.Add(HomeButtonPanel);
 
+	if (ContinueButton)
+	{
+		ContinueButton->OnClicked.AddDynamic(this, &UPGRunResultWidget::HandleContinueClicked);
+		ContinueButton->OnPressed.AddDynamic(this, &UPGRunResultWidget::HandleContinuePressed);
+		ContinueButton->OnReleased.AddDynamic(this, &UPGRunResultWidget::HandleContinueReleased);
+	}
 	if (RetryButton)
 	{
 		// 결과 버튼은 진입 애니메이션이 끝날 때까지 비활성화한다.
@@ -77,6 +84,12 @@ void UPGRunResultWidget::NativeConstruct()
 
 void UPGRunResultWidget::NativeDestruct()
 {
+	if (ContinueButton)
+	{
+		ContinueButton->OnClicked.RemoveDynamic(this, &UPGRunResultWidget::HandleContinueClicked);
+		ContinueButton->OnPressed.RemoveDynamic(this, &UPGRunResultWidget::HandleContinuePressed);
+		ContinueButton->OnReleased.RemoveDynamic(this, &UPGRunResultWidget::HandleContinueReleased);
+	}
 	if (RetryButton)
 	{
 		RetryButton->OnClicked.RemoveDynamic(this, &UPGRunResultWidget::HandleRetryClicked);
@@ -122,6 +135,25 @@ void UPGRunResultWidget::ConfigureRunResult(FName FailureReason, float RunTimeSe
 	}
 	StartBackdropAnimation();
 	OnRunResultConfigured(FailureReason, RunTimeSeconds, DistanceMeters, Score, Receipts, OrdersDelivered);
+}
+
+void UPGRunResultWidget::ConfigureContinueOption(bool bOffered, bool bAffordable, int32 ReceiptCost)
+{
+	bCanContinue = bOffered && bAffordable;
+	if (ContinueButtonPanel)
+	{
+		ContinueButtonPanel->SetVisibility(bOffered ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	if (ContinueButton)
+	{
+		// 잔액이 모자라면 비용은 보여 주되 버튼을 흐리게 잠가 왜 못 누르는지 드러낸다. 패널 투명도는 진입 애니메이션이 쓰므로 버튼 쪽에 건다.
+		ContinueButton->SetRenderOpacity(bAffordable ? 1.0f : 0.5f);
+		ContinueButton->SetIsEnabled(ContinueButton->GetIsEnabled() && bCanContinue);
+	}
+	if (ContinueCostText)
+	{
+		ContinueCostText->SetText(FormatNumber(ReceiptCost));
+	}
 }
 
 FText UPGRunResultWidget::GetFailureReasonText(FName FailureReason)
@@ -240,6 +272,7 @@ void UPGRunResultWidget::ResetEntryAnimationState()
 	}
 
 	SetActionButtonsEnabled(false);
+	ApplyWidgetScale(ContinueButtonPanel ? ContinueButtonPanel.Get() : ContinueButton.Get(), ButtonNormalScale);
 	ApplyWidgetScale(RetryButtonPanel ? RetryButtonPanel.Get() : RetryButton.Get(), ButtonNormalScale);
 	ApplyWidgetScale(HomeButtonPanel ? HomeButtonPanel.Get() : HomeButton.Get(), ButtonNormalScale);
 }
@@ -305,6 +338,10 @@ void UPGRunResultWidget::ApplyWidgetAnimationState(UWidget* Widget, const FVecto
 
 void UPGRunResultWidget::SetActionButtonsEnabled(bool bEnabled) const
 {
+	if (ContinueButton)
+	{
+		ContinueButton->SetIsEnabled(bEnabled && bCanContinue);
+	}
 	if (RetryButton)
 	{
 		RetryButton->SetIsEnabled(bEnabled);
@@ -330,6 +367,26 @@ FText UPGRunResultWidget::FormatNumber(int32 Value) const
 	FormattingOptions.UseGrouping = true;
 	FormattingOptions.MaximumFractionalDigits = 0;
 	return FText::AsNumber(Value, &FormattingOptions);
+}
+
+void UPGRunResultWidget::HandleContinueClicked()
+{
+	UPGAudioStatics::PlayCommonButtonClick(this);
+	if (APGGameModeBase* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APGGameModeBase>() : nullptr)
+	{
+		// 재개가 시작되면 결과 화면은 이어하기 카운트다운 delegate를 받은 RunResultFeedbackComponent가 닫는다.
+		GameMode->RequestContinueRun();
+	}
+}
+
+void UPGRunResultWidget::HandleContinuePressed()
+{
+	ApplyWidgetScale(ContinueButtonPanel ? ContinueButtonPanel.Get() : ContinueButton.Get(), ButtonPressedScale);
+}
+
+void UPGRunResultWidget::HandleContinueReleased()
+{
+	ApplyWidgetScale(ContinueButtonPanel ? ContinueButtonPanel.Get() : ContinueButton.Get(), ButtonNormalScale);
 }
 
 void UPGRunResultWidget::HandleRetryClicked()

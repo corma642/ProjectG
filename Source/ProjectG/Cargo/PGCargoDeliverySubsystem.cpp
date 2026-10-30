@@ -31,6 +31,7 @@ void UPGCargoDeliverySubsystem::Deinitialize()
 	{
 		BoundGameMode->OnRunStarted.RemoveDynamic(this, &UPGCargoDeliverySubsystem::HandleRunStarted);
 		BoundGameMode->OnRunFailed.RemoveDynamic(this, &UPGCargoDeliverySubsystem::HandleRunFailed);
+		BoundGameMode->OnRunResumed.RemoveDynamic(this, &UPGCargoDeliverySubsystem::HandleRunResumed);
 	}
 
 	BoundGameMode = nullptr;
@@ -120,10 +121,18 @@ void UPGCargoDeliverySubsystem::HandleRunStarted()
 
 void UPGCargoDeliverySubsystem::HandleRunFailed(FName FailureReason)
 {
+	// RunElapsedTime은 남겨 둔다. 이어하기는 실패 전 난이도를 그대로 이어 가고, 새 런은 HandleRunStarted가 0으로 되돌린다.
 	bIsRunActive = false;
-	RunElapsedTime = 0.0f;
 	NextDropTime = 0.0f;
 	TickAccumulator = 0.0f;
+}
+
+void UPGCargoDeliverySubsystem::HandleRunResumed()
+{
+	bIsRunActive = true;
+	TickAccumulator = 0.0f;
+	InitializeRunnerReferences();
+	ScheduleNextDrop(CalculateCurrentDropInterval());
 }
 
 void UPGCargoDeliverySubsystem::LoadSettings()
@@ -177,6 +186,7 @@ void UPGCargoDeliverySubsystem::BindGameMode()
 
 	BoundGameMode->OnRunStarted.AddDynamic(this, &UPGCargoDeliverySubsystem::HandleRunStarted);
 	BoundGameMode->OnRunFailed.AddDynamic(this, &UPGCargoDeliverySubsystem::HandleRunFailed);
+	BoundGameMode->OnRunResumed.AddDynamic(this, &UPGCargoDeliverySubsystem::HandleRunResumed);
 	bIsBoundToGameMode = true;
 
 	if (BoundGameMode->GetRunState() == EPGRunState::Running)

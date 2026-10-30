@@ -38,6 +38,9 @@ public:
 	/** 실패 또는 런 종료 시점의 마지막 위치를 반영한 뒤 이후 진행 갱신을 정지합니다. */
 	void StopRunProgress(const FVector& CurrentLocation);
 
+	/** 이어하기로 런이 재개될 때 거리·점수·영수증을 유지한 채 진행 갱신만 다시 켭니다. */
+	void ResumeRunProgress() { bIsProgressActive = true; }
+
 	/** 양수 이벤트 보너스를 현재 런 점수에 더하고 OnScoreChanged를 발생시킵니다. */
 	void AddScore(int32 ScoreDelta, FName Reason);
 

@@ -25,6 +25,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | UI")
 	void ConfigureRunResult(FName FailureReason, float RunTimeSeconds, float DistanceMeters, int32 Score, int32 Receipts, int32 OrdersDelivered);
 
+	/** 이어하기 버튼 상태를 넣습니다. bOffered가 false면 버튼 영역을 접고, bAffordable이 false면 비용을 보여 준 채 버튼을 흐리게 잠급니다. */
+	UFUNCTION(BlueprintCallable, Category = "ProjectG | UI")
+	void ConfigureContinueOption(bool bOffered, bool bAffordable, int32 ReceiptCost);
+
 	/** 뒤로가기로 Home 버튼과 같은 동작을 수행합니다. 버튼이 아직 잠겨 있으면(진입 애니메이션 중) false를 반환합니다. */
 	bool RequestHome();
 
@@ -102,6 +106,18 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UTextBlock> OrdersValueText;
 
+	/** 영수증을 내고 실패 지점부터 이어하기를 요청하는 필수 버튼입니다. */
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
+	TObjectPtr<UButton> ContinueButton;
+
+	/** 이어하기 비용(영수증 수)을 표시하는 필수 텍스트입니다. */
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
+	TObjectPtr<UTextBlock> ContinueCostText;
+
+	// 이어하기 버튼 전체 패널입니다. 이어하기를 제안하지 않을 때 통째로 접고, 진입 애니메이션도 이 패널에 적용합니다.
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
+	TObjectPtr<UWidget> ContinueButtonPanel;
+
 	/** 같은 맵에서 새 런을 시작하도록 요청하는 필수 버튼입니다. */
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UButton> RetryButton;
@@ -119,6 +135,15 @@ protected:
 	TObjectPtr<UWidget> HomeButtonPanel;
 
 private:
+	UFUNCTION()
+	void HandleContinueClicked();
+
+	UFUNCTION()
+	void HandleContinuePressed();
+
+	UFUNCTION()
+	void HandleContinueReleased();
+
 	UFUNCTION()
 	void HandleRetryClicked();
 
@@ -159,6 +184,8 @@ private:
 	int32 CachedScore = 0;
 	int32 CachedReceipts = 0;
 	int32 CachedOrdersDelivered = 0;
+	// 이어하기를 제안하고 잔액도 충분할 때만 true. 진입 애니메이션이 끝나 버튼을 켤 때 이 값까지 만족해야 이어하기 버튼이 켜진다.
+	bool bCanContinue = false;
 
 	float BackdropAnimationElapsed = 0.0f;
 	float EntryAnimationElapsed = 0.0f;

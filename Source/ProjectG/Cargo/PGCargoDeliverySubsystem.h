@@ -55,6 +55,9 @@ private:
 	UFUNCTION()
 	void HandleRunFailed(FName FailureReason);
 
+	UFUNCTION()
+	void HandleRunResumed();
+
 	void LoadSettings();
 	bool ResolveCurrentMapDropSet();
 	void BindGameMode();

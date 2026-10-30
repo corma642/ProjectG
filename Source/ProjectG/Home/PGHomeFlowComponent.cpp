@@ -132,6 +132,9 @@ void UPGHomeFlowComponent::BindGameMode()
 
 	BoundGameMode->OnRunCountdownStarted.AddDynamic(this, &UPGHomeFlowComponent::HandleRunCountdownStarted);
 	BoundGameMode->OnRunStarted.AddDynamic(this, &UPGHomeFlowComponent::HandleRunStarted);
+	// 이어하기 카운트다운도 같은 3-2-1-GO 위젯을 쓴다. Home 모달 제거와 카메라 전환은 런 중이라 할 일이 없다.
+	BoundGameMode->OnRunContinueCountdownStarted.AddDynamic(this, &UPGHomeFlowComponent::HandleRunCountdownStarted);
+	BoundGameMode->OnRunResumed.AddDynamic(this, &UPGHomeFlowComponent::HandleRunStarted);
 	bIsBoundToGameMode = true;
 }
 
@@ -144,6 +147,8 @@ void UPGHomeFlowComponent::UnbindGameMode()
 
 	BoundGameMode->OnRunCountdownStarted.RemoveDynamic(this, &UPGHomeFlowComponent::HandleRunCountdownStarted);
 	BoundGameMode->OnRunStarted.RemoveDynamic(this, &UPGHomeFlowComponent::HandleRunStarted);
+	BoundGameMode->OnRunContinueCountdownStarted.RemoveDynamic(this, &UPGHomeFlowComponent::HandleRunCountdownStarted);
+	BoundGameMode->OnRunResumed.RemoveDynamic(this, &UPGHomeFlowComponent::HandleRunStarted);
 	bIsBoundToGameMode = false;
 	BoundGameMode = nullptr;
 }

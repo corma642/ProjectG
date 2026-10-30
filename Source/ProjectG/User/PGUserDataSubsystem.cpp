@@ -83,6 +83,26 @@ bool UPGUserDataSubsystem::TryAddReceipts(int32 Amount, FName Reason)
 	return false;
 }
 
+bool UPGUserDataSubsystem::TrySpendReceipts(int32 Amount, FName Reason)
+{
+	UPGUserSaveGame* UserData = Amount > 0 ? EnsureUserData() : nullptr;
+	if (!UserData || UserData->ReceiptBalance < Amount)
+	{
+		return false;
+	}
+
+	const int32 PreviousBalance = UserData->ReceiptBalance;
+	UserData->ReceiptBalance -= Amount;
+	if (SaveUserData())
+	{
+		OnReceiptBalanceChanged.Broadcast(UserData->ReceiptBalance, Reason);
+		return true;
+	}
+
+	UserData->ReceiptBalance = PreviousBalance;
+	return false;
+}
+
 int32 UPGUserDataSubsystem::GetBestRunScore() const
 {
 	return UserSaveGame ? FMath::Max(0, UserSaveGame->BestRunScore) : 0;

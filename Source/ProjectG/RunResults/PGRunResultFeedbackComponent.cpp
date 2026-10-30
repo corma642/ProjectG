@@ -5,6 +5,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Camera/CameraShakeBase.h"
 #include "Camera/PlayerCameraManager.h"
+#include "Cargo/PGCargoStackComponent.h"
 #include "Character/PGRunnerCharacter.h"
 #include "GameFramework/PlayerController.h"
 #include "GameModes/PGGameModeBase.h"
@@ -99,6 +100,16 @@ void UPGRunResultFeedbackComponent::HandleRunFailed(FName FailureReason)
 		false);
 }
 
+void UPGRunResultFeedbackComponent::HandleRunContinueCountdownStarted(float Duration)
+{
+	CleanupResultWidget();
+	if (APlayerController* PlayerController = GetOwningPlayerController())
+	{
+		PlayerController->SetInputMode(FInputModeGameOnly());
+		PlayerController->SetShowMouseCursor(false);
+	}
+}
+
 void UPGRunResultFeedbackComponent::HandleSlowMotionFinished()
 {
 	RestoreTimeDilation();
@@ -115,18 +126,27 @@ void UPGRunResultFeedbackComponent::ShowResultWidget(FName FailureReason)
 		return;
 	}
 
-	// 슬로모션 동안 보여 준 러너와 바구니는 결과 화면과 함께 치운다. 사라지는 VFX도 이 순간 러너 위치에 재생한다.
+	// 이어하기를 살 수 있으면 러너와 바구니를 그대로 두고 쏟아진 적재물만 정리한다. 재개하면 이 자리에서 다시 달린다.
+	// 아니면 슬로모션 동안 보여 준 러너와 바구니를 결과 화면과 함께 치우고, 사라지는 VFX를 이 순간 러너 위치에 재생한다.
 	APGRunnerCharacter* RunnerCharacter = GetRunnerCharacter();
-	if (UNiagaraSystem* GameOverVFX = Settings->RunResult.GameOverVFX.Get())
+	const bool bCanContinue = BoundGameMode && BoundGameMode->CanContinueRun();
+	if (bCanContinue && RunnerCharacter && RunnerCharacter->GetCargoStackComponent())
 	{
-		const APlayerCameraManager* CameraManager = PlayerController->PlayerCameraManager;
-		const FVector VFXLocation = RunnerCharacter ? RunnerCharacter->GetActorLocation() : (CameraManager ? CameraManager->GetCameraLocation() : FVector::ZeroVector);
-		const FRotator VFXRotation = RunnerCharacter ? RunnerCharacter->GetActorRotation() : (CameraManager ? CameraManager->GetCameraRotation() : FRotator::ZeroRotator);
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(PlayerController, GameOverVFX, VFXLocation, VFXRotation);
+		RunnerCharacter->GetCargoStackComponent()->FreezeCargoForContinue();
 	}
-	if (RunnerCharacter)
+	else
 	{
-		RunnerCharacter->HideForRunResult();
+		if (UNiagaraSystem* GameOverVFX = Settings->RunResult.GameOverVFX.Get())
+		{
+			const APlayerCameraManager* CameraManager = PlayerController->PlayerCameraManager;
+			const FVector VFXLocation = RunnerCharacter ? RunnerCharacter->GetActorLocation() : (CameraManager ? CameraManager->GetCameraLocation() : FVector::ZeroVector);
+			const FRotator VFXRotation = RunnerCharacter ? RunnerCharacter->GetActorRotation() : (CameraManager ? CameraManager->GetCameraRotation() : FRotator::ZeroRotator);
+			UNiagaraFunctionLibrary::SpawnSystemAtLocation(PlayerController, GameOverVFX, VFXLocation, VFXRotation);
+		}
+		if (RunnerCharacter)
+		{
+			RunnerCharacter->HideForRunResult();
+		}
 	}
 
 	// 러너 통계는 실패 시 StopRunProgress로 고정되므로 슬로모션 뒤에 읽어도 실패 순간 값과 같다.
@@ -145,6 +165,7 @@ void UPGRunResultFeedbackComponent::ShowResultWidget(FName FailureReason)
 	ResultWidget = RunResultWidget;
 	RunResultWidget->AddToViewport(100);
 	RunResultWidget->ConfigureRunResult(FailureReason, RunTimeSeconds, DistanceMeters, Score, Receipts, OrdersDelivered);
+	RunResultWidget->ConfigureContinueOption(BoundGameMode && BoundGameMode->IsContinueOffered(), bCanContinue, BoundGameMode ? BoundGameMode->GetContinueReceiptCost() : 0);
 	PlayerController->SetInputMode(FInputModeUIOnly());
 	PlayerController->SetShowMouseCursor(true);
 }
@@ -183,6 +204,7 @@ void UPGRunResultFeedbackComponent::BindGameMode()
 	if (BoundGameMode)
 	{
 		BoundGameMode->OnRunFailed.AddDynamic(this, &UPGRunResultFeedbackComponent::HandleRunFailed);
+		BoundGameMode->OnRunContinueCountdownStarted.AddDynamic(this, &UPGRunResultFeedbackComponent::HandleRunContinueCountdownStarted);
 		bIsBoundToGameMode = true;
 	}
 }
@@ -192,6 +214,7 @@ void UPGRunResultFeedbackComponent::UnbindGameMode()
 	if (BoundGameMode && bIsBoundToGameMode)
 	{
 		BoundGameMode->OnRunFailed.RemoveDynamic(this, &UPGRunResultFeedbackComponent::HandleRunFailed);
+		BoundGameMode->OnRunContinueCountdownStarted.RemoveDynamic(this, &UPGRunResultFeedbackComponent::HandleRunContinueCountdownStarted);
 	}
 
 	BoundGameMode = nullptr;

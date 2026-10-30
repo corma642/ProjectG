@@ -237,8 +237,9 @@ def qa_screens(label_suffix=''):
             continue
         label = name + label_suffix
         if name == 'RunResult':
-            # 자릿수가 많은 값으로 줄바꿈·잘림이 없는지 본다.
+            # 자릿수가 많은 값으로 줄바꿈·잘림이 없는지 본다. 이어하기는 제안·구매 가능 상태(버튼 셋 다 켜짐)로 그린다.
             screen.configure_run_result('Fall', 83.0, 1234.0, 125680, 12, 7)
+            screen.configure_continue_option(True, True, 20)
         if name == 'ShopScreen':
             # 선택 이름은 런타임 데이터(캐릭터·맵 이름)라 가장 긴 이름으로 명판 안에 들어가는지 본다. 긴 이름은 ScaleBox(DownOnly)가 줄인다.
             children_of(screen)['SelectedItemNameText'].set_text(unreal.Text('Sunshine Coast\u00a0Road' if CULTURE == 'en' else '브리즈 시티로드'))
@@ -257,6 +258,26 @@ def qa_screens(label_suffix=''):
 
 
 qa_screens()
+
+# 결과 화면의 이어하기 잠김(잔액 부족: 버튼이 흐려지고 입력을 안 받음)과 접힘(제안 없음: 다시 도전·홈만 남음) 상태.
+for label, offered, affordable in (('RunResult_NoReceipts', True, False), ('RunResult_NoContinue', False, False)):
+    screen = create_widget('RunResult/WBP_RunResult')
+    if screen:
+        screen.configure_run_result('CargoLost', 83.0, 1234.0, 125680, 12, 7)
+        screen.configure_continue_option(offered, affordable, 20)
+        render(screen, label, [screen], SETTLE_SECONDS)
+        widgets = children_of(screen)
+        hits = hit_counts(screen, entries=[screen], advance=SETTLE_SECONDS)
+        continue_hits = sum(hits[name] for name in descendants(widgets['ContinueButton']))
+        check(continue_hits == 0, f'{label}: ContinueButton does not take touches ({continue_hits} samples)')
+        if offered:
+            check_buttons_reachable(screen, label, [screen], SETTLE_SECONDS, ('ContinueButton',))
+        else:
+            # 접힌 버튼은 자리 자체가 없어 가림 검사에서 제외하고, 남은 두 버튼만 터치를 받는지 본다.
+            check(widgets['ContinueButtonPanel'].get_visibility() == HIDDEN, f'{label}: ContinueButtonPanel is collapsed')
+            for name in ('RetryButton', 'HomeButton'):
+                samples = sum(hits[hit] for hit in descendants(widgets[name]))
+                check(samples >= MIN_BUTTON_SAMPLES, f'{label}: button {name} receives touches ({samples} samples, need {MIN_BUTTON_SAMPLES})')
 
 # 카드는 단독으로 그리면 화면 크기로 늘어나 그림이 의미가 없다. PNG는 위 목록 화면으로 대신하고 여기서는 카드 안 버튼만 본다.
 for path in ('Shop/WBP_CharacterShopItem', 'Shop/WBP_MapShopItem', 'ReceiptShop/WBP_ReceiptShopPackItem'):

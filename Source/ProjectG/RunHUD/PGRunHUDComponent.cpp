@@ -355,6 +355,8 @@ void UPGRunHUDComponent::BindGameMode()
 	BoundGameMode->OnRunCountdownStarted.AddDynamic(this, &UPGRunHUDComponent::HandleRunCountdownStarted);
 	BoundGameMode->OnRunStarted.AddDynamic(this, &UPGRunHUDComponent::HandleRunStarted);
 	BoundGameMode->OnRunFailed.AddDynamic(this, &UPGRunHUDComponent::HandleRunFailed);
+	BoundGameMode->OnRunContinueCountdownStarted.AddDynamic(this, &UPGRunHUDComponent::HandleRunCountdownStarted);
+	BoundGameMode->OnRunResumed.AddDynamic(this, &UPGRunHUDComponent::HandleRunStarted);
 	bIsBoundToGameMode = true;
 }
 
@@ -365,6 +367,8 @@ void UPGRunHUDComponent::UnbindGameMode()
 		BoundGameMode->OnRunCountdownStarted.RemoveDynamic(this, &UPGRunHUDComponent::HandleRunCountdownStarted);
 		BoundGameMode->OnRunStarted.RemoveDynamic(this, &UPGRunHUDComponent::HandleRunStarted);
 		BoundGameMode->OnRunFailed.RemoveDynamic(this, &UPGRunHUDComponent::HandleRunFailed);
+		BoundGameMode->OnRunContinueCountdownStarted.RemoveDynamic(this, &UPGRunHUDComponent::HandleRunCountdownStarted);
+		BoundGameMode->OnRunResumed.RemoveDynamic(this, &UPGRunHUDComponent::HandleRunStarted);
 	}
 
 	BoundGameMode = nullptr;

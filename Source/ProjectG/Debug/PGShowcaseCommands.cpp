@@ -31,6 +31,7 @@
 #include "Rendering/SlateRenderer.h"
 #include "RunEvents/PGRunEventSubsystem.h"
 #include "UnrealClient.h"
+#include "User/PGUserDataSubsystem.h"
 #include "Widgets/SWindow.h"
 
 #include <atomic>
@@ -55,6 +56,10 @@ DEFINE_LOG_CATEGORY_STATIC(LogPGShowcase, Log, All);
  *   Android 뒤로가기를 흉내 냅니다(APGPlayerController::HandleBackRequested). 모달 닫기, Pause 토글, Home 종료 확인을 연출합니다.
  * PG.Showcase.Language <ko|en>
  *   게임 언어를 바꿉니다(저장하지 않음). 열려 있는 화면의 문구가 그 자리에서 바뀌는지 연출합니다.
+ * PG.Showcase.Continue
+ *   결과 화면의 이어하기 버튼과 같은 일을 합니다(APGGameModeBase::RequestContinueRun). 거절되면 Warning을 남겨 녹화가 실패로 처리됩니다.
+ * PG.Showcase.Receipts <수>
+ *   저장된 지갑에 영수증을 더합니다. 이 PC의 저장 데이터가 실제로 바뀌므로 이어하기 비용만큼만 더해 씁니다.
  * PG.Showcase.AutoPilot <0|1>
  *   입력 없이도 러너가 길을 따라가도록 좌우 이동과 점프를 대신 넣습니다.
  * PG.Showcase.Balance <입력 -1~1> [초]
@@ -737,6 +742,32 @@ namespace
 		FConsoleCommandDelegate::CreateLambda([]()
 		{
 			FCoreDelegates::ApplicationWillDeactivateDelegate.Broadcast();
+		}));
+
+	FAutoConsoleCommand GContinueCommand(
+		TEXT("PG.Showcase.Continue"),
+		TEXT("PG.Showcase.Continue: does what the result screen's Continue button does (APGGameModeBase::RequestContinueRun)."),
+		FConsoleCommandDelegate::CreateLambda([]()
+		{
+			UWorld* World = FindGameWorld();
+			APGGameModeBase* GameMode = World ? World->GetAuthGameMode<APGGameModeBase>() : nullptr;
+			if (!GameMode || !GameMode->RequestContinueRun())
+			{
+				UE_LOG(LogPGShowcase, Warning, TEXT("Continue was refused (run state, continue count or receipt balance)."));
+			}
+		}));
+
+	FAutoConsoleCommand GReceiptsCommand(
+		TEXT("PG.Showcase.Receipts"),
+		TEXT("PG.Showcase.Receipts <Amount>: adds receipts to the saved wallet so a Continue can be afforded."),
+		FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
+		{
+			UWorld* World = FindGameWorld();
+			UPGUserDataSubsystem* UserData = World && World->GetGameInstance() ? World->GetGameInstance()->GetSubsystem<UPGUserDataSubsystem>() : nullptr;
+			if (!UserData || Args.Num() == 0 || !UserData->TryAddReceipts(FCString::Atoi(*Args[0]), TEXT("Showcase")))
+			{
+				UE_LOG(LogPGShowcase, Warning, TEXT("PG.Showcase.Receipts needs a positive amount and a saved wallet."));
+			}
 		}));
 
 	FAutoConsoleCommand GLanguageCommand(

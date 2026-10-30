@@ -605,6 +605,77 @@ void UPGCargoStackComponent::ApplyExternalLateralImpulse(float LateralVelocity)
 	}
 }
 
+void UPGCargoStackComponent::FreezeCargoForContinue()
+{
+	// 실패 뒤 바구니는 멈춰 있으므로 지난 스텝 자세 대신 현재 자세로 판정한다.
+	const USceneComponent* Support = SupportComponent.Get();
+	if (Support)
+	{
+		LatestSupportTransform = Support->GetComponentTransform();
+		SupportTransformAtLastStep = LatestSupportTransform;
+	}
+	FBoxSphereBounds SupportBounds(ForceInit);
+	float RimRadius = 0.0f;
+	const bool bHasFootprint = GetSupportFootprint(SupportBounds, RimRadius);
+	AActor* AttachTarget = Support ? Support->GetOwner() : GetOwner();
+
+	for (int32 CargoIndex = CargoInstances.Num() - 1; CargoIndex >= 0; --CargoIndex)
+	{
+		APGPhysicsCargoActor* CargoActor = CargoInstances[CargoIndex].CargoActor;
+		UStaticMeshComponent* CargoMeshComponent = CargoActor ? CargoActor->GetCargoMeshComponent() : nullptr;
+		bool bInBowl = CargoMeshComponent != nullptr;
+		if (bInBowl && bHasFootprint)
+		{
+			const FVector LocalOffset = GetCargoOffsetInSupport(*CargoMeshComponent, SupportBounds);
+			bInBowl = FVector2D(LocalOffset).SizeSquared() <= FMath::Square(RimRadius)
+				&& LocalOffset.Z >= -SupportBounds.BoxExtent.Z
+				&& LocalOffset.Z < SupportBounds.BoxExtent.Z + SettledHeightAboveRim;
+		}
+		if (!bInBowl)
+		{
+			// 슬로모션 동안 쏟아진 적재물은 재개하자마자 떨어질 테니 여기서 버린다. 런은 이미 실패했으므로 손실 이벤트는 보내지 않는다.
+			if (CargoActor)
+			{
+				CargoActor->Destroy();
+			}
+			CargoInstances.RemoveAt(CargoIndex);
+			continue;
+		}
+
+		CargoMeshComponent->SetSimulatePhysics(false);
+		CargoActor->AttachToActor(AttachTarget, FAttachmentTransformRules::KeepWorldTransform);
+	}
+
+	OnCargoListChanged.Broadcast();
+}
+
+void UPGCargoStackComponent::ResumeCargoAfterContinue(const FVector& ResumeVelocity)
+{
+	for (const FPGRuntimeCargoInstance& CargoInstance : CargoInstances)
+	{
+		UStaticMeshComponent* CargoMeshComponent = CargoInstance.CargoActor ? CargoInstance.CargoActor->GetCargoMeshComponent() : nullptr;
+		if (!CargoMeshComponent)
+		{
+			continue;
+		}
+
+		CargoInstance.CargoActor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		CargoMeshComponent->SetSimulatePhysics(true);
+		CargoMeshComponent->SetPhysicsLinearVelocity(ResumeVelocity);
+		CargoMeshComponent->SetPhysicsAngularVelocityInRadians(FVector::ZeroVector);
+	}
+
+	// 러너가 옮겨진 뒤 첫 프레임에 이전 위치와의 차이를 속도로 읽으면 손실 판정 기준이 그만큼 어긋난다. 재개 속도로 추적을 다시 시작한다.
+	PreviousAnchorLocation = GetComponentLocation();
+	AnchorVelocity = ResumeVelocity;
+	bHasPreviousAnchorLocation = true;
+	bHasLatestSupportTransform = false;
+	AirborneCargoAssistRemainingTime = 0.0f;
+	bWasAirborneLastFrame = false;
+	CargoDangerRatio = 0.0f;
+	CargoDangerDirection = FVector2D::ZeroVector;
+}
+
 void UPGCargoStackComponent::LoseCargoAt(int32 CargoIndex)
 {
 	if (!CargoInstances.IsValidIndex(CargoIndex))

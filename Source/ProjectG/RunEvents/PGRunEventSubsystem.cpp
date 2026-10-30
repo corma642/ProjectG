@@ -47,6 +47,7 @@ void UPGRunEventSubsystem::Deinitialize()
 	{
 		BoundGameMode->OnRunStarted.RemoveDynamic(this, &UPGRunEventSubsystem::HandleRunStarted);
 		BoundGameMode->OnRunFailed.RemoveDynamic(this, &UPGRunEventSubsystem::HandleRunFailed);
+		BoundGameMode->OnRunResumed.RemoveDynamic(this, &UPGRunEventSubsystem::HandleRunResumed);
 	}
 
 	BoundGameMode = nullptr;
@@ -173,6 +174,15 @@ void UPGRunEventSubsystem::InitializeRunnerReferences()
 	RunnerEnvironmentComponent = RunnerCharacter ? RunnerCharacter->FindComponentByClass<UPGRunnerEnvironmentComponent>() : nullptr;
 }
 
+void UPGRunEventSubsystem::HandleRunResumed()
+{
+	// 실패 때 예약·활성 이벤트는 모두 취소됐다. 난이도 시간은 이어 가며 새 이벤트만 다시 예약한다.
+	bIsRunActive = true;
+	TickAccumulator = 0.0f;
+	InitializeRunnerReferences();
+	ScheduleNextEvent();
+}
+
 void UPGRunEventSubsystem::BindGameMode()
 {
 	if (bIsBoundToGameMode || !GetWorld())
@@ -187,6 +197,7 @@ void UPGRunEventSubsystem::BindGameMode()
 		// 바인딩은 Initialize/OnWorldBeginPlay/Tick에서 모두 재시도 가능한 형태로 둔다.
 		BoundGameMode->OnRunStarted.AddDynamic(this, &UPGRunEventSubsystem::HandleRunStarted);
 		BoundGameMode->OnRunFailed.AddDynamic(this, &UPGRunEventSubsystem::HandleRunFailed);
+		BoundGameMode->OnRunResumed.AddDynamic(this, &UPGRunEventSubsystem::HandleRunResumed);
 		bIsBoundToGameMode = true;
 
 		if (BoundGameMode->GetRunState() == EPGRunState::Running)

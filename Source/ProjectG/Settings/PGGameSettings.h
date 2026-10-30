@@ -677,6 +677,18 @@ struct FPGRunResultSettings
 	// 슬로모션을 유지할 실제 시간(초). 러너와 바구니는 이 동안 멈춘 채 보이고, 끝나면 시간 배율을 복구하고 러너를 숨긴 뒤 결과 화면을 띄운다. 0이면 슬로모션을 끈다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Result | Slow Motion", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "2.0"))
 	float FailureSlowMotionDuration = 1.2f;
+
+	// 실패 뒤 결과 화면에서 영수증을 내고 실패 지점부터 이어하기를 허용할지 여부
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Result | Continue")
+	bool bEnableContinue = true;
+
+	// 이어하기 1회에 지갑에서 차감하는 영수증 수. 잔액이 모자라면 버튼이 잠긴다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Result | Continue", meta = (ClampMin = "0", UIMin = "0", UIMax = "200"))
+	int32 ContinueReceiptCost = 20;
+
+	// 한 런에서 이어하기를 허용하는 최대 횟수. 다 쓰면 결과 화면에 이어하기 버튼이 나오지 않는다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Result | Continue", meta = (ClampMin = "0", UIMin = "0", UIMax = "5"))
+	int32 MaxContinuesPerRun = 1;
 };
 
 /**

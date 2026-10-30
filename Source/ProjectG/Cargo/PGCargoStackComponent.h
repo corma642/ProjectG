@@ -143,6 +143,12 @@ public:
 	/** 위험 Actor 피격처럼 외부 충격이 났을 때 모든 활성 적재물에 러너 우측 축 속도(cm/s)를 더합니다. */
 	void ApplyExternalLateralImpulse(float LateralVelocity);
 
+	/** 결과 화면이 이어하기를 제안할 때 바구니 밖으로 나간 적재물은 버리고, 남은 적재물은 물리를 끄고 바구니에 붙여 둡니다. 러너가 옮겨져도 함께 따라갑니다. */
+	void FreezeCargoForContinue();
+
+	/** 이어하기 재개 시 붙여 둔 적재물을 떼어 물리를 켜고 러너 재개 속도(cm/s)를 물려줍니다. 앵커 속도 추적도 그 속도로 다시 시작합니다. */
+	void ResumeCargoAfterContinue(const FVector& ResumeVelocity);
+
 	/** HUD용 활성 적재물 스냅샷을 OutInfos에 채웁니다. 남은 시간은 초, 진행률은 0~1 범위이며 기존 내용은 비웁니다. */
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Cargo")
 	void GetActiveCargoInfos(TArray<FPGActiveCargoInfo>& OutInfos) const;

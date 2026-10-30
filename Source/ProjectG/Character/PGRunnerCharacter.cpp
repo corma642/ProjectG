@@ -117,6 +117,8 @@ void APGRunnerCharacter::BeginPlay()
 			GameMode->OnRunCountdownStarted.AddDynamic(this, &APGRunnerCharacter::HandleRunCountdownStarted);
 			GameMode->OnRunStarted.AddDynamic(this, &APGRunnerCharacter::HandleRunStarted);
 			GameMode->OnRunFailed.AddDynamic(this, &APGRunnerCharacter::HandleRunFailed);
+			GameMode->OnRunContinueCountdownStarted.AddDynamic(this, &APGRunnerCharacter::HandleRunContinueCountdownStarted);
+			GameMode->OnRunResumed.AddDynamic(this, &APGRunnerCharacter::HandleRunResumed);
 
 			if (GameMode->GetRunState() == EPGRunState::Countdown)
 			{
@@ -173,6 +175,10 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 		return;
 	}
 
+	if (RunnerMovementComponent && RunnerMovementComponent->IsMovingOnGround())
+	{
+		LastGroundedLocation = GetActorLocation();
+	}
 	if (RunProgressComponent)
 	{
 		RunProgressComponent->UpdateRunProgress(GetActorLocation());
@@ -481,6 +487,7 @@ void APGRunnerCharacter::HandleRunCountdownStarted(float Duration)
 	BalanceElapsedTime = 0.0f;
 	CurrentBodyRoll = 0.0f;
 	StartLocationZ = GetActorLocation().Z;
+	LastGroundedLocation = GetActorLocation();
 
 	if (RunnerEnvironmentComponent)
 	{
@@ -537,6 +544,75 @@ void APGRunnerCharacter::HandleRunStarted()
 	}
 
 	// 첫 적재물도 CargoDeliverySubsystem의 일반 드롭 흐름으로 처리한다.
+}
+
+void APGRunnerCharacter::HandleRunContinueCountdownStarted(float Duration)
+{
+	if (!IsPlayerControlled())
+	{
+		return;
+	}
+
+	// 실패 지점 근처 트랙 중앙에 다시 세운다. 카운트다운 동안 Tick은 꺼진 채라 자동 전진과 추락 판정이 돌지 않고, 플레이어는 앞 상황을 보며 GO를 기다린다.
+	const FVector ContinueLocation = FindContinueLocation();
+	SetActorLocationAndRotation(ContinueLocation, FRotator::ZeroRotator, false, nullptr, ETeleportType::TeleportPhysics);
+	BalanceInput = 0.0f;
+	BaseInstabilityInput = 0.0f;
+	FlickBalanceInput = 0.0f;
+	FlickBalanceInputRemainingTime = 0.0f;
+	CurrentBodyRoll = 0.0f;
+	UpdateBodyLean(0.0f);
+
+	if (RunnerMovementComponent)
+	{
+		// 실패 때 끈 이동 모드를 되살리고, 좌우 기준선도 새 위치(트랙 중앙)로 다시 잡는다.
+		RunnerMovementComponent->InitializeRunnerMovement(CachedJumpSettings, CachedTouchControlSettings, CachedBalanceSettings, ContinueLocation, GetActorForwardVector(), GetActorRightVector());
+		RunnerMovementComponent->SetMovementMode(MOVE_Walking);
+	}
+
+	if (USkeletalMeshComponent* MeshComponent = GetMesh())
+	{
+		MeshComponent->bPauseAnims = false;
+	}
+}
+
+void APGRunnerCharacter::HandleRunResumed()
+{
+	if (!IsPlayerControlled())
+	{
+		return;
+	}
+
+	SetActorTickEnabled(true);
+
+	bIsRunActive = true;
+	bIsRunCountdownActive = false;
+	bIsGameplayInputLocked = false;
+	BalanceInput = 0.0f;
+	BaseInstabilityInput = 0.0f;
+	FlickBalanceInput = 0.0f;
+	FlickBalanceInputRemainingTime = 0.0f;
+	StartLocationZ = GetActorLocation().Z;
+	LastGroundedLocation = GetActorLocation();
+
+	// 가속 구간 없이 달리던 속도로 바로 재개한다. 서 있다가 가속하면 바구니가 적재물 밑에서 먼저 나가 재개하자마자 흘릴 수 있다.
+	const FVector ResumeVelocity = (RunnerMovementComponent ? RunnerMovementComponent->GetRunnerForwardVector() : GetActorForwardVector()) * CachedRunnerSettings.ForwardSpeed;
+	if (RunnerMovementComponent)
+	{
+		RunnerMovementComponent->Velocity = ResumeVelocity;
+	}
+	if (CargoStackComponent)
+	{
+		CargoStackComponent->ResumeCargoAfterContinue(ResumeVelocity);
+	}
+	if (RunProgressComponent)
+	{
+		RunProgressComponent->ResumeRunProgress();
+	}
+	if (RunnerEnvironmentComponent)
+	{
+		RunnerEnvironmentComponent->SetRunActive(true);
+	}
 }
 
 void APGRunnerCharacter::HandleRunFailed(FName FailureReason)
@@ -713,6 +789,23 @@ void APGRunnerCharacter::CheckFallFailure()
 			GameMode->RequestRunFailed(TEXT("Fall"));
 		}
 	}
+}
+
+FVector APGRunnerCharacter::FindContinueLocation() const
+{
+	// 실패 직전 마지막으로 서 있던 X의 조금 뒤, 트랙 중앙(런 시작선 Y)에서 지면을 위에서 아래로 찾는다. 몇 m 뒤에서 출발해야 GO 직후 같은 틈을 다시 뛸 시간이 생긴다.
+	const UWorld* World = GetWorld();
+	const float CapsuleHalfHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+	for (const float BackOffset : { 500.0f, 250.0f, 0.0f })
+	{
+		const FVector Center(LastGroundedLocation.X - BackOffset, RunStartLocation.Y, LastGroundedLocation.Z);
+		FHitResult Hit;
+		if (World && World->LineTraceSingleByObjectType(Hit, Center + FVector(0.0f, 0.0f, 200.0f), Center - FVector(0.0f, 0.0f, 300.0f), FCollisionObjectQueryParams(ECC_WorldStatic)))
+		{
+			return FVector(Center.X, Center.Y, Hit.ImpactPoint.Z + CapsuleHalfHeight + 2.0f);
+		}
+	}
+	return LastGroundedLocation;
 }
 
 void APGRunnerCharacter::UpdateBaseInstability(float DeltaSeconds)
