@@ -31,6 +31,7 @@ void UPGCargoDeliverySubsystem::Deinitialize()
 	{
 		BoundGameMode->OnRunStarted.RemoveDynamic(this, &UPGCargoDeliverySubsystem::HandleRunStarted);
 		BoundGameMode->OnRunFailed.RemoveDynamic(this, &UPGCargoDeliverySubsystem::HandleRunFailed);
+		BoundGameMode->OnRunRewindStarted.RemoveDynamic(this, &UPGCargoDeliverySubsystem::HandleRunFailed);
 		BoundGameMode->OnRunResumed.RemoveDynamic(this, &UPGCargoDeliverySubsystem::HandleRunResumed);
 	}
 
@@ -105,7 +106,7 @@ void UPGCargoDeliverySubsystem::HandleRunStarted()
 	ResolveCurrentMapDropSet();
 	InitializeRunnerReferences();
 
-	if (CachedDeliverySettings.FirstDropDelay <= KINDA_SMALL_NUMBER)
+	if (CachedDeliverySettings.FirstDropDelay <= KINDA_SMALL_NUMBER && bAutoDropEnabled)
 	{
 		if (TryStartCargoDrop())
 		{
@@ -186,6 +187,8 @@ void UPGCargoDeliverySubsystem::BindGameMode()
 
 	BoundGameMode->OnRunStarted.AddDynamic(this, &UPGCargoDeliverySubsystem::HandleRunStarted);
 	BoundGameMode->OnRunFailed.AddDynamic(this, &UPGCargoDeliverySubsystem::HandleRunFailed);
+	// 튜토리얼 되감기 동안도 실패처럼 드롭을 멈춘다. 재개는 OnRunResumed가 맡는다.
+	BoundGameMode->OnRunRewindStarted.AddDynamic(this, &UPGCargoDeliverySubsystem::HandleRunFailed);
 	BoundGameMode->OnRunResumed.AddDynamic(this, &UPGCargoDeliverySubsystem::HandleRunResumed);
 	bIsBoundToGameMode = true;
 
@@ -220,6 +223,12 @@ void UPGCargoDeliverySubsystem::ProcessCargoDeliveryTick(float DeltaSeconds)
 		InitializeRunnerReferences();
 	}
 
+	if (!bAutoDropEnabled)
+	{
+		// 튜토리얼 안내 구간은 RequestImmediateDrop으로만 떨어뜨린다. 난이도 시간은 그대로 흐른다.
+		return;
+	}
+
 	if (RunElapsedTime >= NextDropTime)
 	{
 		if (TryStartCargoDrop())
@@ -232,6 +241,20 @@ void UPGCargoDeliverySubsystem::ProcessCargoDeliveryTick(float DeltaSeconds)
 		}
 	}
 
+}
+
+void UPGCargoDeliverySubsystem::SetAutoDropEnabled(bool bEnabled)
+{
+	bAutoDropEnabled = bEnabled;
+	if (bEnabled && bIsRunActive)
+	{
+		ScheduleNextDrop(CalculateCurrentDropInterval());
+	}
+}
+
+bool UPGCargoDeliverySubsystem::RequestImmediateDrop()
+{
+	return bIsRunActive && TryStartCargoDrop();
 }
 
 bool UPGCargoDeliverySubsystem::TryStartCargoDrop()

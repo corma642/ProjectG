@@ -196,7 +196,7 @@ void UPGMusicComponent::RefreshMusicForCurrentState()
 	switch (BoundGameMode->GetRunState())
 	{
 	case EPGRunState::Home:
-		if (!IsRetryCountdownLoad())
+		if (!IsRunEntryLoad())
 		{
 			PlayHomeMusic();
 		}
@@ -297,11 +297,10 @@ float UPGMusicComponent::GetRunMusicTargetVolume() const
 	return bIsMusicDucked ? BaseVolume * CachedMusicSettings.PauseDuckedVolume : BaseVolume;
 }
 
-bool UPGMusicComponent::IsRetryCountdownLoad() const
+bool UPGMusicComponent::IsRunEntryLoad() const
 {
-	const UWorld* World = GetWorld();
-	const FString StartFlowOption = World ? World->URL.GetOption(TEXT("StartFlow="), TEXT("")) : FString();
-	return StartFlowOption.Equals(TEXT("RetryCountdown"), ESearchCase::IgnoreCase);
+	// Retry·튜토리얼 진입(StartFlow 옵션)은 Home 화면 없이 바로 카운트다운으로 가므로 Home 음악을 시작하지 않는다.
+	return BoundGameMode && BoundGameMode->GetStartFlow() != EPGRunStartFlow::Home;
 }
 
 EPGRuntimePreloadGroup UPGMusicComponent::GetRequiredPreloadGroup() const

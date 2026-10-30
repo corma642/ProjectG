@@ -6,23 +6,25 @@
 #include "Cargo/PGCargoStackComponent.h"
 #include "Components/ActorComponent.h"
 #include "Settings/PGGameSettings.h"
-#include "UI/PGRunGuideWidget.h"
+#include "Tutorial/PGTutorialTypes.h"
 #include "PGRunHUDComponent.generated.h"
 
 class APGGameModeBase;
 class APGPlayerController;
 class APGRunnerCharacter;
 class UPGCargoStackComponent;
+class UPGRunGuideWidget;
 class UPGRunHUDWidget;
 class UPGRunPauseWidget;
 class UPGRunProgressComponent;
 class UPGSettingsScreenWidget;
-class UPGUserDataSubsystem;
+class UPGTutorialSubsystem;
 class UMaterialInstanceDynamic;
 
 /**
  * 로컬 PlayerController가 소유하는 러닝 HUD 관리자입니다.
  * 카운트다운부터 실패 결과 화면 뒤까지 HUD를 유지하고, Pause/Settings와 적재물 리스트 갱신을 연결합니다.
+ * 튜토리얼 스테이지에서는 UPGTutorialSubsystem의 단계 delegate를 받아 조작 안내 오버레이(WBP_RunGuide)를 그립니다.
  */
 UCLASS(ClassGroup = (ProjectG), meta = (BlueprintSpawnableComponent))
 class PROJECTG_API UPGRunHUDComponent : public UActorComponent
@@ -70,9 +72,14 @@ private:
 	UFUNCTION()
 	void HandleReceiptsChanged(int32 Receipts, FName Reason);
 
+	UFUNCTION()
+	void HandleTutorialStepChanged(EPGTutorialStep Step);
+
+	UFUNCTION()
+	void HandleTutorialCompleted(int32 RewardReceipts);
+
 	void HandleCargoListChanged();
 	void HandleCargoDelivered(int32 CargoInstanceId, int32 Score, int32 Receipts, FVector DeliveryLocation);
-	void HandleRunnerJumpStarted();
 	void HandlePauseRequested();
 	void HandleApplicationDeactivated();
 	void HandleResumeRequested();
@@ -92,9 +99,9 @@ private:
 	void UnbindRunner();
 	void ShowHUD();
 	void CleanupHUD();
-	UPGUserDataSubsystem* GetUserDataSubsystem() const;
-	void ShowRunGuideIfNeeded();
-	void AdvanceRunGuide(EPGRunGuideStep NextStep);
+	void BindTutorial();
+	void UnbindTutorial();
+	UPGRunGuideWidget* EnsureRunGuideWidget();
 	void CleanupRunGuide(bool bFadeOut);
 	void UpdateHUDInteractionState() const;
 	void RefreshHUDValues();
@@ -136,18 +143,19 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UPGSettingsScreenWidget> SettingsScreenWidget;
 
-	// 첫 런 가이드 오버레이입니다. 저장된 완료 기록이 없을 때만 GO 시점에 만들고 완료·실패·Home 전환 시 제거합니다.
+	// 튜토리얼 조작 안내 오버레이입니다. 서브시스템이 첫 단계를 알릴 때 만들고, 완료 연출 뒤 스스로 사라지거나 실패·Home 전환 시 제거합니다.
 	UPROPERTY(Transient)
 	TObjectPtr<UPGRunGuideWidget> RunGuideWidget;
 
-	// 가이드 단계 판정(드래그 입력량, 점프 시작)에 쓰는 현재 러너입니다. GameMode가 소유하므로 약한 참조만 둡니다.
+	// 단계 안내·완료 delegate를 주는 튜토리얼 서브시스템입니다. 튜토리얼 레벨이 아니면 아무것도 보내지 않습니다.
+	UPROPERTY(Transient)
+	TObjectPtr<UPGTutorialSubsystem> BoundTutorialSubsystem;
+
+	// 바구니 테두리 경고 링을 찾는 데 쓰는 현재 러너입니다. GameMode가 소유하므로 약한 참조만 둡니다.
 	TWeakObjectPtr<APGRunnerCharacter> BoundRunnerCharacter;
 
 	// 앱 비활성화(전화·알림·홈 버튼·화면 꺼짐) 자동 일시정지 바인딩입니다.
 	FDelegateHandle ApplicationDeactivatedHandle;
-
-	// 현재 가이드가 기다리는 조작 단계입니다. None이면 가이드가 없습니다.
-	EPGRunGuideStep RunGuideStep = EPGRunGuideStep::None;
 
 	FPGRunHUDSettings CachedRunHUDSettings;
 	FPGHomeFlowSettings CachedHomeFlowSettings;

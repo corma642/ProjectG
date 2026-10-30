@@ -51,6 +51,20 @@ struct FPGActiveCargoInfo
 };
 
 /**
+ * 튜토리얼 되감기 복원용 적재물 하나의 상태입니다. 종류와 배달 경과 시간만 있으면 다시 쌓을 수 있습니다.
+ */
+USTRUCT()
+struct FPGCargoRewindEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(Transient)
+	TObjectPtr<UPGCargoTypeDefinition> CargoType;
+
+	float DeliveryElapsedTime = 0.0f;
+};
+
+/**
  * Hold 연출을 끝내고 물리 Actor로 전환된 배달 적재물의 런타임 상태입니다.
  */
 USTRUCT()
@@ -146,8 +160,14 @@ public:
 	/** 결과 화면이 이어하기를 제안할 때 바구니 밖으로 나간 적재물은 버리고, 남은 적재물은 물리를 끄고 바구니에 붙여 둡니다. 러너가 옮겨져도 함께 따라갑니다. */
 	void FreezeCargoForContinue();
 
-	/** 이어하기 재개 시 붙여 둔 적재물을 떼어 물리를 켜고 러너 재개 속도(cm/s)를 물려줍니다. 앵커 속도 추적도 그 속도로 다시 시작합니다. */
+	/** 이어하기 재개 시 붙여 둔 적재물을 떼어 물리를 켜고 러너 재개 속도(cm/s)를 물려줍니다. 앵커 속도 추적도 그 속도로 다시 시작합니다. 되감기로 다시 만든 적재물에도 같은 속도를 줍니다. */
 	void ResumeCargoAfterContinue(const FVector& ResumeVelocity);
+
+	/** 지금 바구니에 있는 물리 적재물의 종류와 배달 경과 시간을 OutEntries에 담습니다(기존 내용은 비움). Hold 중인 적재물은 넣지 않습니다. */
+	void CaptureCargoForRewind(TArray<FPGCargoRewindEntry>& OutEntries) const;
+
+	/** 현재 적재물과 Hold를 모두 버리고 Entries대로 적재물을 CargoStack 위에 다시 만듭니다. 러너를 옮긴 뒤 부르며 속도 보정은 이어지는 ResumeCargoAfterContinue가 맡습니다. */
+	void RestoreCargoForRewind(const TArray<FPGCargoRewindEntry>& Entries);
 
 	/** HUD용 활성 적재물 스냅샷을 OutInfos에 채웁니다. 남은 시간은 초, 진행률은 0~1 범위이며 기존 내용은 비웁니다. */
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Cargo")

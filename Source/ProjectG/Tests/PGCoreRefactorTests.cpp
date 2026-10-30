@@ -2,6 +2,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS && WITH_EDITOR
 
+#include "Character/PGRunnerCharacter.h"
 #include "Misc/AutomationTest.h"
 #include "Movement/PGRunnerMovementComponent.h"
 #include "UI/PGUIAnimationUtils.h"
@@ -124,6 +125,27 @@ bool FPGUIAnimationEasingTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Receipt Shop의 완화된 overshoot를 보존해야 합니다."), FMath::IsNearlyEqual(PGUIAnimation::EaseOutBack(0.5f, 1.45f), 1.05625f));
 	TestEqual(TEXT("EaseOutBack 종료값"), PGUIAnimation::EaseOutBack(1.0f), 1.0f);
 
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FPGTutorialRewindSnapshotTest,
+	"ProjectG.Core.Tutorial.RewindSnapshotSelection",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FPGTutorialRewindSnapshotTest::RunTest(const FString& Parameters)
+{
+	TArray<FPGRunRewindSnapshot> Snapshots;
+	for (const float Time : {10.0f, 10.5f, 11.0f, 11.5f, 12.0f})
+	{
+		Snapshots.AddDefaulted_GetRef().WorldTimeSeconds = Time;
+	}
+
+	TestEqual(TEXT("빈 목록은 INDEX_NONE이어야 합니다."), APGRunnerCharacter::SelectRewindSnapshotIndex(TArrayView<const FPGRunRewindSnapshot>(), 15.0f, 3.0f), INDEX_NONE);
+	TestEqual(TEXT("목표 시각(12.2) 이전의 가장 최근 스냅샷(12.0)을 골라야 합니다."), APGRunnerCharacter::SelectRewindSnapshotIndex(Snapshots, 15.2f, 3.0f), 4);
+	TestEqual(TEXT("목표 시각(10.6) 이전의 가장 최근 스냅샷(10.5)을 골라야 합니다."), APGRunnerCharacter::SelectRewindSnapshotIndex(Snapshots, 13.6f, 3.0f), 1);
+	TestEqual(TEXT("목표 시각과 같은 시각의 스냅샷도 과거로 봐야 합니다."), APGRunnerCharacter::SelectRewindSnapshotIndex(Snapshots, 14.0f, 3.0f), 2);
+	TestEqual(TEXT("모든 스냅샷이 목표 시각 뒤면 가장 오래된 것으로 가야 합니다."), APGRunnerCharacter::SelectRewindSnapshotIndex(Snapshots, 11.0f, 3.0f), 0);
 	return true;
 }
 

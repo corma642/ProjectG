@@ -117,6 +117,8 @@ void APGRunnerCharacter::BeginPlay()
 			GameMode->OnRunCountdownStarted.AddDynamic(this, &APGRunnerCharacter::HandleRunCountdownStarted);
 			GameMode->OnRunStarted.AddDynamic(this, &APGRunnerCharacter::HandleRunStarted);
 			GameMode->OnRunFailed.AddDynamic(this, &APGRunnerCharacter::HandleRunFailed);
+			// 튜토리얼 되감기도 실패처럼 멈춘다. 자리를 되돌리는 것은 GameMode가 RewindForTutorial로 따로 부른다.
+			GameMode->OnRunRewindStarted.AddDynamic(this, &APGRunnerCharacter::HandleRunFailed);
 			GameMode->OnRunContinueCountdownStarted.AddDynamic(this, &APGRunnerCharacter::HandleRunContinueCountdownStarted);
 			GameMode->OnRunResumed.AddDynamic(this, &APGRunnerCharacter::HandleRunResumed);
 
@@ -182,6 +184,14 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 	if (RunProgressComponent)
 	{
 		RunProgressComponent->UpdateRunProgress(GetActorLocation());
+	}
+	if (CameraLagRestoreTicks > 0 && --CameraLagRestoreTicks == 0 && CameraBoom)
+	{
+		CameraBoom->bEnableCameraLag = bCameraLagEnabledSetting;
+	}
+	if (bRewindRecordingEnabled)
+	{
+		RecordRewindSnapshot(DeltaSeconds);
 	}
 
 	UpdateBaseInstability(DeltaSeconds);
@@ -255,6 +265,118 @@ void APGRunnerCharacter::RequestFlickJump(float DirectionSign)
 	if (RunnerMovementComponent)
 	{
 		RunnerMovementComponent->ApplyFlickLateralStep(ClampedDirection);
+	}
+	OnLateralFlickStarted.Broadcast(ClampedDirection);
+}
+
+void APGRunnerCharacter::SetRewindRecordingEnabled(bool bEnabled)
+{
+	bRewindRecordingEnabled = bEnabled;
+	RewindSnapshots.Reset();
+	RewindSnapshotElapsed = 0.0f;
+}
+
+void APGRunnerCharacter::RecordRewindSnapshot(float DeltaSeconds)
+{
+	// 0.5초 간격이면 3초 되감기에 충분히 가깝고, 16개면 8초 분량이다.
+	constexpr float SnapshotInterval = 0.5f;
+	constexpr int32 MaxSnapshots = 16;
+
+	RewindSnapshotElapsed += DeltaSeconds;
+	if (RewindSnapshotElapsed < SnapshotInterval || !RunnerMovementComponent || !RunnerMovementComponent->IsMovingOnGround())
+	{
+		// 공중에서는 기록하지 않는다. 틈 위에서 되살리면 바로 다시 떨어진다.
+		return;
+	}
+
+	RewindSnapshotElapsed = 0.0f;
+	if (RewindSnapshots.Num() >= MaxSnapshots)
+	{
+		RewindSnapshots.RemoveAt(0, 1, EAllowShrinking::No);
+	}
+	FPGRunRewindSnapshot& Snapshot = RewindSnapshots.AddDefaulted_GetRef();
+	Snapshot.WorldTimeSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	Snapshot.Location = GetActorLocation();
+	Snapshot.BalanceOffset = RunnerMovementComponent->GetBalanceOffset();
+	if (CargoStackComponent)
+	{
+		CargoStackComponent->CaptureCargoForRewind(Snapshot.Cargo);
+	}
+}
+
+int32 APGRunnerCharacter::SelectRewindSnapshotIndex(TArrayView<const FPGRunRewindSnapshot> Snapshots, float FailureTimeSeconds, float SecondsBack)
+{
+	if (Snapshots.IsEmpty())
+	{
+		return INDEX_NONE;
+	}
+
+	// 기록은 시간순이다. 목표 시각 이전의 것 중 가장 최근을 고르고, 모두 그 뒤면(런 시작 직후 실패) 가장 오래된 것으로 간다.
+	const float TargetTime = FailureTimeSeconds - SecondsBack;
+	for (int32 Index = Snapshots.Num() - 1; Index >= 0; --Index)
+	{
+		if (Snapshots[Index].WorldTimeSeconds <= TargetTime)
+		{
+			return Index;
+		}
+	}
+	return 0;
+}
+
+void APGRunnerCharacter::RewindForTutorial(float SecondsBack)
+{
+	const int32 SnapshotIndex = SelectRewindSnapshotIndex(RewindSnapshots, FailureWorldTimeSeconds, SecondsBack);
+	FVector RewindLocation = LastGroundedLocation;
+	float RewindBalanceOffset = 0.0f;
+	TArray<FPGCargoRewindEntry> RewindCargo;
+	if (SnapshotIndex != INDEX_NONE)
+	{
+		const FPGRunRewindSnapshot& Snapshot = RewindSnapshots[SnapshotIndex];
+		RewindBalanceOffset = Snapshot.BalanceOffset;
+		RewindCargo = Snapshot.Cargo;
+		if (!FindGroundLocation(Snapshot.Location, RewindLocation))
+		{
+			RewindLocation = Snapshot.Location;
+		}
+		// 되돌린 자리보다 뒤의 기록은 더 이상 과거가 아니다. 그 뒤부터 다시 쌓는다.
+		RewindSnapshots.SetNum(SnapshotIndex + 1, EAllowShrinking::No);
+	}
+	else
+	{
+		RewindLocation = FindContinueLocation();
+	}
+	RewindSnapshotElapsed = 0.0f;
+
+	SetActorLocationAndRotation(RewindLocation, FRotator::ZeroRotator, false, nullptr, ETeleportType::TeleportPhysics);
+	BalanceInput = 0.0f;
+	BaseInstabilityInput = 0.0f;
+	FlickBalanceInput = 0.0f;
+	FlickBalanceInputRemainingTime = 0.0f;
+	CurrentBodyRoll = 0.0f;
+	UpdateBodyLean(0.0f);
+	StartLocationZ = RewindLocation.Z;
+	LastGroundedLocation = RewindLocation;
+
+	if (RunnerMovementComponent)
+	{
+		// 실패 때 끈 이동 모드를 되살린다. 좌우 기준선은 그대로 두고 오프셋만 스냅샷 값으로 돌려 레인 위치를 복원한다.
+		RunnerMovementComponent->SetMovementMode(MOVE_Walking);
+		RunnerMovementComponent->SetBalanceOffsetForTeleport(RewindBalanceOffset);
+	}
+	if (USkeletalMeshComponent* MeshComponent = GetMesh())
+	{
+		MeshComponent->bPauseAnims = false;
+	}
+	if (CameraBoom && CameraLagRestoreTicks == 0)
+	{
+		// 지연을 켠 채 순간이동하면 암전이 걷힌 뒤 카메라가 실패 지점에서 날아온다. 붐이 새 자리를 잡는 두 Tick 동안 끈다.
+		bCameraLagEnabledSetting = CameraBoom->bEnableCameraLag;
+		CameraBoom->bEnableCameraLag = false;
+		CameraLagRestoreTicks = 2;
+	}
+	if (CargoStackComponent)
+	{
+		CargoStackComponent->RestoreCargoForRewind(RewindCargo);
 	}
 }
 
@@ -623,6 +745,7 @@ void APGRunnerCharacter::HandleRunFailed(FName FailureReason)
 	}
 
 	// 실패가 확정되면 추가 입력/전진/환경 효과가 누적되지 않도록 러너 상태를 즉시 고정한다.
+	FailureWorldTimeSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 	if (RunProgressComponent)
 	{
 		RunProgressComponent->StopRunProgress(GetActorLocation());
@@ -794,18 +917,27 @@ void APGRunnerCharacter::CheckFallFailure()
 FVector APGRunnerCharacter::FindContinueLocation() const
 {
 	// 실패 직전 마지막으로 서 있던 X의 조금 뒤, 트랙 중앙(런 시작선 Y)에서 지면을 위에서 아래로 찾는다. 몇 m 뒤에서 출발해야 GO 직후 같은 틈을 다시 뛸 시간이 생긴다.
-	const UWorld* World = GetWorld();
-	const float CapsuleHalfHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 	for (const float BackOffset : { 500.0f, 250.0f, 0.0f })
 	{
-		const FVector Center(LastGroundedLocation.X - BackOffset, RunStartLocation.Y, LastGroundedLocation.Z);
-		FHitResult Hit;
-		if (World && World->LineTraceSingleByObjectType(Hit, Center + FVector(0.0f, 0.0f, 200.0f), Center - FVector(0.0f, 0.0f, 300.0f), FCollisionObjectQueryParams(ECC_WorldStatic)))
+		FVector ContinueLocation;
+		if (FindGroundLocation(FVector(LastGroundedLocation.X - BackOffset, RunStartLocation.Y, LastGroundedLocation.Z), ContinueLocation))
 		{
-			return FVector(Center.X, Center.Y, Hit.ImpactPoint.Z + CapsuleHalfHeight + 2.0f);
+			return ContinueLocation;
 		}
 	}
 	return LastGroundedLocation;
+}
+
+bool APGRunnerCharacter::FindGroundLocation(const FVector& Probe, FVector& OutLocation) const
+{
+	const UWorld* World = GetWorld();
+	FHitResult Hit;
+	if (World && World->LineTraceSingleByObjectType(Hit, Probe + FVector(0.0f, 0.0f, 200.0f), Probe - FVector(0.0f, 0.0f, 300.0f), FCollisionObjectQueryParams(ECC_WorldStatic)))
+	{
+		OutLocation = FVector(Probe.X, Probe.Y, Hit.ImpactPoint.Z + GetCapsuleComponent()->GetScaledCapsuleHalfHeight() + 2.0f);
+		return true;
+	}
+	return false;
 }
 
 void APGRunnerCharacter::UpdateBaseInstability(float DeltaSeconds)

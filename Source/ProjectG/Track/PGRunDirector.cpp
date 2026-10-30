@@ -159,6 +159,13 @@ void APGRunDirector::InitializeInitialSegment()
 		RunOrigin = InitialSegment->GetSegmentStartWorldLocation();
 		RunForward = InitialSegment->GetSegmentForwardVector().GetSafeNormal(UE_SMALL_NUMBER, GetActorForwardVector());
 
+		if (bReplaceInitialSegment)
+		{
+			// 튜토리얼은 시작 세그먼트의 틈을 피해 정해진 길을 원점부터 깐다. 세그먼트는 숨기되 맵 검증용 참조는 남긴다.
+			HideInitialSegment();
+			return;
+		}
+
 		FPGActiveTrackSegment ActiveSegment;
 		ActiveSegment.Segment = InitialSegment;
 		ActiveSegment.EndProgress = GetProgressAtLocation(InitialSegment->GetSegmentEndWorldLocation());
@@ -169,6 +176,32 @@ void APGRunDirector::InitializeInitialSegment()
 
 	RunOrigin = GetActorLocation();
 	RunForward = GetActorForwardVector().GetSafeNormal(UE_SMALL_NUMBER, FVector::ForwardVector);
+}
+
+void APGRunDirector::SetForcedSegmentSequence(const TArray<TSubclassOf<APGTrackSegment>>& Sequence, bool bInReplaceInitialSegment)
+{
+	ForcedSegmentSequence = Sequence;
+	ForcedSegmentIndex = 0;
+	bReplaceInitialSegment = bInReplaceInitialSegment;
+
+	// BeginPlay가 이미 지났으면 활성 목록에 들어간 시작 세그먼트를 바로 빼고 숨긴다. 전이면 InitializeInitialSegment가 처리한다.
+	if (bReplaceInitialSegment && HasActorBegunPlay() && InitialSegment)
+	{
+		ActiveSegments.RemoveAll([this](const FPGActiveTrackSegment& ActiveSegment)
+		{
+			return ActiveSegment.Segment == InitialSegment;
+		});
+		HideInitialSegment();
+	}
+}
+
+void APGRunDirector::HideInitialSegment()
+{
+	if (InitialSegment)
+	{
+		// 풀 비활성화와 같은 처리라 안의 영수증 픽업도 함께 꺼진다.
+		InitialSegment->DeactivateForPool();
+	}
 }
 
 void APGRunDirector::ValidateTrackData() const
@@ -258,9 +291,20 @@ bool APGRunDirector::SpawnNextSegment()
 		return false;
 	}
 
-	const int32 EntryIndex = SelectSegmentEntryIndex();
-	const FPGTrackSegmentEntry* SegmentEntry = SegmentSet->SegmentEntries.IsValidIndex(EntryIndex) ? &SegmentSet->SegmentEntries[EntryIndex] : nullptr;
-	TSubclassOf<APGTrackSegment> SegmentClass = SegmentEntry ? SegmentEntry->SegmentClass : nullptr;
+	int32 EntryIndex = INDEX_NONE;
+	const FPGTrackSegmentEntry* SegmentEntry = nullptr;
+	TSubclassOf<APGTrackSegment> SegmentClass = nullptr;
+	if (ForcedSegmentSequence.IsValidIndex(ForcedSegmentIndex))
+	{
+		// 튜토리얼 구간은 가중치 선택 대신 정해진 순서를 쓴다. 쿨다운·연속 등장 통계에는 넣지 않는다.
+		SegmentClass = ForcedSegmentSequence[ForcedSegmentIndex++];
+	}
+	else
+	{
+		EntryIndex = SelectSegmentEntryIndex();
+		SegmentEntry = SegmentSet->SegmentEntries.IsValidIndex(EntryIndex) ? &SegmentSet->SegmentEntries[EntryIndex] : nullptr;
+		SegmentClass = SegmentEntry ? SegmentEntry->SegmentClass : nullptr;
+	}
 	if (!SegmentClass)
 	{
 		// 가중치 필터가 모두 탈락해도 런이 끊기는 것은 더 치명적이다.

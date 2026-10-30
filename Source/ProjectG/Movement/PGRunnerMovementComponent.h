@@ -61,6 +61,9 @@ public:
 	/** 실패 확정 시 이동 모드를 끄고 점프·Balance 잔여 상태를 정리합니다. */
 	void StopRunnerMovementForFailure();
 
+	/** 순간이동으로 옮긴 자리의 좌우 오프셋(기준선 대비 cm)을 그대로 받습니다. 남은 속도·플릭 보정·쿨타임은 옛 자리의 것이라 지웁니다. 기준선은 바꾸지 않습니다. */
+	void SetBalanceOffsetForTeleport(float InBalanceOffset);
+
 	/** 시작 기준 축에서 현재 캡슐이 좌우로 벗어난 거리를 cm 단위로 반환합니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Runner Movement")
 	float GetBalanceOffset() const { return BalanceOffset; }

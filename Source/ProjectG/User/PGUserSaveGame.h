@@ -41,7 +41,7 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectG | User")
 	FName EquippedMapId;
 
-	// 첫 런 가이드(드래그 → 플릭 안내)를 끝까지 마쳤는지. true면 다시 표시하지 않습니다.
+	// 튜토리얼 스테이지를 끝내 완료 보상을 받았는지. 이전 첫 런 가이드 완료 플래그라 저장 호환을 위해 이름을 유지합니다. true면 보상을 다시 주지 않고 첫 START도 일반 런으로 갑니다.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectG | User")
 	bool bRunGuideCompleted = false;
 };

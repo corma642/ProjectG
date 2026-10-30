@@ -47,6 +47,7 @@ void UPGRunEventSubsystem::Deinitialize()
 	{
 		BoundGameMode->OnRunStarted.RemoveDynamic(this, &UPGRunEventSubsystem::HandleRunStarted);
 		BoundGameMode->OnRunFailed.RemoveDynamic(this, &UPGRunEventSubsystem::HandleRunFailed);
+		BoundGameMode->OnRunRewindStarted.RemoveDynamic(this, &UPGRunEventSubsystem::HandleRunFailed);
 		BoundGameMode->OnRunResumed.RemoveDynamic(this, &UPGRunEventSubsystem::HandleRunResumed);
 	}
 
@@ -197,6 +198,8 @@ void UPGRunEventSubsystem::BindGameMode()
 		// 바인딩은 Initialize/OnWorldBeginPlay/Tick에서 모두 재시도 가능한 형태로 둔다.
 		BoundGameMode->OnRunStarted.AddDynamic(this, &UPGRunEventSubsystem::HandleRunStarted);
 		BoundGameMode->OnRunFailed.AddDynamic(this, &UPGRunEventSubsystem::HandleRunFailed);
+		// 튜토리얼 되감기도 실패와 같이 예약·활성 이벤트와 위험 구역을 지운다. 재개는 OnRunResumed가 맡는다.
+		BoundGameMode->OnRunRewindStarted.AddDynamic(this, &UPGRunEventSubsystem::HandleRunFailed);
 		BoundGameMode->OnRunResumed.AddDynamic(this, &UPGRunEventSubsystem::HandleRunResumed);
 		bIsBoundToGameMode = true;
 
@@ -262,6 +265,13 @@ void UPGRunEventSubsystem::ScheduleNextEvent()
 		return;
 	}
 
+	if (!bAutoSchedulingEnabled)
+	{
+		// 튜토리얼 안내 구간은 이벤트를 직접 발동한다. 켜질 때 바로 예약하므로 여기서는 가끔만 다시 본다.
+		NextScheduleRetryTime = RunElapsedTime + 1.0f;
+		return;
+	}
+
 	if (RunElapsedTime < CachedRunEventSettings.SafeInitialRunTime)
 	{
 		// GO 직후에는 첫 적재물/조작 안정화가 우선이므로 환경 이벤트를 잠시 늦춘다.
@@ -300,8 +310,16 @@ void UPGRunEventSubsystem::ScheduleNextEvent()
 	PendingEventFireTime = RunElapsedTime + FMath::Lerp(StartInterval, EndInterval, DifficultyAlpha);
 }
 
-#if !UE_BUILD_SHIPPING
-bool UPGRunEventSubsystem::DebugScheduleEvent(EPGRunEventType EventType, float Direction)
+void UPGRunEventSubsystem::SetAutoSchedulingEnabled(bool bEnabled)
+{
+	bAutoSchedulingEnabled = bEnabled;
+	if (bEnabled && bIsRunActive && PendingEventType == EPGRunEventType::None)
+	{
+		ScheduleNextEvent();
+	}
+}
+
+bool UPGRunEventSubsystem::ScheduleEventNow(EPGRunEventType EventType, float Direction)
 {
 	if (!BoundGameMode || BoundGameMode->GetRunState() != EPGRunState::Running)
 	{
@@ -333,7 +351,6 @@ bool UPGRunEventSubsystem::DebugScheduleEvent(EPGRunEventType EventType, float D
 	PendingEventFireTime = RunElapsedTime + FMath::Max(0.0f, CachedRunEventSettings.PreviewLeadTime);
 	return true;
 }
-#endif
 
 bool UPGRunEventSubsystem::SelectEventRule(FPGRunEventRule& OutRule)
 {

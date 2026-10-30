@@ -3,17 +3,38 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Cargo/PGCargoStackComponent.h"
 #include "GameFramework/Character.h"
 #include "Settings/PGGameSettings.h"
 #include "PGRunnerCharacter.generated.h"
 
 class UCameraComponent;
 class UPGCharacterSkinDefinition;
-class UPGCargoStackComponent;
 class UPGRunnerEnvironmentComponent;
 class UPGRunnerMovementComponent;
 class UPGRunProgressComponent;
 class USpringArmComponent;
+
+/** 좌우 플릭 점프가 실제로 시작된 직후 방향 부호(-1 왼쪽, 1 오른쪽)를 전달합니다. */
+DECLARE_MULTICAST_DELEGATE_OneParam(FPGLateralFlickStartedSignature, float);
+
+/**
+ * 튜토리얼 되감기용 스냅샷입니다. 지면에 서 있던 순간의 자리, 좌우 오프셋, 들고 있던 적재물을 기억합니다.
+ */
+USTRUCT()
+struct FPGRunRewindSnapshot
+{
+	GENERATED_BODY()
+
+	// 기록 시점의 월드 시간(초)
+	float WorldTimeSeconds = 0.0f;
+	FVector Location = FVector::ZeroVector;
+	// 트랙 기준선 대비 좌우 오프셋(cm). 레인 위치를 되돌리는 데 쓴다.
+	float BalanceOffset = 0.0f;
+
+	UPROPERTY(Transient)
+	TArray<FPGCargoRewindEntry> Cargo;
+};
 
 /**
  * 자동 전진, 터치 점프, 중심 보정, 적재물 반응을 연결하는 러너 캐릭터입니다.
@@ -115,8 +136,23 @@ public:
 	UFUNCTION()
 	void HandleRunResumed();
 
-	/** 실제 점프가 시작된 직후 발생합니다. 첫 런 가이드가 플릭 단계 완료 판정에 사용합니다. */
+	/** 실제 점프가 시작된 직후 발생합니다. 튜토리얼이 점프 단계 완료 판정에 사용합니다. */
 	FSimpleMulticastDelegate OnJumpStarted;
+
+	/** 좌우 플릭 점프가 실제로 시작된 직후 방향 부호와 함께 발생합니다. */
+	FPGLateralFlickStartedSignature OnLateralFlickStarted;
+
+	/** 튜토리얼 되감기용 스냅샷 기록을 켜거나 끕니다. 켜진 동안 지면에 서 있을 때 0.5초마다 자리·좌우 오프셋·적재물을 기억합니다. */
+	void SetRewindRecordingEnabled(bool bEnabled);
+
+	/**
+	 * 실패 SecondsBack초 전(그 이전의 가장 최근 지면 스냅샷)으로 러너와 적재물을 되돌립니다. 되감기 암전이 화면을 덮은 순간 GameMode가 부르고,
+	 * 이어지는 OnRunResumed가 달리기를 재개합니다. 스냅샷이 없으면 이어하기 복귀 자리(FindContinueLocation)를 씁니다.
+	 */
+	void RewindForTutorial(float SecondsBack);
+
+	/** 스냅샷 중 FailureTime - SecondsBack 이전의 가장 최근 것의 인덱스를 돌려줍니다. 그런 것이 없으면 가장 오래된 것, 비어 있으면 INDEX_NONE입니다. */
+	static int32 SelectRewindSnapshotIndex(TArrayView<const FPGRunRewindSnapshot> Snapshots, float FailureTimeSeconds, float SecondsBack);
 
 	/** 결과 화면이 뜰 때 러너 메시를 숨기고 바구니를 제거합니다. 실패 직후 슬로모션 동안은 보이게 둬 실패 원인을 보여 줍니다. */
 	void HideForRunResult();
@@ -172,6 +208,12 @@ private:
 
 	// 이어하기에서 러너를 세울 자리. 마지막으로 서 있던 X에서 최대 5m 뒤까지 트랙 중앙(런 시작선 Y)의 지면을 찾고, 없으면 마지막으로 서 있던 위치를 그대로 쓴다.
 	FVector FindContinueLocation() const;
+
+	// Probe의 X·Y 위에서 아래로 지면을 찾아 캡슐이 서는 위치를 돌려준다. 지면이 없으면 false다.
+	bool FindGroundLocation(const FVector& Probe, FVector& OutLocation) const;
+
+	// 되감기 기록이 켜져 있고 지면에 서 있으면 0.5초마다 스냅샷을 쌓는다.
+	void RecordRewindSnapshot(float DeltaSeconds);
 
 	// 직선 주행 중 자동으로 발생하는 좌우 중심 흔들림을 갱신한다.
 	void UpdateBaseInstability(float DeltaSeconds);
@@ -244,6 +286,17 @@ private:
 
 	// 지면 위에서 갱신하는 마지막 착지 위치. 추락·적재물 손실 뒤 이어하기의 복귀 기준이다.
 	FVector LastGroundedLocation = FVector::ZeroVector;
+
+	// 튜토리얼 되감기 스냅샷(오래된 것이 앞). 안내 구간에서만 쌓이고 8초 분량만 남긴다.
+	UPROPERTY(Transient)
+	TArray<FPGRunRewindSnapshot> RewindSnapshots;
+	bool bRewindRecordingEnabled = false;
+	float RewindSnapshotElapsed = 0.0f;
+	// 실패 순간의 월드 시간. 되감기는 이 시각에서 RewindSeconds 전을 찾는다.
+	float FailureWorldTimeSeconds = 0.0f;
+	// 되감기 순간이동 뒤 카메라 붐이 옛 자리에서 날아오지 않도록 지연을 끈 채 남은 Tick 수. 붐이 새 자리에 맞춰진 뒤 설정값으로 되돌린다.
+	int32 CameraLagRestoreTicks = 0;
+	bool bCameraLagEnabledSetting = true;
 
 	// 런 진행 거리 계산에 사용하는 시작 시점 전방 방향
 	FVector RunStartForwardVector = FVector::ForwardVector;

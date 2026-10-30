@@ -64,7 +64,7 @@ private:
 	void ApplyRunMusicVolume(float FadeDuration);
 	float GetBaseMusicVolume() const;
 	float GetRunMusicTargetVolume() const;
-	bool IsRetryCountdownLoad() const;
+	bool IsRunEntryLoad() const;
 	EPGRuntimePreloadGroup GetRequiredPreloadGroup() const;
 
 	UPROPERTY(Transient)

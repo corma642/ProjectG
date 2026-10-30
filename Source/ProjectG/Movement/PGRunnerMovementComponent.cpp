@@ -129,6 +129,19 @@ void UPGRunnerMovementComponent::StopRunnerMovementForFailure()
 	bWasAirborneLastFrame = false;
 }
 
+void UPGRunnerMovementComponent::SetBalanceOffsetForTeleport(float InBalanceOffset)
+{
+	// 기준선(OriginLocation)을 그대로 두어야 위험 구역의 트랙 중앙 계산이 어긋나지 않는다. 레인 위치는 오프셋만으로 되돌린다.
+	BalanceOffset = InBalanceOffset;
+	BalanceVelocity = 0.0f;
+	ExternalImpulseSpeedLimit = 0.0f;
+	FlickLateralRemainingTime = 0.0f;
+	FlickLateralVelocity = 0.0f;
+	JumpCooldownRemainingTime = 0.0f;
+	LandingStabilizeRemainingTime = 0.0f;
+	bWasAirborneLastFrame = false;
+}
+
 void UPGRunnerMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);

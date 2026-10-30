@@ -19,7 +19,6 @@ class UPGRunCountdownWidget;
 class UPGScreenTransitionFadeWidget;
 class UPGSettingsScreenWidget;
 class UPGShopScreenWidget;
-class UPGTutorialScreenWidget;
 class UPGQuitConfirmWidget;
 class UPGUserDataSubsystem;
 enum class EPGRuntimePreloadGroup : uint8;
@@ -32,7 +31,8 @@ enum class EPGHomeFlowTransition : uint8
 	HomeToShop,
 	ShopToHome,
 	HomeToCountdown,
-	ShopToMapLevel
+	ShopToMapLevel,
+	HomeToTutorialLevel
 };
 
 /** 서로 다른 preload group에서 동시에 대기할 수 있는 Home 요청을 추적하는 내부 bitmask입니다. */
@@ -41,14 +41,13 @@ enum class EPGHomePendingPreloadRequest : uint8
 	None = 0,
 	StartDelivery = 1 << 0,
 	Shop = 1 << 1,
-	ReceiptShop = 1 << 2,
-	Tutorial = 1 << 3
+	ReceiptShop = 1 << 2
 };
 ENUM_CLASS_FLAGS(EPGHomePendingPreloadRequest);
 
 /**
  * 로컬 PlayerController가 소유하는 Home 흐름 관리자입니다.
- * Home/Shop 카메라, Home/Settings/Help/Shop UI, START 이후 카운트다운 진입을 한 흐름에서 연결합니다.
+ * Home/Shop 카메라, Home/Settings/Shop UI, START 이후 카운트다운 진입, 도움말·첫 START의 튜토리얼 스테이지 진입을 한 흐름에서 연결합니다.
  */
 UCLASS(ClassGroup = (ProjectG), meta = (BlueprintSpawnableComponent))
 class PROJECTG_API UPGHomeFlowComponent : public UActorComponent
@@ -107,7 +106,6 @@ private:
 	void RemoveShopScreenWidget();
 	void RemoveReceiptShopWidget();
 	void RemoveSettingsScreenWidget();
-	void RemoveTutorialScreenWidget();
 	void QueuePendingPreloadRequest(EPGHomePendingPreloadRequest Request);
 	void ConsumePendingPreloadRequest(EPGHomePendingPreloadRequest Request);
 	bool HasPendingPreloadRequest(EPGHomePendingPreloadRequest Request) const;
@@ -125,9 +123,8 @@ private:
 	void HandleSettingsRequested();
 	void HandleSettingsScreenClosed();
 	void HandleHelpRequested();
-	void HandleTutorialClosed();
+	void StartTutorialStage();
 	void ShowSettingsScreen();
-	void ShowTutorialScreen();
 	void ShowReceiptShopScreen();
 	void ShowQuitConfirm();
 	void RemoveQuitConfirmWidget();
@@ -170,9 +167,6 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UPGSettingsScreenWidget> SettingsScreenWidget;
 
-	UPROPERTY(Transient)
-	TObjectPtr<UPGTutorialScreenWidget> TutorialScreenWidget;
-
 	// Home에서 뒤로가기로 띄우는 앱 종료 확인 모달입니다.
 	UPROPERTY(Transient)
 	TObjectPtr<UPGQuitConfirmWidget> QuitConfirmWidget;
@@ -188,7 +182,7 @@ private:
 	// 서로 다른 group의 예열 완료가 역순으로 와도 각 사용자 요청을 잃지 않도록 bitmask로 보관합니다.
 	EPGHomePendingPreloadRequest PendingPreloadRequests = EPGHomePendingPreloadRequest::None;
 
-	// Retry URL 옵션으로 들어온 경우 Home UI를 건너뛰고 카운트다운을 요청하는지 추적합니다.
+	// StartFlow URL 옵션(Retry·튜토리얼)으로 들어온 경우 Home UI를 건너뛰고 카운트다운을 요청하는지 추적합니다.
 	bool bRetryCountdownRequested = false;
 
 	// Retry 카운트다운이 Controller 초기화 이후 다음 Tick부터 시작 가능한지 추적합니다.

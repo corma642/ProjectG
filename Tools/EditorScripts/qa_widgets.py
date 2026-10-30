@@ -1,7 +1,7 @@
 """위젯 시각·입력 회귀 검증 (헤드리스 에디터 Python).
 
 위젯을 실제 RHI로 그려 PNG를 남기고, 버튼이 장식 위젯에 가려지지 않았는지와 런 이벤트 배지의 방향 표시를 확인한다.
-대상: Run HUD(배달 카드·점수 표시·손실 임박 카드 경고 포함), 첫 런 가이드(드래그·플릭 단계), 런 이벤트 배지(전조·발동), Home, Settings, Tutorial, Pause, RunResult, Shop, ReceiptShop, 상품 카드, FPS 표시, 카운트다운, 화면 전환 페이드.
+대상: Run HUD(배달 카드·점수 표시·손실 임박 카드 경고 포함), 튜토리얼 안내(균형·점프·좌우 이동·적재물·바람 단계, 완료 문구), 런 이벤트 배지(전조·발동), Home, Settings, Pause, RunResult, Shop, ReceiptShop, 상품 카드, FPS 표시, 카운트다운, 화면 전환 페이드.
 실행: powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\Tools\\Verify-Project.ps1 -SkipBuild -SkipBlueprints -SkipTests -WidgetQA
 결과: Temp/Verify/WidgetQA/*.png(Git 제외, 언제든 비워도 됨), 로그의 '### WIDGET_QA: PASS' 또는 '### WIDGET_QA: FAIL'
 언어: 스크립트 인자로 문화권(en)을 주면 그 언어의 locres(Content/Localization/Game)를 미리보기로 적용해 Temp/Verify/WidgetQA/<문화권>/에 그린다.
@@ -215,8 +215,6 @@ SCREENS = (
     ('HomeScreen', 'Home/WBP_HomeScreen', ()),
     # 지금 선택된 품질 프리셋 버튼은 선택 표시로 꺼진다. 어느 것인지는 이 PC의 저장된 설정에 따른다. 현재 언어의 버튼도 같은 방식으로 꺼진다(에디터는 영어).
     ('HomeSettingsScreen', 'Home/WBP_HomeSettingsScreen', ('LowPresetButton', 'BalancedPresetButton', 'HighPresetButton', 'KoreanLanguageButton', 'EnglishLanguageButton')),
-    # 첫 페이지에서는 이전 버튼이 꺼진다.
-    ('TutorialScreen', 'Home/WBP_TutorialScreen', ('PrevButton',)),
     ('RunPause', 'HUD/WBP_RunPause', ()),
     ('QuitConfirm', 'Home/WBP_QuitConfirm', ()),
     ('RunResult', 'RunResult/WBP_RunResult', ()),
@@ -300,13 +298,17 @@ if countdown:
     blocked = {index for index, hit in enumerate(hit_names(countdown)) if hit != 'None'} & hud_buttons
     check(not blocked, f'HomeCountdown does not take input over Run HUD buttons ({len(blocked)} samples overlap)')
 
-# 첫 런 가이드(ZOrder 16)는 Run HUD 위에 겹치므로 어느 단계에서도 입력을 받지 않아야 한다. 페이드 인(0.25초)이 끝난 뒤 그린다.
+# 튜토리얼 안내(ZOrder 16)는 Run HUD 위에 겹치므로 어느 단계에서도 입력을 받지 않아야 한다. 페이드 인(0.25초)이 끝난 뒤 그린다.
 guide = create_widget('HUD/WBP_RunGuide')
 if guide:
-    for step, label in ((unreal.PGRunGuideStep.DRAG, 'Drag'), (unreal.PGRunGuideStep.FLICK, 'Flick')):
-        guide.show_step(step)
-        render(guide, 'RunGuide_' + label, advance=0.6)
-        check(set(hit_counts(guide, 90, advance=0.6)) == {'None'}, f'RunGuide {label} does not take input')
+    for step in ('BALANCE', 'JUMP', 'LATERAL', 'CARGO', 'WIND'):
+        guide.show_step(getattr(unreal.PGTutorialStep, step))
+        render(guide, 'RunGuide_' + step.capitalize(), advance=0.6)
+        check(set(hit_counts(guide, 90, advance=0.6)) == {'None'}, f'RunGuide {step} does not take input')
+    # 완료 문구는 보상 20장을 넣어 그린다. 3초 뒤 스스로 사라지므로 페이드 인 직후에 그린다.
+    guide.show_completion(20)
+    render(guide, 'RunGuide_Complete', advance=0.6)
+    check(set(hit_counts(guide, 90, advance=0.6)) == {'None'}, 'RunGuide completion does not take input')
 
 # 화면 전환 페이드(ZOrder 500)는 덮는 동안 화면 전체의 입력을 막고 끝나면 스스로 제거된다. 의도된 동작이라 그림만 남긴다.
 fade = create_widget('Etc/WBP_ScreenTransitionFade')
@@ -332,7 +334,7 @@ LAYOUT_PASSES = (
     ('cutout96', unreal.IntPoint(1080, 2340), 96.0),
 )
 # 절개 패스에서 SafeZone 안의 가장자리 UI(점수·Pause·영수증·도움말·닫기)가 여백 아래로 내려와야 하는 위젯.
-SAFE_ZONE_WIDGETS = ('HUD/WBP_RunHUD', 'Home/WBP_HomeScreen', 'Shop/WBP_ShopScreen', 'Home/WBP_TutorialScreen', 'Etc/WBP_FPSDisplay')
+SAFE_ZONE_WIDGETS = ('HUD/WBP_RunHUD', 'Home/WBP_HomeScreen', 'Shop/WBP_ShopScreen', 'Etc/WBP_FPSDisplay')
 BASE_OUT, BASE_SIZE = OUT, SIZE
 for pass_label, pass_size, safe_top in LAYOUT_PASSES:
     OUT, SIZE = os.path.join(BASE_OUT, pass_label), pass_size

@@ -4,7 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
+#include "Tutorial/PGTutorialTypes.h"
 #include "PGGameSettings.generated.h"
+
+class APGTrackSegment;
 
 class APGMovingRunEventHazardActor;
 class UPGCharacterShopCatalog;
@@ -14,7 +17,6 @@ class UPGMapShopItemWidget;
 class UPGRunResultWidget;
 class UPGRunEventPresentationSet;
 class UPGRunEventSet;
-class UPGTutorialPageSet;
 class UCameraShakeBase;
 class UNiagaraSystem;
 class USoundBase;
@@ -245,7 +247,7 @@ struct FPGRunHUDSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | HUD")
 	TSoftClassPtr<UUserWidget> CargoScoreIndicatorWidgetClass;
 
-	// 첫 런에서 드래그·플릭 조작을 안내하는 가이드 Widget Blueprint 클래스. 저장된 완료 기록이 없을 때 GO 시점에 HUD 위에 표시한다.
+	// 튜토리얼 스테이지의 단계 안내 오버레이 Widget Blueprint 클래스. 튜토리얼 런에서 각 구간에 들어설 때 HUD 위에 표시한다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | HUD")
 	TSoftClassPtr<UUserWidget> RunGuideWidgetClass;
 
@@ -306,14 +308,6 @@ struct FPGHomeFlowSettings
 	// 홈 화면 Settings 버튼으로 표시할 설정 위젯 클래스
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Home")
 	TSoftClassPtr<UUserWidget> SettingsScreenWidgetClass;
-
-	// 홈 화면 Help 버튼으로 표시할 튜토리얼 위젯 클래스
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Home")
-	TSoftClassPtr<UUserWidget> TutorialScreenWidgetClass;
-
-	// Help 튜토리얼에서 책처럼 넘겨 볼 설명 이미지 목록
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Tutorial")
-	TSoftObjectPtr<UPGTutorialPageSet> TutorialPageSet;
 
 	// Home에서 Android 뒤로가기를 눌렀을 때 앱 종료를 묻는 모달 위젯 클래스
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI | Home")
@@ -892,6 +886,48 @@ struct FPGRunEventSettings
 };
 
 /**
+ * 튜토리얼 스테이지의 한 구간. 안내할 조작 단계와 그 구간에 순서대로 깔 트랙 세그먼트입니다.
+ */
+USTRUCT(BlueprintType)
+struct FPGTutorialChapter
+{
+	GENERATED_BODY()
+
+	// 이 구간에서 안내할 조작 단계. 러너가 구간의 첫 세그먼트에 들어서고 앞 단계가 끝나면 안내가 뜬다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Tutorial")
+	EPGTutorialStep Step = EPGTutorialStep::None;
+
+	// 이 구간에 순서대로 깔 세그먼트 클래스. 앞 단계 조작만으로 지나갈 수 있는 길을 고른다(균형·적재물·바람은 틈 없는 길, 점프는 틈 있는 길). 조사는 PG.Showcase.ProbeSegments.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Tutorial")
+	TArray<TSoftClassPtr<APGTrackSegment>> Segments;
+};
+
+/**
+ * Home의 ? 버튼과 첫 START가 여는 튜토리얼 스테이지 설정
+ */
+USTRUCT(BlueprintType)
+struct FPGTutorialSettings
+{
+	GENERATED_BODY()
+
+	// 안내 구간 목록. 레벨 배치 시작 세그먼트 대신 런 원점부터 순서대로 깔리고, 목록이 끝나면 일반 세그먼트 선택으로 넘어간다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Tutorial")
+	TArray<FPGTutorialChapter> Chapters;
+
+	// 안내 구간에서 실패하면 되돌릴 시간(초). 이 시간 전에 지면에 서 있던 자리로 돌아간다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Tutorial", meta = (ClampMin = "0.5", UIMin = "1.0", UIMax = "10.0"))
+	float RewindSeconds = 3.0f;
+
+	// 되감기 암전이 덮이는 시간과 걷히는 시간(초, 각각). 영상 컷처럼 짧게 둔다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Tutorial", meta = (ClampMin = "0.0", UIMin = "0.1", UIMax = "1.0"))
+	float RewindFadeDuration = 0.3f;
+
+	// 튜토리얼을 처음 끝냈을 때 지갑에 더하는 영수증. 다시 플레이하면 주지 않는다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Tutorial", meta = (ClampMin = "0", UIMin = "0", UIMax = "200"))
+	int32 CompletionRewardReceipts = 20;
+};
+
+/**
  * 스토어 심사에 필요한 법적 고지 링크 설정
  */
 USTRUCT(BlueprintType)
@@ -999,6 +1035,10 @@ public:
 	// 러닝 시간 기반 전역 이벤트 예약/발동 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run Event")
 	FPGRunEventSettings RunEvent;
+
+	// Home의 ? 버튼과 첫 START가 여는 튜토리얼 스테이지 설정
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Run")
+	FPGTutorialSettings Tutorial;
 
 	// 개인정보처리방침 등 스토어 심사용 링크 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Legal")

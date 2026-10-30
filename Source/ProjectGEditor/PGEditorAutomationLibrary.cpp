@@ -23,7 +23,6 @@
 #include "RenderingThread.h"
 #include "Settings/PGGameSettings.h"
 #include "Slate/WidgetRenderer.h"
-#include "Tutorial/PGTutorialPageSet.h"
 #include "UI/PGCargoDeliveryItemWidget.h"
 #include "UI/PGCargoScoreIndicatorWidget.h"
 #include "UI/PGReceiptShopWidget.h"
@@ -31,7 +30,6 @@
 #include "UI/PGScreenTransitionFadeWidget.h"
 #include "UI/PGSettingsScreenWidget.h"
 #include "UI/PGShopScreenWidget.h"
-#include "UI/PGTutorialScreenWidget.h"
 #include "Widgets/Colors/SColorBlock.h"
 #include "Widgets/Layout/SSafeZone.h"
 #include "Widgets/SOverlay.h"
@@ -194,20 +192,6 @@ bool UPGEditorAutomationLibrary::PlayWidgetEntry(UUserWidget* Widget)
 	if (UPGReceiptShopWidget* ReceiptShopWidget = Cast<UPGReceiptShopWidget>(Widget))
 	{
 		ReceiptShopWidget->PlayOpenAnimation();
-		return true;
-	}
-	if (UPGTutorialScreenWidget* TutorialWidget = Cast<UPGTutorialScreenWidget>(Widget))
-	{
-		UPGTutorialPageSet* PageSet = Settings->HomeFlow.TutorialPageSet.LoadSynchronous();
-		if (PageSet)
-		{
-			// 위젯은 이미 로드된 페이지만 표시한다. 게임에서는 프리로드가 맡는 일을 여기서 대신한다.
-			for (const TSoftObjectPtr<UTexture2D>& Page : PageSet->Pages)
-			{
-				Page.LoadSynchronous();
-			}
-		}
-		TutorialWidget->InitializeTutorial(PageSet);
 		return true;
 	}
 	if (UPGCargoDeliveryItemWidget* CargoItemWidget = Cast<UPGCargoDeliveryItemWidget>(Widget))

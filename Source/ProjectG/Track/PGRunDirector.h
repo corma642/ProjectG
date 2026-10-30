@@ -69,6 +69,15 @@ public:
 
 	/** 맵 계약 검증에 사용하는 레벨 배치 시작 세그먼트를 반환하며 누락 시 null입니다. */
 	APGTrackSegment* GetInitialSegment() const { return InitialSegment; }
+
+	/**
+	 * 튜토리얼처럼 정해진 순서로 길을 깔 때 호출합니다. 목록을 다 쓰면 가중치 선택으로 돌아갑니다.
+	 * bReplaceInitialSegment면 레벨 배치 시작 세그먼트를 숨기고 목록을 런 원점부터 깝니다.
+	 */
+	void SetForcedSegmentSequence(const TArray<TSubclassOf<APGTrackSegment>>& Sequence, bool bReplaceInitialSegment);
+
+	/** 러너의 현재 트랙 진행 거리(cm)입니다. 런 원점(시작 세그먼트 시작점) 기준이며 러너가 없으면 0입니다. */
+	float GetPlayerProgress() const;
 	/** 가중치 트랙 후보 카탈로그를 반환하며 미설정이면 null입니다. */
 	UPGTrackSegmentSet* GetSegmentSet() const { return SegmentSet; }
 
@@ -132,8 +141,8 @@ private:
 	void ReturnSegmentToPool(APGTrackSegment* Segment);
 	int32 SelectSegmentEntryIndex();
 	TSubclassOf<APGTrackSegment> ResolveFallbackSegmentClass() const;
-	float GetPlayerProgress() const;
 	float GetProgressAtLocation(const FVector& WorldLocation) const;
+	void HideInitialSegment();
 
 	UPROPERTY(Transient)
 	TObjectPtr<APGRunnerCharacter> RunnerCharacter;
@@ -156,4 +165,9 @@ private:
 	TMap<int32, int32> LastSpawnedSegmentByEntry;
 	// 실제 spawn 성공 이력만 fallback으로 기억하며 클래스 수명은 SegmentSet DataAsset이 유지합니다.
 	TWeakObjectPtr<UClass> LastValidSegmentClass;
+	// 튜토리얼이 넘긴 고정 세그먼트 순서와 다음에 깔 인덱스. 클래스 수명은 Project Settings가 유지합니다.
+	TArray<TSubclassOf<APGTrackSegment>> ForcedSegmentSequence;
+	int32 ForcedSegmentIndex = 0;
+	// 레벨 배치 시작 세그먼트를 숨기고 고정 순서를 원점부터 깔지 여부입니다.
+	bool bReplaceInitialSegment = false;
 };

@@ -6,6 +6,7 @@
 #include "Engine/EngineBaseTypes.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
+#include "Kismet/GameplayStatics.h"
 #include "Loading/PGRuntimePreloadSubsystem.h"
 #include "Player/PGPlayerController.h"
 #include "Settings/PGGameSettings.h"
@@ -28,6 +29,16 @@ APawn* APGGameModeBase::SpawnDefaultPawnFor_Implementation(AController* NewPlaye
 	return nullptr;
 }
 
+void APGGameModeBase::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
+{
+	Super::InitGame(MapName, Options, ErrorMessage);
+
+	const FString StartFlowOption = UGameplayStatics::ParseOption(Options, TEXT("StartFlow"));
+	StartFlow = StartFlowOption.Equals(TEXT("RetryCountdown"), ESearchCase::IgnoreCase) ? EPGRunStartFlow::RetryCountdown
+		: StartFlowOption.Equals(TEXT("Tutorial"), ESearchCase::IgnoreCase) ? EPGRunStartFlow::Tutorial
+		: EPGRunStartFlow::Home;
+}
+
 void APGGameModeBase::BeginPlay()
 {
 	Super::BeginPlay();
@@ -35,11 +46,9 @@ void APGGameModeBase::BeginPlay()
 	RunState = EPGRunState::Home;
 	bIsCurrentMapSetupValid = ValidateCurrentMapSetup();
 
-	const UWorld* World = GetWorld();
-	const FString StartFlowOption = World ? World->URL.GetOption(TEXT("StartFlow="), TEXT("")) : FString();
-	bIsRetryEntry = StartFlowOption.Equals(TEXT("RetryCountdown"), ESearchCase::IgnoreCase);
-	if (bIsRetryEntry)
+	if (StartFlow != EPGRunStartFlow::Home)
 	{
+		// Retry·튜토리얼 진입은 Home UI가 없으므로 PlayerController 쪽 요청이 늦어도 카운트다운이 시작되게 한다.
 		GetWorldTimerManager().SetTimer(RetryCountdownFallbackTimerHandle, this, &APGGameModeBase::HandleRetryCountdownFallback, 1.0f, false);
 	}
 }
@@ -71,7 +80,8 @@ void APGGameModeBase::RequestStartDelivery()
 		return;
 	}
 
-	// Retry 진입은 플레이어가 이미 준비돼 있으므로 더 짧은 카운트다운으로 실패→재도전 대기를 줄인다.
+	// Retry 진입은 플레이어가 이미 준비돼 있으므로 더 짧은 카운트다운으로 실패→재도전 대기를 줄인다. 튜토리얼은 첫 START와 같은 길이로 시작한다.
+	const bool bIsRetryEntry = StartFlow == EPGRunStartFlow::RetryCountdown;
 	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
 	const float CountdownDuration = Settings ? FMath::Max(0.0f, bIsRetryEntry ? Settings->HomeFlow.RetryCountdownDuration : Settings->HomeFlow.RunStartCountdownDuration) : 3.0f;
 	RunCountdownDuration = CountdownDuration;
@@ -105,8 +115,18 @@ void APGGameModeBase::RequestStartDelivery()
 
 void APGGameModeBase::RequestRunFailed(FName FailureReason)
 {
-	if (RunState == EPGRunState::Failed)
+	if (RunState == EPGRunState::Failed || bIsTutorialRewind)
 	{
+		return;
+	}
+
+	if (bTutorialGuideActive && RunState == EPGRunState::Running)
+	{
+		// 튜토리얼 안내 중 실패는 런을 끝내지 않는다. 러너와 런 시스템은 실패처럼 멈추고, 암전이 화면을 덮으면 FinishTutorialRewind가 몇 초 전으로 되돌린다.
+		RunState = EPGRunState::Countdown;
+		bIsTutorialRewind = true;
+		GetWorldTimerManager().ClearTimer(RunCountdownTimerHandle);
+		OnRunRewindStarted.Broadcast(FailureReason);
 		return;
 	}
 
@@ -115,6 +135,25 @@ void APGGameModeBase::RequestRunFailed(FName FailureReason)
 	GetWorldTimerManager().ClearTimer(RunCountdownTimerHandle);
 	GetWorldTimerManager().ClearTimer(RetryCountdownFallbackTimerHandle);
 	OnRunFailed.Broadcast(FailureReason);
+}
+
+void APGGameModeBase::FinishTutorialRewind()
+{
+	if (!bIsTutorialRewind)
+	{
+		return;
+	}
+
+	bIsTutorialRewind = false;
+	const UPGGameSettings* Settings = GetDefault<UPGGameSettings>();
+	if (APGRunnerCharacter* RunnerCharacter = GetPlayableRunnerCharacter())
+	{
+		RunnerCharacter->RewindForTutorial(Settings ? Settings->Tutorial.RewindSeconds : 3.0f);
+	}
+
+	// 카운트다운 없이 바로 달린다. 되돌린 자리가 실패 지점보다 몇 초 앞이라 플레이어가 상황을 다시 볼 시간은 그 거리로 충분하다.
+	RunState = EPGRunState::Running;
+	OnRunResumed.Broadcast();
 }
 
 void APGGameModeBase::FinishRunCountdown()
@@ -299,6 +338,7 @@ bool APGGameModeBase::ValidateCurrentMapSetup()
 			++DirectorCount;
 		}
 	}
+	RunDirector = FoundDirector;
 
 	bool bValid = true;
 	if (RunnerCount != 1)
@@ -359,7 +399,8 @@ bool APGGameModeBase::SettleCurrentRunRewards(FName Reason)
 		return false;
 	}
 
-	bRunRewardsSettled = UserDataSubsystem->TrySettleRunRewards(RunReceipts, RunScore, Reason);
+	// 튜토리얼 런은 안내 구간이 쉬워 거리 점수가 부풀려지므로 영수증만 정산하고 최고 점수는 갱신하지 않는다.
+	bRunRewardsSettled = UserDataSubsystem->TrySettleRunRewards(RunReceipts, RunScore, Reason, !IsTutorialRun());
 	return bRunRewardsSettled;
 }
 

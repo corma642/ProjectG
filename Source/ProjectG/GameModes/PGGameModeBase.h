@@ -6,6 +6,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "PGGameModeBase.generated.h"
 
+class APGRunDirector;
 class APGRunnerCharacter;
 
 /**
@@ -18,6 +19,15 @@ enum class EPGRunState : uint8
 	Countdown,
 	Running,
 	Failed
+};
+
+/** 레벨 URL의 StartFlow 옵션이 가리키는 진입 방식입니다. Home 외에는 Home 화면 없이 바로 카운트다운으로 들어갑니다. */
+UENUM(BlueprintType)
+enum class EPGRunStartFlow : uint8
+{
+	Home,
+	RetryCountdown,
+	Tutorial
 };
 
 /** 초 단위 카운트다운이 시작돼 러너와 런 시스템이 준비 상태로 전환될 때 발생합니다. */
@@ -42,7 +52,10 @@ public:
 	/** 러너는 레벨에 배치한 BP_Runner를 START 시점에 Possess하므로 기본 Pawn 자동 스폰을 막습니다. */
 	virtual APawn* SpawnDefaultPawnFor_Implementation(AController* NewPlayer, AActor* StartSpot) override;
 
-	/** 레벨 설정을 검증하고 Home 또는 Retry 진입 상태를 준비한 뒤 초기 delegate 순서를 결정합니다. */
+	/** 레벨 URL의 StartFlow 옵션(RetryCountdown·Tutorial)을 읽어 진입 방식을 정합니다. BeginPlay보다 먼저라 월드 서브시스템도 참고할 수 있습니다. */
+	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
+
+	/** 레벨 설정을 검증하고 Home 또는 자동 카운트다운(Retry·튜토리얼) 진입 상태를 준비합니다. */
 	virtual void BeginPlay() override;
 
 	/** Home 또는 Retry에서 START DELIVERY 카운트다운을 시작합니다. 그 외 상태의 중복 요청은 무시합니다. */
@@ -73,6 +86,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Run")
 	bool RequestContinueRun();
 
+	/** 레벨 URL이 정한 진입 방식입니다. Home이 아니면 Home 화면 없이 카운트다운으로 들어갑니다. */
+	EPGRunStartFlow GetStartFlow() const { return StartFlow; }
+
+	/** 이 레벨이 튜토리얼 스테이지(StartFlow=Tutorial)로 열렸는지 반환합니다. 튜토리얼 런은 최고 점수를 갱신하지 않습니다. */
+	UFUNCTION(BlueprintPure, Category = "ProjectG | Run")
+	bool IsTutorialRun() const { return StartFlow == EPGRunStartFlow::Tutorial; }
+
+	/** 튜토리얼 안내 구간 동안 켭니다. 켜져 있으면 Running 중 실패가 결과 화면 대신 되감기(OnRunRewindStarted)로 갑니다. */
+	void SetTutorialGuideActive(bool bActive) { bTutorialGuideActive = bActive; }
+
+	/** 되감기 암전이 화면을 덮은 순간 호출합니다. 러너를 실패 Tutorial.RewindSeconds 전 자리로 되돌리고 OnRunResumed로 바로 재개합니다. */
+	void FinishTutorialRewind();
+
+	/** 현재 맵의 트랙 디렉터입니다. 맵 검증에서 찾은 하나를 돌려주며 없으면 null입니다. */
+	APGRunDirector* GetRunDirector() const { return RunDirector; }
+
 	/** 현재 플레이 러너를 반환합니다. Possess 전에는 검증된 레벨 배치 러너를 반환하며 없으면 null입니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run")
 	APGRunnerCharacter* GetPlayableRunnerCharacter() const;
@@ -100,9 +129,13 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run")
 	FPGRunCountdownStartedSignature OnRunContinueCountdownStarted;
 
-	/** 이어하기 카운트다운이 끝나 점수·거리·남은 적재물을 유지한 채 런을 다시 시작할 때 발생합니다. */
+	/** 이어하기 카운트다운이 끝나거나 튜토리얼 되감기를 마쳐 점수·거리·남은 적재물을 유지한 채 런을 다시 시작할 때 발생합니다. */
 	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run")
 	FPGRunStartedSignature OnRunResumed;
+
+	/** 튜토리얼 안내 구간의 실패가 되감기로 처리될 때 실패 원인과 함께 발생합니다. 러너와 런 시스템은 실패처럼 멈추되 결과 화면·정산은 없습니다. */
+	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Run")
+	FPGRunFailedSignature OnRunRewindStarted;
 
 private:
 	void FinishRunCountdown();
@@ -116,8 +149,14 @@ private:
 
 	FTimerHandle RunCountdownTimerHandle;
 	FTimerHandle RetryCountdownFallbackTimerHandle;
-	// StartFlow=RetryCountdown URL 옵션으로 열린 레벨이면 첫 시작 대신 짧은 Retry 카운트다운을 쓴다.
-	bool bIsRetryEntry = false;
+	// 레벨 URL의 StartFlow 옵션. RetryCountdown은 짧은 카운트다운과 앞당긴 출발, Tutorial은 튜토리얼 스테이지다.
+	EPGRunStartFlow StartFlow = EPGRunStartFlow::Home;
+	// 튜토리얼 안내 구간 중인지. 켜져 있으면 실패를 되감기로 돌린다.
+	bool bTutorialGuideActive = false;
+	// 되감기 암전이 진행 중인지. 암전이 덮이면 FinishTutorialRewind가 재개한다.
+	bool bIsTutorialRewind = false;
+	UPROPERTY(Transient)
+	TObjectPtr<APGRunDirector> RunDirector;
 	float RunCountdownDuration = 0.0f;
 	bool bRunRewardsSettled = false;
 	bool bIsCurrentMapSetupValid = false;

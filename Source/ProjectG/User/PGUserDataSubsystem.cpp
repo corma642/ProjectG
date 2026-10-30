@@ -108,7 +108,7 @@ int32 UPGUserDataSubsystem::GetBestRunScore() const
 	return UserSaveGame ? FMath::Max(0, UserSaveGame->BestRunScore) : 0;
 }
 
-bool UPGUserDataSubsystem::TrySettleRunRewards(int32 Receipts, int32 Score, FName Reason)
+bool UPGUserDataSubsystem::TrySettleRunRewards(int32 Receipts, int32 Score, FName Reason, bool bUpdateBestScore)
 {
 	UPGUserSaveGame* UserData = EnsureUserData();
 	if (!UserData)
@@ -122,7 +122,10 @@ bool UPGUserDataSubsystem::TrySettleRunRewards(int32 Receipts, int32 Score, FNam
 	const int32 PreviousBestScore = UserData->BestRunScore;
 
 	UserData->ReceiptBalance = AddReceiptBalanceClamped(UserData->ReceiptBalance, ReceiptDelta);
-	UserData->BestRunScore = FMath::Max(UserData->BestRunScore, SanitizedScore);
+	if (bUpdateBestScore)
+	{
+		UserData->BestRunScore = FMath::Max(UserData->BestRunScore, SanitizedScore);
+	}
 
 	// 런 보상은 영수증과 최고 점수가 함께 확정되어야 한다. 저장 실패 시 메모리 상태도
 	// 이전 값으로 되돌려 다음 이동 요청에서 같은 런 보상을 다시 저장할 수 있게 한다.
@@ -144,19 +147,36 @@ bool UPGUserDataSubsystem::TrySettleRunRewards(int32 Receipts, int32 Score, FNam
 	return true;
 }
 
-bool UPGUserDataSubsystem::IsRunGuideCompleted() const
+bool UPGUserDataSubsystem::IsTutorialCompleted() const
 {
 	return UserSaveGame && UserSaveGame->bRunGuideCompleted;
 }
 
-void UPGUserDataSubsystem::MarkRunGuideCompleted()
+bool UPGUserDataSubsystem::TryGrantTutorialCompletion(int32 RewardReceipts, FName Reason)
 {
-	// 가이드는 첫 점프 순간에 끝나는데, 그 자리에서 저장 파일을 쓰고 재검증하면 점프 중 프레임이 끊긴다.
-	// 플래그만 두고 런 종료 정산 저장에 함께 쓴다.
-	if (UPGUserSaveGame* UserData = EnsureUserData())
+	UPGUserSaveGame* UserData = EnsureUserData();
+	if (!UserData || UserData->bRunGuideCompleted)
 	{
-		UserData->bRunGuideCompleted = true;
+		return false;
 	}
+
+	const int32 PreviousBalance = UserData->ReceiptBalance;
+	UserData->bRunGuideCompleted = true;
+	UserData->ReceiptBalance = AddReceiptBalanceClamped(UserData->ReceiptBalance, FMath::Max(0, RewardReceipts));
+
+	// 완료와 보상은 함께 확정돼야 한다. 저장이 실패하면 둘 다 되돌려 다음 완료에서 다시 받을 수 있게 한다.
+	if (!SaveUserData())
+	{
+		UserData->bRunGuideCompleted = false;
+		UserData->ReceiptBalance = PreviousBalance;
+		return false;
+	}
+
+	if (UserData->ReceiptBalance != PreviousBalance)
+	{
+		OnReceiptBalanceChanged.Broadcast(UserData->ReceiptBalance, Reason);
+	}
+	return true;
 }
 
 const UPGCharacterShopCatalog* UPGUserDataSubsystem::GetCharacterCatalog() const

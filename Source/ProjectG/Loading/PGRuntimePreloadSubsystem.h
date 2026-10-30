@@ -17,8 +17,7 @@ enum class EPGRuntimePreloadGroup : uint8
 {
 	Home,
 	Run,
-	Shop,
-	Tutorial
+	Shop
 };
 
 /** 요청한 리소스 그룹의 비동기 로드가 끝나 대기 중인 화면 흐름을 재개할 때 발생합니다. */
@@ -26,7 +25,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPGRuntimePreloadCompletedSignature,
 
 /**
  * UI, VFX, SFX, 적재물 데이터를 화면 흐름별로 비동기 예열하는 GameInstance Subsystem입니다.
- * Home은 앱 시작 시 준비하고, Run/Shop/Tutorial은 실제 사용 직전에 요청합니다.
+ * Home은 앱 시작 시 준비하고, Run/Shop은 실제 사용 직전에 요청합니다.
  */
 UCLASS()
 class PROJECTG_API UPGRuntimePreloadSubsystem : public UGameInstanceSubsystem

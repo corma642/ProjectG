@@ -25,8 +25,6 @@
 #include "UI/PGMapShopItemWidget.h"
 #include "UI/PGShopScreenWidget.h"
 #include "UI/PGSettingsScreenWidget.h"
-#include "UI/PGTutorialScreenWidget.h"
-#include "Tutorial/PGTutorialPageSet.h"
 #include "User/PGUserDataSubsystem.h"
 #include "TimerManager.h"
 
@@ -58,10 +56,9 @@ void UPGHomeFlowComponent::BeginPlay()
 	BindRuntimePreloadSubsystem();
 	BindUserDataSubsystem();
 
-	const FString StartFlowOption = GetWorld() ? GetWorld()->URL.GetOption(TEXT("StartFlow="), TEXT("")) : FString();
-	bRetryCountdownRequested = StartFlowOption.Equals(TEXT("RetryCountdown"), ESearchCase::IgnoreCase);
+	bRetryCountdownRequested = BoundGameMode && BoundGameMode->GetStartFlow() != EPGRunStartFlow::Home;
 
-	// 레벨 리로드 기반 Retry는 Home UI를 만들지 않고, 필수 리소스 예열이 끝난 뒤 바로 카운트다운으로 진입한다.
+	// 레벨 리로드 기반 Retry와 튜토리얼 진입은 Home UI를 만들지 않고, 필수 리소스 예열이 끝난 뒤 바로 카운트다운으로 진입한다.
 	if (BoundGameMode && BoundGameMode->GetRunState() == EPGRunState::Home)
 	{
 		if (bRetryCountdownRequested)
@@ -476,7 +473,6 @@ void UPGHomeFlowComponent::CleanupWidgets()
 	RemoveShopScreenWidget();
 	RemoveReceiptShopWidget();
 	RemoveSettingsScreenWidget();
-	RemoveTutorialScreenWidget();
 	RemoveQuitConfirmWidget();
 }
 
@@ -543,16 +539,6 @@ void UPGHomeFlowComponent::RemoveSettingsScreenWidget()
 		SettingsScreenWidget->OnSettingsScreenClosed.RemoveAll(this);
 		SettingsScreenWidget->RemoveFromParent();
 		SettingsScreenWidget = nullptr;
-	}
-}
-
-void UPGHomeFlowComponent::RemoveTutorialScreenWidget()
-{
-	if (TutorialScreenWidget)
-	{
-		TutorialScreenWidget->OnTutorialClosed.RemoveAll(this);
-		TutorialScreenWidget->RemoveFromParent();
-		TutorialScreenWidget = nullptr;
 	}
 }
 
@@ -672,6 +658,13 @@ void UPGHomeFlowComponent::ApplyPendingScreenTransition()
 			UGameplayStatics::OpenLevel(this, PendingMapTravelLevelName);
 		}
 		break;
+	case EPGHomeFlowTransition::HomeToTutorialLevel:
+		if (!PendingMapTravelLevelName.IsNone())
+		{
+			// 튜토리얼은 레벨을 StartFlow=Tutorial로 다시 열어 Retry처럼 Home UI 없이 카운트다운으로 들어간다.
+			UGameplayStatics::OpenLevel(this, PendingMapTravelLevelName, true, TEXT("StartFlow=Tutorial"));
+		}
+		break;
 	default:
 		break;
 	}
@@ -760,9 +753,16 @@ void UPGHomeFlowComponent::ShowShopScreen()
 
 void UPGHomeFlowComponent::HandleStartDeliveryRequested()
 {
-	if (SettingsScreenWidget || TutorialScreenWidget || ShopScreenWidget || ReceiptShopWidget || bIsScreenTransitionActive)
+	if (SettingsScreenWidget || ShopScreenWidget || ReceiptShopWidget || bIsScreenTransitionActive)
 	{
 		// Home 위에 다른 전면 UI가 올라와 있거나 전환 중이면 화면 소유권을 유지하기 위해 START 입력을 무시한다.
+		return;
+	}
+
+	if (UserDataSubsystem && !UserDataSubsystem->IsTutorialCompleted())
+	{
+		// 첫 배달은 튜토리얼 스테이지로 보낸다. 끝내면 보상과 함께 완료가 저장되어 다음 START부터 바로 달린다.
+		StartTutorialStage();
 		return;
 	}
 
@@ -771,7 +771,7 @@ void UPGHomeFlowComponent::HandleStartDeliveryRequested()
 
 void UPGHomeFlowComponent::HandleShopRequested()
 {
-	if (SettingsScreenWidget || TutorialScreenWidget || ShopScreenWidget || ReceiptShopWidget || bIsScreenTransitionActive || !BoundGameMode || BoundGameMode->GetRunState() != EPGRunState::Home)
+	if (SettingsScreenWidget || ShopScreenWidget || ReceiptShopWidget || bIsScreenTransitionActive || !BoundGameMode || BoundGameMode->GetRunState() != EPGRunState::Home)
 	{
 		return;
 	}
@@ -872,7 +872,7 @@ void UPGHomeFlowComponent::HandleReceiptShopRequested()
 		return;
 	}
 
-	if (SettingsScreenWidget || TutorialScreenWidget || ReceiptShopWidget || bIsScreenTransitionActive || !BoundGameMode || BoundGameMode->GetRunState() != EPGRunState::Home)
+	if (SettingsScreenWidget || ReceiptShopWidget || bIsScreenTransitionActive || !BoundGameMode || BoundGameMode->GetRunState() != EPGRunState::Home)
 	{
 		return;
 	}
@@ -911,7 +911,7 @@ void UPGHomeFlowComponent::HandleReceiptShopClosed()
 
 void UPGHomeFlowComponent::HandleSettingsRequested()
 {
-	if (TutorialScreenWidget || ShopScreenWidget || ReceiptShopWidget || bIsScreenTransitionActive)
+	if (ShopScreenWidget || ReceiptShopWidget || bIsScreenTransitionActive)
 	{
 		return;
 	}
@@ -931,33 +931,41 @@ void UPGHomeFlowComponent::HandleHelpRequested()
 		return;
 	}
 
-	if (RuntimePreloadSubsystem && !RuntimePreloadSubsystem->IsGroupReady(EPGRuntimePreloadGroup::Tutorial))
+	StartTutorialStage();
+}
+
+void UPGHomeFlowComponent::StartTutorialStage()
+{
+	if (!GetWorld() || !BoundGameMode || BoundGameMode->GetRunState() != EPGRunState::Home)
 	{
-		QueuePendingPreloadRequest(EPGHomePendingPreloadRequest::Tutorial);
-		RuntimePreloadSubsystem->RequestPreload(EPGRuntimePreloadGroup::Tutorial);
-		if (HomeScreenWidget)
-		{
-			HomeScreenWidget->SetHomeButtonsEnabled(false);
-		}
 		return;
 	}
 
-	ShowTutorialScreen();
-}
-
-void UPGHomeFlowComponent::HandleTutorialClosed()
-{
-	RemoveTutorialScreenWidget();
+	// 튜토리얼 구간(Tutorial.Chapters)은 기본 맵의 세그먼트로 짜여 있으므로 장착 맵과 무관하게 기본 맵을 다시 연다.
+	FString LevelPackageName = UserDataSubsystem ? UPGMapShopCatalog::GetNormalizedLevelPackageName(UserDataSubsystem->GetDefaultMap()) : FString();
+	if (LevelPackageName.IsEmpty())
+	{
+		LevelPackageName = UPGMapShopCatalog::GetNormalizedWorldPackageName(GetWorld());
+	}
 
 	if (HomeScreenWidget)
 	{
-		HomeScreenWidget->SetHomeButtonsEnabled(true);
+		HomeScreenWidget->SetHomeButtonsEnabled(false);
+	}
+	PendingMapTravelLevelName = FName(*LevelPackageName);
+	if (!StartScreenTransition(EPGHomeFlowTransition::HomeToTutorialLevel))
+	{
+		PendingMapTravelLevelName = NAME_None;
+		if (HomeScreenWidget)
+		{
+			HomeScreenWidget->SetHomeButtonsEnabled(true);
+		}
 	}
 }
 
 void UPGHomeFlowComponent::ShowSettingsScreen()
 {
-	if (!OwnerPlayerController || SettingsScreenWidget || TutorialScreenWidget || ReceiptShopWidget)
+	if (!OwnerPlayerController || SettingsScreenWidget || ReceiptShopWidget)
 	{
 		return;
 	}
@@ -983,48 +991,6 @@ void UPGHomeFlowComponent::ShowSettingsScreen()
 	SettingsScreenWidget->OnSettingsScreenClosed.AddUObject(this, &UPGHomeFlowComponent::HandleSettingsScreenClosed);
 	SettingsScreenWidget->AddToViewport(30);
 	SettingsScreenWidget->PlayOpenAnimation();
-}
-
-void UPGHomeFlowComponent::ShowTutorialScreen()
-{
-	if (!OwnerPlayerController || TutorialScreenWidget || ReceiptShopWidget)
-	{
-		return;
-	}
-
-	UClass* WidgetClass = CachedHomeFlowSettings.TutorialScreenWidgetClass.Get();
-	if (!WidgetClass)
-	{
-		UE_LOG(LogPGHomeFlow, Warning, TEXT("TutorialScreenWidgetClass is not set. Create WBP_TutorialScreen and assign it in Go Deliver Settings > Home Flow."));
-		return;
-	}
-	if (!WidgetClass->IsChildOf(UPGTutorialScreenWidget::StaticClass()))
-	{
-		UE_LOG(LogPGHomeFlow, Warning, TEXT("TutorialScreenWidgetClass '%s' must inherit UPGTutorialScreenWidget."), *GetNameSafe(WidgetClass));
-		return;
-	}
-
-	UPGTutorialPageSet* PageSet = CachedHomeFlowSettings.TutorialPageSet.Get();
-	if (!PageSet)
-	{
-		UE_LOG(LogPGHomeFlow, Warning, TEXT("TutorialPageSet is not set. Create DA_TutorialPageSet and assign it in Go Deliver Settings > Home Flow."));
-		return;
-	}
-
-	TutorialScreenWidget = CreateWidget<UPGTutorialScreenWidget>(OwnerPlayerController, TSubclassOf<UPGTutorialScreenWidget>(WidgetClass));
-	if (!TutorialScreenWidget)
-	{
-		return;
-	}
-
-	if (HomeScreenWidget)
-	{
-		HomeScreenWidget->SetHomeButtonsEnabled(false);
-	}
-
-	TutorialScreenWidget->OnTutorialClosed.AddUObject(this, &UPGHomeFlowComponent::HandleTutorialClosed);
-	TutorialScreenWidget->AddToViewport(30);
-	TutorialScreenWidget->InitializeTutorial(PageSet);
 }
 
 void UPGHomeFlowComponent::ShowReceiptShopScreen()
@@ -1083,7 +1049,6 @@ void UPGHomeFlowComponent::HandleRunCountdownStarted(float Duration)
 {
 	// 카운트다운이 시작되면 Home 계열 모달은 모두 닫고, 러너 카메라와 카운트다운 UI만 남긴다.
 	RemoveSettingsScreenWidget();
-	RemoveTutorialScreenWidget();
 	RemoveShopScreenWidget();
 	RemoveReceiptShopWidget();
 
@@ -1156,12 +1121,6 @@ void UPGHomeFlowComponent::HandleRuntimePreloadCompleted(EPGRuntimePreloadGroup 
 			return;
 		}
 	}
-
-	if (Group == EPGRuntimePreloadGroup::Tutorial && HasPendingPreloadRequest(EPGHomePendingPreloadRequest::Tutorial))
-	{
-		ConsumePendingPreloadRequest(EPGHomePendingPreloadRequest::Tutorial);
-		ShowTutorialScreen();
-	}
 }
 
 void UPGHomeFlowComponent::HandleReceiptBalanceChanged(int32 NewBalance, FName Reason)
@@ -1231,11 +1190,6 @@ bool UPGHomeFlowComponent::TryHandleBack()
 	if (SettingsScreenWidget)
 	{
 		SettingsScreenWidget->RequestClose();
-		return true;
-	}
-	if (TutorialScreenWidget)
-	{
-		TutorialScreenWidget->RequestClose();
 		return true;
 	}
 	if (ShopScreenWidget)

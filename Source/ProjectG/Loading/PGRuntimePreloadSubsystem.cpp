@@ -14,7 +14,6 @@
 #include "Shop/PGMapDefinition.h"
 #include "Shop/PGMapShopCatalog.h"
 #include "Sound/SoundBase.h"
-#include "Tutorial/PGTutorialPageSet.h"
 #include "UI/PGRunResultWidget.h"
 #include "UObject/UObjectGlobals.h"
 #include "User/PGUserDataSubsystem.h"
@@ -203,11 +202,6 @@ void UPGRuntimePreloadSubsystem::CollectPrimaryResourcePaths(EPGRuntimePreloadGr
 		AddUniquePath(OutPaths, Settings->SFX.ShopPurchaseSuccessSound.ToSoftObjectPath());
 		AddUniquePath(OutPaths, Settings->SFX.ShopPurchaseFailSound.ToSoftObjectPath());
 		break;
-
-	case EPGRuntimePreloadGroup::Tutorial:
-		AddUniquePath(OutPaths, Settings->HomeFlow.TutorialScreenWidgetClass.ToSoftObjectPath());
-		AddUniquePath(OutPaths, Settings->HomeFlow.TutorialPageSet.ToSoftObjectPath());
-		break;
 	}
 }
 
@@ -286,17 +280,6 @@ void UPGRuntimePreloadSubsystem::CollectNestedResourcePaths(EPGRuntimePreloadGro
 			}
 		}
 		return;
-	}
-
-	if (Group == EPGRuntimePreloadGroup::Tutorial)
-	{
-		if (const UPGTutorialPageSet* PageSet = Settings->HomeFlow.TutorialPageSet.Get())
-		{
-			for (const TSoftObjectPtr<UTexture2D>& PageTexture : PageSet->Pages)
-			{
-				AddUniquePath(OutPaths, PageTexture.ToSoftObjectPath());
-			}
-		}
 	}
 }
 
@@ -487,8 +470,7 @@ void UPGRuntimePreloadSubsystem::HandlePreLoadMap(const FString& MapName)
 	const EPGRuntimePreloadGroup GroupsToRelease[] =
 	{
 		EPGRuntimePreloadGroup::Run,
-		EPGRuntimePreloadGroup::Shop,
-		EPGRuntimePreloadGroup::Tutorial
+		EPGRuntimePreloadGroup::Shop
 	};
 
 	for (const EPGRuntimePreloadGroup Group : GroupsToRelease)

@@ -1,0 +1,20 @@
+# seed 2
+# 튜토리얼 스테이지 확인용 시나리오. 맵 옵션 ?StartFlow=Tutorial로 녹화한다:
+#   powershell -File Tools/Record-Showcase.ps1 -Scenario Tools/Showcase/run_tutorial.txt -Map '/Game/Level/Coastal/LV_Coastal?StartFlow=Tutorial' -KeepFrames
+# 흐름(GO 기준 초, 러너 600cm/s, 구간 세그먼트 20m): 균형(0~6.7초, 강제 드래그로 완료) → 점프(6.7~16.7초, 자동 조종 점프로 완료. 두 번째 세그먼트에서 자동 조종을 꺼 틈에 떨어뜨려 되감기 연출)
+#   → 좌우 이동(약 20초~, 자동 조종이 옆 길로 옮기며 FlickJump로 플릭을 보임) → 적재물(약 30초~, 드롭 1회 받기) → 바람(약 37초~, 바람 1회 버티기) → 완료 문구(영수증 +20) → 일반 런.
+# 되감기 뒤에는 러너가 3초 전 자리로 돌아가므로 이후 구간 시각은 약 3.5초 늦어진다.
+# 보상 문구(+20)는 저장 데이터에 튜토리얼 완료 기록(bRunGuideCompleted)이 없을 때만 나온다. 녹화 도구가 SaveGames를 백업·복구하므로 기록이 있으면 먼저 Saved/SaveGames의 PGUserData_A/B를 지운다.
+# UI·연출 확인용이라 적재물 통과 감시(CargoWatch)는 켜지 않는다.
+0 r.SetRes 540x1170w
+0 PG.Showcase.WaitForRun
+0 PG.Showcase.DumpFrames {OUT} 30 1800
+# 균형 안내는 자동 조종의 큰 중심 입력에 바로 끝나므로 2.5초까지 자동 조종 없이 달린 뒤(첫 세그먼트 가운데 길은 틈이 없다) 오른쪽으로 짧게 끌어(입력 0.7, 판정 기준 0.5) 완료하고 자동 조종을 켠다.
+2.5 PG.Showcase.Balance 0.7 0.15
+2.7 PG.Showcase.AutoPilot 1
+# 점프 구간: 첫 틈(약 9초)은 자동 조종이 뛰어 완료한다. 10.5초부터 자동 조종을 꺼 두 번째 세그먼트의 틈(약 12.4초)에 떨어뜨리고, 암전 뒤 3초 전 자리에서 이어 달리면 다시 켠다.
+10.5 PG.Showcase.AutoPilot 0
+13.5 PG.Showcase.AutoPilot 1
+# 좌우 이동 구간(약 20.1초~): 자동 조종은 옆 길(±300cm)로 못 건너가므로(공중 이동 한계 200cm) 플레이어처럼 오른쪽 플릭 + 공중에서 끝까지 끌기(1.2초)로 옆 길에 내린다. 이후 자동 조종이 옆 길을 따라간다.
+20.4 PG.Showcase.Balance 1 1.2
+20.4 PG.Showcase.FlickJump 1

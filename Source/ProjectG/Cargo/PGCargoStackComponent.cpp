@@ -676,6 +676,52 @@ void UPGCargoStackComponent::ResumeCargoAfterContinue(const FVector& ResumeVeloc
 	CargoDangerDirection = FVector2D::ZeroVector;
 }
 
+void UPGCargoStackComponent::CaptureCargoForRewind(TArray<FPGCargoRewindEntry>& OutEntries) const
+{
+	OutEntries.Reset(CargoInstances.Num());
+	for (const FPGRuntimeCargoInstance& CargoInstance : CargoInstances)
+	{
+		if (CargoInstance.CargoActor && CargoInstance.CargoType)
+		{
+			FPGCargoRewindEntry& Entry = OutEntries.AddDefaulted_GetRef();
+			Entry.CargoType = CargoInstance.CargoType;
+			Entry.DeliveryElapsedTime = CargoInstance.DeliveryElapsedTime;
+		}
+	}
+}
+
+void UPGCargoStackComponent::RestoreCargoForRewind(const TArray<FPGCargoRewindEntry>& Entries)
+{
+	for (const FPGRuntimeCargoInstance& CargoInstance : CargoInstances)
+	{
+		if (CargoInstance.CargoActor)
+		{
+			CargoInstance.CargoActor->Destroy();
+		}
+	}
+	CargoInstances.Reset();
+	PendingCargoType = nullptr;
+	bHasPendingCargoDrop = false;
+	CargoDropHoldRemainingTime = 0.0f;
+	if (ScriptedCargoMeshComponent)
+	{
+		ScriptedCargoMeshComponent->SetVisibility(false, true);
+		ScriptedCargoMeshComponent->SetHiddenInGame(true, true);
+	}
+
+	// 되감기 전 자리에서 들고 있던 순서대로 생성 지점(CargoStack) 위에 다시 만든다. 조금씩 띄워 겹치지 않게 두면 재개 직후 바구니로 가라앉는다.
+	FTransform SpawnTransform = MakeCargoWorldTransform();
+	for (const FPGCargoRewindEntry& Entry : Entries)
+	{
+		if (SpawnPhysicsCargo(Entry.CargoType, SpawnTransform))
+		{
+			CargoInstances.Last().DeliveryElapsedTime = Entry.DeliveryElapsedTime;
+			SpawnTransform.AddToTranslation(FVector(0.0f, 0.0f, 25.0f));
+		}
+	}
+	OnCargoListChanged.Broadcast();
+}
+
 void UPGCargoStackComponent::LoseCargoAt(int32 CargoIndex)
 {
 	if (!CargoInstances.IsValidIndex(CargoIndex))

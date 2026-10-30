@@ -30,6 +30,9 @@
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "Rendering/SlateRenderer.h"
 #include "RunEvents/PGRunEventSubsystem.h"
+#include "Track/PGRunDirector.h"
+#include "Track/PGTrackSegment.h"
+#include "Track/PGTrackSegmentSet.h"
 #include "UnrealClient.h"
 #include "User/PGUserDataSubsystem.h"
 #include "Widgets/SWindow.h"
@@ -66,6 +69,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogPGShowcase, Log, All);
  *   지정한 시간 동안(기본 0.5초) 러너 중심 입력을 강제합니다. 자동 조종보다 뒤에 적용되므로 첫 런 가이드처럼 입력에 반응하는 UI를 연출할 수 있습니다.
  * PG.Showcase.Jump
  *   플레이어 입력처럼 점프를 한 번 요청합니다. 공중이거나 쿨타임이면 거절되고 Display 로그만 남깁니다.
+ * PG.Showcase.FlickJump <-1|1>
+ *   좌우 플릭 점프를 한 번 요청합니다(점프 + 짧은 측면 이동). 튜토리얼 좌우 이동 단계를 연출합니다.
  * PG.Showcase.RunEvent <Wind|Snowstorm|MovingHazard> [방향 -1~1]
  *   지정한 런 이벤트를 지금 전조부터 시작합니다. MovingHazard의 방향은 -1 왼쪽, 0 중앙, 1 오른쪽 구역이고, Wind는 음수면 왼쪽 그 외에는 오른쪽입니다.
  * PG.Showcase.CargoImpulse <속도 cm/s>
@@ -75,6 +80,10 @@ DEFINE_LOG_CATEGORY_STATIC(LogPGShowcase, Log, All);
  *   떨어진 적재물이 바구니에 담기지 못하고 빗나가면 Warning이라 녹화 도구가 실패로 처리합니다.
  *   2는 프레임마다 바구니 기준 적재물 위치와 상대 속도, 생성 위치(CargoStack 앵커) 기준 위치,
  *   그리고 지난 프레임 시간 대비 물리가 실제로 진행한 시간과 스텝 수, 그 프레임의 손실 임박 비율(PHYS 줄)까지 남깁니다.
+ * PG.Showcase.ProbeSegments [좌우 반폭 cm=200] [레인 간격 cm=100]
+ *   현재 맵 RunDirector의 시작 세그먼트와 세그먼트 세트의 모든 클래스를 빈 공간에 하나씩 스폰해, 좌우 레인마다 50cm 간격으로 바닥을 트레이스한
+ *   결과(길 높이 기준 틈 구간, 길 위 장애물, 레인별 길 표본 수)를 PROBE 로그로 남깁니다. 길 높이는 세그먼트 원점 근처 히트의 최빈값이라 아래 바다 메시는 틈으로 봅니다.
+ *   튜토리얼 구간(Tutorial.Chapters) 설계용입니다.
  * 명령줄 -PGShowcaseSeed=<N>
  *   트랙 세그먼트 순서를 고정해 같은 스크립트를 같은 길에서 다시 녹화할 수 있게 합니다.
  */
@@ -464,7 +473,7 @@ namespace
 
 		UPGRunEventSubsystem* RunEventSubsystem = World ? World->GetSubsystem<UPGRunEventSubsystem>() : nullptr;
 		const float Direction = Args.Num() > 1 ? FCString::Atof(*Args[1]) : 0.0f;
-		if (EventType == EPGRunEventType::None || !RunEventSubsystem || !RunEventSubsystem->DebugScheduleEvent(EventType, Direction))
+		if (EventType == EPGRunEventType::None || !RunEventSubsystem || !RunEventSubsystem->ScheduleEventNow(EventType, Direction))
 		{
 			UE_LOG(LogPGShowcase, Warning, TEXT("Usage: PG.Showcase.RunEvent <Wind|Snowstorm|MovingHazard> [Direction] (only while a run is in progress)"));
 		}
@@ -508,6 +517,15 @@ namespace
 		{
 			// 녹화 도구는 Warning을 실패로 보므로 거절은 Display로만 남긴다. 프레임에서 점프 여부를 확인한다.
 			UE_LOG(LogPGShowcase, Display, TEXT("PG.Showcase.Jump was refused (no runner, not running, airborne, or jump cooldown)."));
+		}
+	}
+
+	void RequestShowcaseFlickJump(const TArray<FString>& Args, UWorld* World)
+	{
+		APGRunnerCharacter* Runner = FindRunner(World);
+		if (Runner && Args.Num() > 0)
+		{
+			Runner->RequestFlickJump(FCString::Atof(*Args[0]) < 0.0f ? -1.0f : 1.0f);
 		}
 	}
 
@@ -665,6 +683,147 @@ namespace
 		GCargoInBowl = MoveTemp(CargoInBowl);
 	}
 
+	void ProbeTrackSegments(const TArray<FString>& Args, UWorld* World)
+	{
+		if (!World)
+		{
+			return;
+		}
+
+		TArray<TSubclassOf<APGTrackSegment>> SegmentClasses;
+		for (TActorIterator<APGRunDirector> DirectorIt(World); DirectorIt; ++DirectorIt)
+		{
+			if (const APGTrackSegment* InitialSegment = DirectorIt->GetInitialSegment())
+			{
+				SegmentClasses.AddUnique(InitialSegment->GetClass());
+			}
+			if (const UPGTrackSegmentSet* SegmentSet = DirectorIt->GetSegmentSet())
+			{
+				for (const FPGTrackSegmentEntry& Entry : SegmentSet->SegmentEntries)
+				{
+					if (Entry.SegmentClass)
+					{
+						SegmentClasses.AddUnique(Entry.SegmentClass);
+					}
+				}
+			}
+		}
+
+		// 레벨 지오메트리와 겹치지 않는 높이에 스폰해 세그먼트 자신(과 붙은 액터)만 트레이스에 잡히게 한다.
+		const FVector Origin(0.0f, 0.0f, 100000.0f);
+		const float HalfWidth = Args.Num() > 0 ? FMath::Max(0.0f, FCString::Atof(*Args[0])) : 200.0f;
+		const float LaneStep = Args.Num() > 1 ? FMath::Max(10.0f, FCString::Atof(*Args[1])) : 100.0f;
+		TArray<float> LaneOffsets;
+		for (float Lane = -HalfWidth; Lane <= HalfWidth + KINDA_SMALL_NUMBER; Lane += LaneStep)
+		{
+			LaneOffsets.Add(Lane);
+		}
+		constexpr float StepX = 50.0f;
+		constexpr float ObstacleHeight = 40.0f;
+		constexpr float GapDepth = 100.0f;
+		FCollisionObjectQueryParams ObjectParams;
+		ObjectParams.AddObjectTypesToQuery(ECC_WorldStatic);
+		ObjectParams.AddObjectTypesToQuery(ECC_WorldDynamic);
+
+		for (TSubclassOf<APGTrackSegment> SegmentClass : SegmentClasses)
+		{
+			FActorSpawnParameters SpawnParameters;
+			SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			APGTrackSegment* Segment = World->SpawnActor<APGTrackSegment>(SegmentClass, FTransform(Origin), SpawnParameters);
+			if (!Segment)
+			{
+				UE_LOG(LogPGShowcase, Warning, TEXT("PROBE %s: spawn failed"), *GetNameSafe(SegmentClass));
+				continue;
+			}
+			Segment->ActivateFromPool(FTransform(Origin));
+
+			const float Length = Segment->GetSegmentLength();
+			const int32 StepCount = FMath::CeilToInt(Length / StepX) + 1;
+			TArray<TOptional<float>> Heights;
+			TArray<FString> HitNames;
+			Heights.SetNum(StepCount * LaneOffsets.Num());
+			HitNames.SetNum(Heights.Num());
+			TMap<int32, int32> Histogram;
+			for (int32 LaneIndex = 0; LaneIndex < LaneOffsets.Num(); ++LaneIndex)
+			{
+				for (int32 StepIndex = 0; StepIndex < StepCount; ++StepIndex)
+				{
+					const FVector Start = Origin + FVector(StepIndex * StepX, LaneOffsets[LaneIndex], 400.0f);
+					FHitResult Hit;
+					if (World->LineTraceSingleByObjectType(Hit, Start, Start - FVector(0.0f, 0.0f, 1400.0f), ObjectParams)
+						&& Hit.GetActor() && (Hit.GetActor() == Segment || Hit.GetActor()->IsAttachedTo(Segment)))
+					{
+						const float RelativeZ = Hit.ImpactPoint.Z - Origin.Z;
+						Heights[LaneIndex * StepCount + StepIndex] = RelativeZ;
+						HitNames[LaneIndex * StepCount + StepIndex] = Hit.GetComponent() ? Hit.GetComponent()->GetName() : TEXT("?");
+						// 세그먼트 안의 바다 메시는 길보다 수 m 아래라 길 높이 후보에서 뺀다. 길은 세그먼트 원점(시작점) 높이 근처다.
+						if (RelativeZ > -150.0f)
+						{
+							++Histogram.FindOrAdd(FMath::RoundToInt(RelativeZ / 10.0f) * 10);
+						}
+					}
+				}
+			}
+
+			int32 FloorZ = 0;
+			int32 FloorCount = -1;
+			for (const TPair<int32, int32>& Bucket : Histogram)
+			{
+				if (Bucket.Value > FloorCount)
+				{
+					FloorZ = Bucket.Key;
+					FloorCount = Bucket.Value;
+				}
+			}
+
+			UE_LOG(LogPGShowcase, Display, TEXT("PROBE %s len=%.0f floorZ=%d samples=%d"), *SegmentClass->GetName(), Length, FloorZ, FloorCount);
+			for (int32 LaneIndex = 0; LaneIndex < LaneOffsets.Num(); ++LaneIndex)
+			{
+				FString Gaps;
+				FString Obstacles;
+				int32 GapStart = INDEX_NONE;
+				int32 ObstacleStart = INDEX_NONE;
+				float ObstacleTop = 0.0f;
+				FString ObstacleName;
+				int32 FloorSamples = 0;
+				for (int32 StepIndex = 0; StepIndex <= StepCount; ++StepIndex)
+				{
+					const TOptional<float> Height = StepIndex < StepCount ? Heights[LaneIndex * StepCount + StepIndex] : TOptional<float>(FloorZ);
+					const bool bGap = !Height.IsSet() || Height.GetValue() < FloorZ - GapDepth;
+					const bool bObstacle = Height.IsSet() && Height.GetValue() > FloorZ + ObstacleHeight;
+					FloorSamples += (!bGap && !bObstacle) ? 1 : 0;
+					if (bGap && GapStart == INDEX_NONE)
+					{
+						GapStart = StepIndex;
+					}
+					else if (!bGap && GapStart != INDEX_NONE)
+					{
+						Gaps += FString::Printf(TEXT(" %d-%d"), FMath::RoundToInt(GapStart * StepX), FMath::RoundToInt(StepIndex * StepX));
+						GapStart = INDEX_NONE;
+					}
+					if (bObstacle)
+					{
+						if (ObstacleStart == INDEX_NONE)
+						{
+							ObstacleStart = StepIndex;
+							ObstacleTop = 0.0f;
+							ObstacleName = HitNames[LaneIndex * StepCount + StepIndex];
+						}
+						ObstacleTop = FMath::Max(ObstacleTop, Height.GetValue() - FloorZ);
+					}
+					else if (ObstacleStart != INDEX_NONE)
+					{
+						Obstacles += FString::Printf(TEXT(" %d-%d(+%.0f %s)"), FMath::RoundToInt(ObstacleStart * StepX), FMath::RoundToInt(StepIndex * StepX), ObstacleTop, *ObstacleName);
+						ObstacleStart = INDEX_NONE;
+					}
+				}
+				UE_LOG(LogPGShowcase, Display, TEXT("PROBE   y=%+.0f floor=%d/%d gaps=[%s ] obstacles=[%s ]"), LaneOffsets[LaneIndex], FloorSamples, StepCount, *Gaps, *Obstacles);
+			}
+			Segment->Destroy();
+		}
+		UE_LOG(LogPGShowcase, Display, TEXT("PROBE DONE (%d classes)"), SegmentClasses.Num());
+	}
+
 	void SetCargoWatch(const TArray<FString>& Args)
 	{
 		const int32 Level = Args.Num() > 0 ? FCString::Atoi(*Args[0]) : 0;
@@ -705,6 +864,11 @@ namespace
 		TEXT("PG.Showcase.Jump"),
 		TEXT("PG.Showcase.Jump: requests one runner jump as the player would."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&RequestShowcaseJump));
+
+	FAutoConsoleCommandWithWorldAndArgs GFlickJumpCommand(
+		TEXT("PG.Showcase.FlickJump"),
+		TEXT("PG.Showcase.FlickJump <-1|1>: requests one lateral flick jump as the player would."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&RequestShowcaseFlickJump));
 
 	FAutoConsoleCommandWithWorldAndArgs GCargoImpulseCommand(
 		TEXT("PG.Showcase.CargoImpulse"),
@@ -769,6 +933,11 @@ namespace
 				UE_LOG(LogPGShowcase, Warning, TEXT("PG.Showcase.Receipts needs a positive amount and a saved wallet."));
 			}
 		}));
+
+	FAutoConsoleCommandWithWorldAndArgs GProbeSegmentsCommand(
+		TEXT("PG.Showcase.ProbeSegments"),
+		TEXT("PG.Showcase.ProbeSegments: spawns every track segment class of this map once and logs floor gaps, obstacles and lane coverage (PROBE lines)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&ProbeTrackSegments));
 
 	FAutoConsoleCommand GLanguageCommand(
 		TEXT("PG.Showcase.Language"),

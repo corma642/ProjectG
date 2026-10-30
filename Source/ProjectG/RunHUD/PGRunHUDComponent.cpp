@@ -17,20 +17,18 @@
 #include "Player/PGPlayerController.h"
 #include "RunProgress/PGRunProgressComponent.h"
 #include "Settings/PGGameUserSettings.h"
+#include "Tutorial/PGTutorialSubsystem.h"
 #include "UI/PGCargoDeliveryItemWidget.h"
 #include "UI/PGCargoScoreIndicatorWidget.h"
+#include "UI/PGRunGuideWidget.h"
 #include "UI/PGRunHUDWidget.h"
 #include "UI/PGRunPauseWidget.h"
 #include "UI/PGSettingsScreenWidget.h"
-#include "User/PGUserDataSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPGRunHUDComponent, Log, All);
 
 namespace
 {
-	// 드래그 안내를 끝내는 중심 입력량(절댓값, 0~1). 작은 떨림이 아니라 실제로 끌었다고 볼 수 있는 값이다.
-	constexpr float RunGuideDragInputThreshold = 0.5f;
-
 	// BP_Bowl에서 테두리 경고 링 메시 컴포넌트를 찾는 컴포넌트 태그와, 링 머티리얼(M_CargoDangerRing)의 파라미터 이름.
 	const FName CargoDangerRingTag(TEXT("CargoDangerRing"));
 	const FName CargoDangerRingIntensityParam(TEXT("Intensity"));
@@ -56,6 +54,7 @@ void UPGRunHUDComponent::BeginPlay()
 
 	LoadSettings();
 	BindGameMode();
+	BindTutorial();
 	HandleRunnerPossessed(Cast<APGRunnerCharacter>(OwnerPlayerController->GetPawn()));
 	// Android는 앱이 뒤로 가도 게임 스레드가 계속 돌아 적재물이 떨어지므로, 비활성화 순간 바로 일시정지한다.
 	ApplicationDeactivatedHandle = FCoreDelegates::ApplicationWillDeactivateDelegate.AddUObject(this, &UPGRunHUDComponent::HandleApplicationDeactivated);
@@ -71,6 +70,7 @@ void UPGRunHUDComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	FCoreDelegates::ApplicationWillDeactivateDelegate.Remove(ApplicationDeactivatedHandle);
 	UnbindGameMode();
+	UnbindTutorial();
 	HandleRunnerUnpossessed();
 	CleanupSettingsScreen();
 	CleanupPauseScreen(false);
@@ -82,15 +82,6 @@ void UPGRunHUDComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void UPGRunHUDComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
-	if (RunGuideWidget && RunGuideStep == EPGRunGuideStep::Drag)
-	{
-		const APGRunnerCharacter* Runner = BoundRunnerCharacter.Get();
-		if (Runner && FMath::Abs(Runner->GetBalanceInput()) >= RunGuideDragInputThreshold)
-		{
-			AdvanceRunGuide(EPGRunGuideStep::Flick);
-		}
-	}
 
 	if (!HUDWidget || !BoundCargoStackComponent)
 	{
@@ -129,7 +120,6 @@ void UPGRunHUDComponent::HandleRunStarted()
 	UpdateHUDInteractionState();
 	RefreshHUDValues();
 	RefreshCargoList();
-	ShowRunGuideIfNeeded();
 }
 
 void UPGRunHUDComponent::HandleRunCountdownStarted(float Duration)
@@ -153,7 +143,7 @@ void UPGRunHUDComponent::HandleRunFailed(FName FailureReason)
 
 	// 바구니 테두리 링은 슬로모션 동안 마지막 상태로 남겨 실패 원인이 보이게 두고, 결과 화면이 뜰 때 바구니와 함께 사라진다.
 	bIsCargoDangerActive = false;
-	// 가이드를 끝내지 못한 채 실패하면 완료로 저장하지 않아 다음 런에서 다시 보여준다.
+	// 튜토리얼 안내 구간의 실패는 되감기로 처리되어 여기로 오지 않는다. 안내 구간 밖의 실패에서만 남은 안내(완료 문구 등)를 거둔다.
 	CleanupRunGuide(true);
 }
 
@@ -222,20 +212,6 @@ void UPGRunHUDComponent::HandleCargoDelivered(int32 CargoInstanceId, int32 Score
 	{
 		HUDWidget->ShowCargoScoreIndicator(CargoInstanceId, Score);
 	}
-}
-
-void UPGRunHUDComponent::HandleRunnerJumpStarted()
-{
-	if (!RunGuideWidget || RunGuideStep != EPGRunGuideStep::Flick)
-	{
-		return;
-	}
-
-	if (UPGUserDataSubsystem* UserData = GetUserDataSubsystem())
-	{
-		UserData->MarkRunGuideCompleted();
-	}
-	CleanupRunGuide(true);
 }
 
 void UPGRunHUDComponent::HandlePauseRequested()
@@ -440,19 +416,11 @@ void UPGRunHUDComponent::BindRunner(APGRunnerCharacter* RunnerCharacter)
 
 	UnbindRunner();
 	BoundRunnerCharacter = RunnerCharacter;
-	if (RunnerCharacter)
-	{
-		RunnerCharacter->OnJumpStarted.AddUObject(this, &UPGRunHUDComponent::HandleRunnerJumpStarted);
-	}
 }
 
 void UPGRunHUDComponent::UnbindRunner()
 {
 	CargoDangerRingMaterial = nullptr;
-	if (APGRunnerCharacter* Runner = BoundRunnerCharacter.Get())
-	{
-		Runner->OnJumpStarted.RemoveAll(this);
-	}
 	BoundRunnerCharacter = nullptr;
 }
 
@@ -528,50 +496,83 @@ void UPGRunHUDComponent::CleanupHUD()
 	}
 }
 
-UPGUserDataSubsystem* UPGRunHUDComponent::GetUserDataSubsystem() const
+void UPGRunHUDComponent::BindTutorial()
 {
-	const UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-	return GameInstance ? GameInstance->GetSubsystem<UPGUserDataSubsystem>() : nullptr;
+	UWorld* World = GetWorld();
+	BoundTutorialSubsystem = World ? World->GetSubsystem<UPGTutorialSubsystem>() : nullptr;
+	if (BoundTutorialSubsystem)
+	{
+		BoundTutorialSubsystem->OnTutorialStepChanged.AddDynamic(this, &UPGRunHUDComponent::HandleTutorialStepChanged);
+		BoundTutorialSubsystem->OnTutorialCompleted.AddDynamic(this, &UPGRunHUDComponent::HandleTutorialCompleted);
+	}
 }
 
-void UPGRunHUDComponent::ShowRunGuideIfNeeded()
+void UPGRunHUDComponent::UnbindTutorial()
 {
-	if (RunGuideWidget || !OwnerPlayerController || !AreRuntimeResourcesReady())
+	if (BoundTutorialSubsystem)
 	{
+		BoundTutorialSubsystem->OnTutorialStepChanged.RemoveDynamic(this, &UPGRunHUDComponent::HandleTutorialStepChanged);
+		BoundTutorialSubsystem->OnTutorialCompleted.RemoveDynamic(this, &UPGRunHUDComponent::HandleTutorialCompleted);
+		BoundTutorialSubsystem = nullptr;
+	}
+}
+
+void UPGRunHUDComponent::HandleTutorialStepChanged(EPGTutorialStep Step)
+{
+	if (Step == EPGTutorialStep::None)
+	{
+		// 단계 사이에는 안내만 숨기고 위젯은 다음 단계를 위해 남긴다.
+		if (RunGuideWidget)
+		{
+			RunGuideWidget->ShowStep(EPGTutorialStep::None);
+		}
 		return;
 	}
 
-	const UPGUserDataSubsystem* UserData = GetUserDataSubsystem();
-	if (!UserData || UserData->IsRunGuideCompleted())
+	if (UPGRunGuideWidget* Guide = EnsureRunGuideWidget())
 	{
-		return;
+		Guide->ShowStep(Step);
+	}
+}
+
+void UPGRunHUDComponent::HandleTutorialCompleted(int32 RewardReceipts)
+{
+	if (UPGRunGuideWidget* Guide = EnsureRunGuideWidget())
+	{
+		Guide->ShowCompletion(RewardReceipts);
+	}
+}
+
+UPGRunGuideWidget* UPGRunHUDComponent::EnsureRunGuideWidget()
+{
+	if (RunGuideWidget && RunGuideWidget->IsDismissing())
+	{
+		// 사라지는 중인 위젯은 곧 스스로 viewport에서 빠지므로 새 안내는 새 위젯에 띄운다.
+		RunGuideWidget = nullptr;
+	}
+	if (RunGuideWidget)
+	{
+		return RunGuideWidget;
+	}
+	if (!OwnerPlayerController || !AreRuntimeResourcesReady())
+	{
+		return nullptr;
 	}
 
 	UClass* WidgetClass = CachedRunHUDSettings.RunGuideWidgetClass.Get();
 	if (!WidgetClass || !WidgetClass->IsChildOf(UPGRunGuideWidget::StaticClass()))
 	{
 		UE_LOG(LogPGRunHUDComponent, Warning, TEXT("RunGuideWidgetClass must be assigned and inherit UPGRunGuideWidget."));
-		return;
+		return nullptr;
 	}
 
 	RunGuideWidget = CreateWidget<UPGRunGuideWidget>(OwnerPlayerController, TSubclassOf<UPGRunGuideWidget>(WidgetClass));
-	if (!RunGuideWidget)
-	{
-		return;
-	}
-
-	// HUD(15) 위, Pause 모달(60) 아래에 둔다. 가이드는 입력을 받지 않으므로 Pause 버튼을 가리지 않는다.
-	RunGuideWidget->AddToViewport(16);
-	AdvanceRunGuide(EPGRunGuideStep::Drag);
-}
-
-void UPGRunHUDComponent::AdvanceRunGuide(EPGRunGuideStep NextStep)
-{
-	RunGuideStep = NextStep;
 	if (RunGuideWidget)
 	{
-		RunGuideWidget->ShowStep(NextStep);
+		// HUD(15) 위, Pause 모달(60) 아래에 둔다. 안내는 입력을 받지 않으므로 Pause 버튼을 가리지 않는다.
+		RunGuideWidget->AddToViewport(16);
 	}
+	return RunGuideWidget;
 }
 
 void UPGRunHUDComponent::CleanupRunGuide(bool bFadeOut)
@@ -588,7 +589,6 @@ void UPGRunHUDComponent::CleanupRunGuide(bool bFadeOut)
 		}
 		RunGuideWidget = nullptr;
 	}
-	RunGuideStep = EPGRunGuideStep::None;
 }
 
 void UPGRunHUDComponent::UpdateHUDInteractionState() const

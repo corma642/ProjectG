@@ -48,6 +48,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Cargo")
 	float GetDifficultyAlpha() const;
 
+	/**
+	 * 자동 적재물 드롭을 끄거나 켭니다. 꺼진 동안은 예정된 드롭을 하지 않고 RequestImmediateDrop으로 떨어뜨린 것만 진행합니다(튜토리얼 안내 구간).
+	 * 다시 켜면 런 중일 때 현재 난이도 간격으로 다음 드롭을 예약합니다.
+	 */
+	void SetAutoDropEnabled(bool bEnabled);
+
+	/** 지금 적재물 하나를 떨어뜨립니다(Hold 뒤 물리 전환). Hold 중인 적재물이 있거나 후보가 없으면 false입니다. */
+	bool RequestImmediateDrop();
+
 private:
 	UFUNCTION()
 	void HandleRunStarted();
@@ -88,6 +97,8 @@ private:
 	float TickAccumulator = 0.0f;
 	float CurrentMapCargoLossWorldZ = 0.0f;
 	bool bIsRunActive = false;
+	// 꺼져 있으면 예정된 드롭을 건너뛴다. 튜토리얼 안내 구간이 끈다.
+	bool bAutoDropEnabled = true;
 	bool bIsBoundToGameMode = false;
 	bool bHasCurrentMapCargoLossWorldZ = false;
 	bool bWarnedMissingCargoStack = false;

@@ -51,14 +51,14 @@ public:
 	/** Home과 결과 화면에서 사용하는 저장된 최고 런 점수를 반환합니다. */
 	int32 GetBestRunScore() const;
 
-	/** 현재 런의 영수증과 최고 점수를 하나의 SaveGame 트랜잭션으로 확정합니다. */
-	bool TrySettleRunRewards(int32 Receipts, int32 Score, FName Reason);
+	/** 현재 런의 영수증과(bUpdateBestScore면) 최고 점수를 하나의 SaveGame 트랜잭션으로 확정합니다. 튜토리얼 런은 최고 점수를 갱신하지 않습니다. */
+	bool TrySettleRunRewards(int32 Receipts, int32 Score, FName Reason, bool bUpdateBestScore = true);
 
-	/** 첫 런 가이드를 끝까지 마친 저장 기록이 있는지 반환합니다. 저장 데이터가 없으면 false입니다. */
-	bool IsRunGuideCompleted() const;
+	/** 튜토리얼 스테이지를 끝내 보상까지 받은 저장 기록이 있는지 반환합니다. 저장 데이터가 없으면 false입니다. */
+	bool IsTutorialCompleted() const;
 
-	/** 첫 런 가이드 완료를 메모리에 표시합니다. 디스크 저장은 런 종료 정산(TrySettleRunRewards)에 묶어 런 중 동기 저장을 피합니다. 정산 전에 앱이 꺼지면 다음 런에 가이드가 다시 나옵니다. */
-	void MarkRunGuideCompleted();
+	/** 튜토리얼 첫 완료를 저장합니다: 완료 플래그와 보상 영수증을 한 번의 저장으로 확정하고 잔액 delegate를 발생시킵니다. 이미 완료했거나 저장이 실패하면 아무것도 바꾸지 않고 false입니다. */
+	bool TryGrantTutorialCompletion(int32 RewardReceipts, FName Reason);
 
 	/** 예열 후 캐시된 캐릭터 상점 카탈로그를 반환합니다. 준비되지 않았으면 nullptr입니다. */
 	const UPGCharacterShopCatalog* GetCharacterCatalog() const;
