@@ -286,14 +286,16 @@ private:
 
 	// 지면 위에서 갱신하는 마지막 착지 위치. 추락·적재물 손실 뒤 이어하기의 복귀 기준이다.
 	FVector LastGroundedLocation = FVector::ZeroVector;
+	// 마지막으로 지면에 서 있던 월드 시간(초). 추락 되감기는 실패 판정 시각이 아니라 이 시각을 기준으로 삼는다.
+	float LastGroundedWorldTimeSeconds = 0.0f;
 
-	// 튜토리얼 되감기 스냅샷(오래된 것이 앞). 안내 구간에서만 쌓이고 8초 분량만 남긴다.
+	// 튜토리얼 되감기 스냅샷(오래된 것이 앞). 안내 구간에서만 쌓이고 4초 분량만 남긴다.
 	UPROPERTY(Transient)
 	TArray<FPGRunRewindSnapshot> RewindSnapshots;
 	bool bRewindRecordingEnabled = false;
 	float RewindSnapshotElapsed = 0.0f;
-	// 실패 순간의 월드 시간. 되감기는 이 시각에서 RewindSeconds 전을 찾는다.
-	float FailureWorldTimeSeconds = 0.0f;
+	// 되감기 기준 시각. 땅에서 실패했으면 실패 순간, 추락이면 발판을 벗어난 순간이다. 되감기는 이 시각에서 RewindSeconds 전을 찾는다.
+	float RewindAnchorWorldTimeSeconds = 0.0f;
 	// 되감기 순간이동 뒤 카메라 붐이 옛 자리에서 날아오지 않도록 지연을 끈 채 남은 Tick 수. 붐이 새 자리에 맞춰진 뒤 설정값으로 되돌린다.
 	int32 CameraLagRestoreTicks = 0;
 	bool bCameraLagEnabledSetting = true;

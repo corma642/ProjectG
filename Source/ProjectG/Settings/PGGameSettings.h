@@ -914,9 +914,9 @@ struct FPGTutorialSettings
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Tutorial")
 	TArray<FPGTutorialChapter> Chapters;
 
-	// 안내 구간에서 실패하면 되돌릴 시간(초). 이 시간 전에 지면에 서 있던 자리로 돌아간다.
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Tutorial", meta = (ClampMin = "0.5", UIMin = "1.0", UIMax = "10.0"))
-	float RewindSeconds = 3.0f;
+	// 안내 구간에서 실패하면 되돌릴 시간(초). 마지막으로 지면에 서 있던 시각(추락이면 발판을 벗어난 순간)에서 이만큼 전의 자리로 돌아간다. 1초면 틈 약 6m 앞이다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Tutorial", meta = (ClampMin = "0.25", UIMin = "0.5", UIMax = "5.0"))
+	float RewindSeconds = 1.0f;
 
 	// 되감기 암전이 덮이는 시간과 걷히는 시간(초, 각각). 영상 컷처럼 짧게 둔다.
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Tutorial", meta = (ClampMin = "0.0", UIMin = "0.1", UIMax = "1.0"))

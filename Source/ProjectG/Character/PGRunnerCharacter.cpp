@@ -180,6 +180,7 @@ void APGRunnerCharacter::Tick(float DeltaSeconds)
 	if (RunnerMovementComponent && RunnerMovementComponent->IsMovingOnGround())
 	{
 		LastGroundedLocation = GetActorLocation();
+		LastGroundedWorldTimeSeconds = GetWorld()->GetTimeSeconds();
 	}
 	if (RunProgressComponent)
 	{
@@ -278,8 +279,8 @@ void APGRunnerCharacter::SetRewindRecordingEnabled(bool bEnabled)
 
 void APGRunnerCharacter::RecordRewindSnapshot(float DeltaSeconds)
 {
-	// 0.5초 간격이면 3초 되감기에 충분히 가깝고, 16개면 8초 분량이다.
-	constexpr float SnapshotInterval = 0.5f;
+	// 0.25초 간격이면 1초 되감기의 오차가 0.25초 이내이고, 16개면 4초 분량이다.
+	constexpr float SnapshotInterval = 0.25f;
 	constexpr int32 MaxSnapshots = 16;
 
 	RewindSnapshotElapsed += DeltaSeconds;
@@ -325,7 +326,7 @@ int32 APGRunnerCharacter::SelectRewindSnapshotIndex(TArrayView<const FPGRunRewin
 
 void APGRunnerCharacter::RewindForTutorial(float SecondsBack)
 {
-	const int32 SnapshotIndex = SelectRewindSnapshotIndex(RewindSnapshots, FailureWorldTimeSeconds, SecondsBack);
+	const int32 SnapshotIndex = SelectRewindSnapshotIndex(RewindSnapshots, RewindAnchorWorldTimeSeconds, SecondsBack);
 	FVector RewindLocation = LastGroundedLocation;
 	float RewindBalanceOffset = 0.0f;
 	TArray<FPGCargoRewindEntry> RewindCargo;
@@ -745,7 +746,9 @@ void APGRunnerCharacter::HandleRunFailed(FName FailureReason)
 	}
 
 	// 실패가 확정되면 추가 입력/전진/환경 효과가 누적되지 않도록 러너 상태를 즉시 고정한다.
-	FailureWorldTimeSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	// 추락은 물에 닿아야 판정되므로 실패 시각을 기준으로 되감으면 발판 가장자리에 다시 서게 된다. 공중이면 발판을 벗어난 순간을 기준으로 삼는다.
+	const bool bOnGround = RunnerMovementComponent && RunnerMovementComponent->IsMovingOnGround();
+	RewindAnchorWorldTimeSeconds = bOnGround && GetWorld() ? GetWorld()->GetTimeSeconds() : LastGroundedWorldTimeSeconds;
 	if (RunProgressComponent)
 	{
 		RunProgressComponent->StopRunProgress(GetActorLocation());
