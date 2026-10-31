@@ -5,9 +5,11 @@
 #if !UE_BUILD_SHIPPING
 
 #include "Async/Async.h"
+#include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Cargo/PGCargoStackComponent.h"
 #include "Cargo/PGPhysicsCargoActor.h"
 #include "Character/PGRunnerCharacter.h"
+#include "Components/Button.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
@@ -33,6 +35,8 @@
 #include "Track/PGRunDirector.h"
 #include "Track/PGTrackSegment.h"
 #include "Track/PGTrackSegmentSet.h"
+#include "UI/PGHomeScreenWidget.h"
+#include "UI/PGShopScreenWidget.h"
 #include "UnrealClient.h"
 #include "User/PGUserDataSubsystem.h"
 #include "Widgets/SWindow.h"
@@ -57,6 +61,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogPGShowcase, Log, All);
  *   앱이 뒤로 가는 순간(ApplicationWillDeactivateDelegate)을 흉내 내 자동 일시정지를 연출합니다. Resume은 사람이 누르는 버튼이라 명령이 없습니다.
  * PG.Showcase.Back
  *   Android 뒤로가기를 흉내 냅니다(APGPlayerController::HandleBackRequested). 모달 닫기, Pause 토글, Home 종료 확인을 연출합니다.
+ * PG.Showcase.Shop [Characters|Maps]
+ *   Home의 Shop 버튼처럼 상점을 열고, 상점이 이미 열려 있으면 탭(기본 Characters)을 바꿉니다. 스토어 스크린샷용입니다.
  * PG.Showcase.Language <ko|en>
  *   게임 언어를 바꿉니다(저장하지 않음). 열려 있는 화면의 문구가 그 자리에서 바뀌는지 연출합니다.
  * PG.Showcase.Continue
@@ -529,6 +535,33 @@ namespace
 		}
 	}
 
+	void OpenShowcaseShop(const TArray<FString>& Args, UWorld* World)
+	{
+		// 상점은 Home 위젯의 Shop 버튼 delegate로 열어 게임과 같은 경로(예열·페이드·카메라 블렌드)를 타고, 탭 전환은 상점 위젯의 탭 버튼 클릭과 같게 한다.
+		const bool bMapsTab = Args.Num() > 0 && Args[0].Equals(TEXT("Maps"), ESearchCase::IgnoreCase);
+		TArray<UUserWidget*> Widgets;
+		UWidgetBlueprintLibrary::GetAllWidgetsOfClass(World, Widgets, UPGShopScreenWidget::StaticClass(), false);
+		if (Widgets.Num() > 0)
+		{
+			UButton* TabButton = Cast<UButton>(Widgets[0]->GetWidgetFromName(bMapsTab ? TEXT("MapsTabButton") : TEXT("CharactersTabButton")));
+			if (TabButton)
+			{
+				TabButton->OnClicked.Broadcast();
+			}
+			return;
+		}
+
+		UWidgetBlueprintLibrary::GetAllWidgetsOfClass(World, Widgets, UPGHomeScreenWidget::StaticClass(), false);
+		if (Widgets.Num() > 0)
+		{
+			CastChecked<UPGHomeScreenWidget>(Widgets[0])->OnShopRequested.Broadcast();
+		}
+		else
+		{
+			UE_LOG(LogPGShowcase, Warning, TEXT("PG.Showcase.Shop was ignored (no Home or Shop screen is open)."));
+		}
+	}
+
 	void ApplyCargoImpulse(const TArray<FString>& Args, UWorld* World)
 	{
 		const APGRunnerCharacter* Runner = FindRunner(World);
@@ -887,6 +920,11 @@ namespace
 		{
 			GShowcaseScript.bWaitingForRun = true;
 		}));
+
+	FAutoConsoleCommandWithWorldAndArgs GShopCommand(
+		TEXT("PG.Showcase.Shop"),
+		TEXT("PG.Showcase.Shop [Characters|Maps]: opens the shop like the Home Shop button, or switches the tab when the shop is open."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&OpenShowcaseShop));
 
 	FAutoConsoleCommand GBackCommand(
 		TEXT("PG.Showcase.Back"),

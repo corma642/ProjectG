@@ -1,0 +1,8 @@
+# 스토어 스크린샷용 장면: Home → 캐릭터 상점 → 맵 상점. 맵 옵션 없이(Home 상태) 녹화한다:
+#   powershell -File Tools/Record-Showcase.ps1 -Scenario Tools/Showcase/shot_home_shop.txt -Map '/Game/Level/Coastal/LV_Coastal' -KeepFrames
+# 1080×1920·10fps 12초(120프레임). 영상이 아니라 프레임이 목적이므로 -KeepFrames로 남긴 뒤 Tools/Showcase/make_store_assets.py로 장면을 고른다.
+# Home 화면은 예열이 끝난 뒤(약 1~2초) 보이고, 상점은 Shop 버튼과 같은 경로(페이드·카메라 블렌드)로 열린다.
+0 r.SetRes 1080x1920w
+0 PG.Showcase.DumpFrames {OUT} 10 120
+3.0 PG.Showcase.Shop
+7.5 PG.Showcase.Shop Maps

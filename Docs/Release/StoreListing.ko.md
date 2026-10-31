@@ -1,7 +1,7 @@
 # Google Play 스토어 등록정보 초안
 
-기준: 2026-10-12. 그래픽 규격은 Play Console 기준(아이콘 512×512 PNG, 피처 그래픽 1024×500, 세로 스크린샷 1080×1920 이상 4~8장, 선택 30초 내외 YouTube 트레일러).
-실기기 수동 플레이를 `adb shell screenrecord`로 찍어 스크린샷·트레일러를 뽑는다. 에셋 교체는 없다(소유자 확인, `THIRD_PARTY_NOTICES.md`). Runner_Laco 제거(2026-10-12) 후 캐릭터 상점 스킨은 4종이다.
+기준: 2026-10-12, 그래픽 2026-10-31. 그래픽 규격은 Play Console 기준(아이콘 512×512 PNG, 피처 그래픽 1024×500 알파 없음, 세로 스크린샷 1080×1920 4~8장 — 긴 변이 짧은 변의 2배를 넘으면 거부되므로 1080×2340은 쓰지 않는다, 선택 30초 내외 YouTube 트레일러).
+스크린샷·피처 그래픽은 PC 쇼케이스 녹화 프레임(`Tools/Showcase/shot_run.txt`·`shot_home_shop.txt`, 1080×1920·10fps, `-KeepFrames`)에서 `Tools/Showcase/make_store_assets.py`로 만들어 `Docs/Release/StoreAssets/`에 둔다. 장면을 바꾸려면 스크립트의 `SCENES`·`FEATURE` 프레임 번호를 고친다. 사운드가 필요한 트레일러만 실기기 `adb shell screenrecord`로 찍는다. 에셋 교체는 없다(소유자 확인, `THIRD_PARTY_NOTICES.md`). Runner_Laco 제거(2026-10-12) 후 캐릭터 상점 스킨은 4종이다.
 
 ## 앱 이름 (30자 이내)
 
@@ -67,11 +67,11 @@ Start delivering now. Deliver smiles, every mile!
 
 ## 그래픽 체크리스트
 
-- [ ] 아이콘 512×512 PNG: `Resources/Branding/AndroidAppIcon.png`(있음)
-- [ ] 피처 그래픽 1024×500: 로고 + 바구니에 배달물을 얹고 달리는 러너 한 장면. 텍스트는 로고만.
-- [ ] 세로 스크린샷 1080×1920 이상 4~8장: HUD가 보이는 런 장면, 적재물이 가득 쌓인 장면, 까마귀/바람 전조 장면, 배달 완료 연출, 실패 슬로모션, 캐릭터 상점, 맵 상점. 각 장면에 한 줄 캡션(예: "한 번의 실수로 배달은 끝난다").
+- [x] 아이콘 512×512 PNG: `Docs/Release/StoreAssets/icon_512.png`(원본 `Resources/Branding/AndroidAppIcon.png`)
+- [x] 피처 그래픽 1024×500: `Docs/Release/StoreAssets/feature_graphic.png` — 적재물 3개를 얹고 다리를 건너는 러너 + 오른쪽 로고. 텍스트는 로고만.
+- [x] 세로 스크린샷 1080×1920 8장: `Docs/Release/StoreAssets/screenshots/01~08` — 01 적재물 3개, 02 배달 완료 +1,150, 03 바람 배지, 04 눈보라, 05 까마귀 전조, 06 결과 화면(배달 실패·이어하기 버튼), 07 캐릭터 상점, 08 맵 상점. `09_home.jpg`는 예비(폰 스크린샷은 최대 8장). 실패 슬로모션은 흐림·암전 프레임이라 결과 화면으로 대체. 캡션은 넣지 않았다(저장소에 TTF가 없고 문구 없이도 장면이 읽힌다. 넣으려면 Console 업로드 전에 이미지 편집기로).
 - [ ] 트레일러 30초: 조작 설명(드래그→플릭) 5초, 적재물 흔들림·배달 완료 15초, 실패 장면 5초, 로고 5초. 무음 녹화는 `Tools/Record-Showcase.ps1`, 사운드 포함본은 실기기 녹화.
-- [ ] 스크린샷·트레일러에 가격·"무료"·순위 문구를 넣지 않는다(Play 정책).
+- [x] 스크린샷에 가격·"무료"·순위 문구 없음(2026-10-31 산출물 확인). 트레일러도 같은 규칙.
 
 ## 카테고리와 태그
 

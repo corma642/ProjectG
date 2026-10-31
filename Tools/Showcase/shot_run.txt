@@ -1,0 +1,20 @@
+# seed 2
+# 스토어 스크린샷용 런 장면: 까마귀 전조(1초)·바람(8초)·눈보라(16초) 배지, 적재물이 쌓인 HUD, 첫 배달 완료 연출(물리 전환 약 3초 + 배달 시간), 충격으로 실패 → 슬로모션 → 결과 화면.
+#   powershell -File Tools/Record-Showcase.ps1 -Scenario Tools/Showcase/shot_run.txt -KeepFrames   (맵 옵션 기본값 StartFlow=RetryCountdown)
+# 1080×1920·10fps 42초(420프레임). 영상이 아니라 프레임이 목적이므로 -KeepFrames로 남긴 뒤 Tools/Showcase/make_store_assets.py로 장면을 고른다. CargoWatch는 켜지 않는다.
+0 r.SetRes 1080x1920w
+0 PG.Showcase.AutoPilot 1
+0 PG.Showcase.WaitForRun
+0 PG.Showcase.DumpFrames {OUT} 10 420
+1.0 PG.Showcase.RunEvent MovingHazard -1
+8.0 PG.Showcase.RunEvent Wind 1
+16.0 PG.Showcase.RunEvent Snowstorm 0
+# 30초부터 충격으로 적재물을 떨어뜨려 실패한다. 안 떨어지면 자동 조종을 끄고 오른쪽으로 끝까지 기울여 추락시킨다.
+30.0 PG.Showcase.CargoImpulse 700
+30.6 PG.Showcase.CargoImpulse 700
+31.2 PG.Showcase.CargoImpulse 700
+31.8 PG.Showcase.CargoImpulse 700
+32.4 PG.Showcase.CargoImpulse 700
+33.0 PG.Showcase.CargoImpulse 700
+34.0 PG.Showcase.AutoPilot 0
+34.1 PG.Showcase.Balance 1 3
