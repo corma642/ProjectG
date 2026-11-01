@@ -42,6 +42,9 @@ public:
 	/** 저장된 영수증 잔액을 0 이상으로 보정해 반환합니다. */
 	int32 GetReceiptBalance() const;
 
+	/** 앱 시작 시 저장 슬롯이 하나라도 있었는지 반환합니다. false면 첫 실행(새 설치 또는 데이터 삭제 뒤)입니다. */
+	bool WasSaveDataFoundOnLoad() const { return bSaveDataFoundOnLoad; }
+
 	/** 양수 영수증을 추가해 저장까지 성공하면 true를 반환하고 잔액 delegate를 발생시킵니다. */
 	bool TryAddReceipts(int32 Amount, FName Reason);
 
@@ -244,6 +247,9 @@ private:
 	// 마지막으로 검증된 A/B 슬롯과 generation입니다. 다음 저장은 반대 슬롯에 기록합니다.
 	FString ActiveUserSaveSlotName;
 	uint64 CurrentUserSaveGeneration = 0;
+
+	// 로드 시점에 A/B 슬롯 중 하나라도 존재했는지. 지표의 첫 실행 판정에만 쓴다.
+	bool bSaveDataFoundOnLoad = false;
 
 	// 비동기 완료 순서와 무관하게 마지막 preview/equip 요청만 적용하기 위한 단조 증가 serial입니다.
 	int32 SkinLoadRequestSerial = 0;

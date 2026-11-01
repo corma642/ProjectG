@@ -97,3 +97,10 @@
 - Clipchamp 스톡 SFX 7종: CC0 사운드(freesound.org CC0 필터, Kenney 등)로 교체. 교체 시 Notion 에디터 가이드 19절의 사운드 지정 위치를 따른다.
 - 출처 불명 BGM 2곡·SW_Flock·Desktop SFX 7종: 자체 제작 또는 CC0·구매 음원으로 교체.
 - 캐릭터 4종·Bowl 텍스처·SkyBox·Water·PresetsV3: 출처 확인 불가 시 Fab 무료 에셋 또는 자체 제작으로 교체. 캐릭터 교체는 스토어 그래픽(`StoreListing.ko.md`) 재제작을 동반한다.
+
+## 7. SDK 라이브러리(2026-11-01 추가)
+
+| 라이브러리 | 버전 | 라이선스 | 비고 |
+|:---|:---|:---|:---|
+| Google Mobile Ads SDK (`com.google.android.gms:play-services-ads`) | 23.6.0 | Google Play 서비스 약관(Android Software Development Kit License Agreement) | 보상형·전면 광고. `Source/ProjectG/ProjectG_UPL.xml` gradle 의존성. 앱 내 라이선스 고지 의무 없음, 개인정보처리방침에 데이터 처리 명시(2026-11-01 반영) |
+| User Messaging Platform SDK (`com.google.android.ump:user-messaging-platform`) | 3.1.0 | 같음 | EEA·영국 광고 동의 창 |

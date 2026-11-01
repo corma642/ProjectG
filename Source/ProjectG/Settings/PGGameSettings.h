@@ -941,6 +941,44 @@ struct FPGLegalSettings
 };
 
 /**
+ * 광고(AdMob) 설정. 단위 ID는 AdMob 콘솔에서 만든 값을 적고, 계정이 없을 때는 bUseTestAdUnits로 Google 공개 테스트 단위를 쓴다.
+ * Android 앱 ID(매니페스트 com.google.android.gms.ads.APPLICATION_ID)는 UPL이 읽어야 해서 Config/DefaultEngine.ini [ProjectG.Ads] AndroidAppId에 둔다.
+ */
+USTRUCT(BlueprintType)
+struct FPGAdsSettings
+{
+	GENERATED_BODY()
+
+	// 광고 기능 전체 스위치. 끄면 보상형 버튼이 숨고 전면 광고가 뜨지 않는다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Ads")
+	bool bEnableAds = true;
+
+	// true면 아래 단위 ID 대신 Google 공개 테스트 광고 단위를 쓴다(계정 없이 개발·QA). 출시 빌드 전에 끈다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Ads")
+	bool bUseTestAdUnits = true;
+
+	// AdMob 보상형 광고 단위 ID(ca-app-pub-…/…). 이어하기·결과창 2배·상점 보상이 같은 단위를 쓴다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Ads")
+	FString RewardedAdUnitId;
+
+	// AdMob 전면 광고 단위 ID
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Ads")
+	FString InterstitialAdUnitId;
+
+	// 결과 화면을 나갈 때(다시 도전·홈) 몇 번째 실패마다 전면 광고를 띄울지. 0이면 전면 광고 없음.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Ads | Interstitial", meta = (ClampMin = "0", UIMin = "0", UIMax = "10"))
+	int32 InterstitialEveryNthFailure = 3;
+
+	// 전면 광고 사이 최소 간격(초). 짧은 런이 이어져도 광고가 연속으로 뜨지 않게 한다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Ads | Interstitial", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "600.0"))
+	float InterstitialMinIntervalSeconds = 90.0f;
+
+	// 에디터·데스크톱 가짜 광고 길이(초). SDK 없이 콜백만 지연시켜 버튼·보상 흐름을 검증한다.
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Ads | Desktop", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "10.0"))
+	float FakeAdDurationSeconds = 1.0f;
+};
+
+/**
  * 프로젝트 전역 설정을 에디터(Project Settings)에서 관리하기 위한 클래스
  */
 UCLASS(Config = Game, DefaultConfig, meta = (DisplayName = "Go Deliver! Settings"))
@@ -995,6 +1033,10 @@ public:
 	// Home 상점과 캐릭터 스킨 카탈로그 설정
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI")
 	FPGShopSettings Shop;
+
+	// 광고(AdMob) 단위 ID와 전면 광고 빈도
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Monetization")
+	FPGAdsSettings Ads;
 
 	// 모바일 런타임 품질 프리셋 기본값
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Quality")

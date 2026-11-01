@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root xmlns:android="http://schemas.android.com/apk/res/android">
+	<init>
+		<!-- AdMob 앱 ID(매니페스트 com.google.android.gms.ads.APPLICATION_ID). 기본값은 Google 테스트 앱 ID이며 출시 전 Config/DefaultEngine.ini [ProjectG.Ads] AndroidAppId에 실제 값을 적는다. -->
+		<setStringFromProperty result="adMobAppId" ini="Engine" section="ProjectG.Ads" property="AndroidAppId" default="ca-app-pub-3940256099942544~3347511713" />
+	</init>
+
 	<!-- 엔진 기본 aar-imports.txt는 Google Play 지원을 꺼도 Play Games v2·Auth AAR를 넣어 APK에 GMS 컴포넌트와 dex가 남습니다. 버전 문자열은 UE 5.6.1 Engine/Build/Android/Java/aar-imports.txt 기준입니다. -->
 	<AARImports>
 		<replace find="com.google.android.gms,play-services-auth,20.7.0" with="" />
@@ -72,7 +77,18 @@
 		<addElements tag="manifest">
 			<uses-feature android:name="android.hardware.touchscreen" android:required="true" />
 		</addElements>
+
+		<!-- AdMob SDK는 이 메타데이터가 없으면 시작 시 크래시한다(UPGAdsSubsystem, Java GoDeliverAds). addElements 안의 $S()는 치환되지 않아 setElement/addAttribute로 만든다. -->
+		<setElement result="adMobAppIdMeta" value="meta-data" />
+		<addAttribute tag="$adMobAppIdMeta" name="android:name" value="com.google.android.gms.ads.APPLICATION_ID" />
+		<addAttribute tag="$adMobAppIdMeta" name="android:value" value="$S(adMobAppId)" />
+		<addElement tag="application" name="adMobAppIdMeta" />
 	</androidManifestUpdates>
+
+	<prebuildCopies>
+		<!-- 보상형·전면 광고 Java 래퍼. UPGAdsSubsystem이 JNI로 부른다. -->
+		<copyDir src="$S(PluginDir)/Android/Java" dst="$S(BuildDir)/src" />
+	</prebuildCopies>
 
 	<gradleCopies>
 		<!-- 로컬 APK에 필요하지 않은 Games App ID 리소스를 제외합니다. -->
@@ -108,6 +124,13 @@
 						}
 					}
 				}
+			}
+		</insert>
+		<insert>
+			// 보상형·전면 광고(Google Mobile Ads)와 EEA 동의 창(UMP). 버전을 올리면 Docs/Release/THIRD_PARTY_NOTICES.md 7절도 맞춘다.
+			dependencies {
+				implementation 'com.google.android.gms:play-services-ads:23.6.0'
+				implementation 'com.google.android.ump:user-messaging-platform:3.1.0'
 			}
 		</insert>
 	</buildGradleAdditions>

@@ -38,6 +38,10 @@
 		{
 			"Name": "GooglePAD",
 			"Enabled": false
+		},
+		{
+			"Name": "FileLogging",
+			"Enabled": true
 		}
 	],
 	"TargetPlatforms": [

@@ -2,8 +2,10 @@
 
 #include "User/PGUserDataSubsystem.h"
 
+#include "Analytics/PGAnalyticsSubsystem.h"
 #include "Character/PGRunnerCharacter.h"
 #include "Engine/AssetManager.h"
+#include "Engine/GameInstance.h"
 #include "Engine/StreamableManager.h"
 #include "GameModes/PGGameModeBase.h"
 #include "Kismet/GameplayStatics.h"
@@ -506,6 +508,10 @@ bool UPGUserDataSubsystem::CommitCatalogPurchase(UPGUserSaveGame& UserData, FNam
 	{
 		OnReceiptBalanceChanged.Broadcast(UserData.ReceiptBalance, BalanceReason);
 	}
+	if (UPGAnalyticsSubsystem* Analytics = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPGAnalyticsSubsystem>() : nullptr)
+	{
+		Analytics->RecordShopPurchase(ItemId, Price, UserData.ReceiptBalance, BalanceReason);
+	}
 	return true;
 }
 
@@ -548,6 +554,7 @@ void UPGUserDataSubsystem::LoadUserData()
 	bool bSlotBExists = false;
 	const bool bSlotAValid = TryLoadUserDataSlot(UserSaveSlotAName, SlotAData, SlotAGeneration, bSlotAExists);
 	const bool bSlotBValid = TryLoadUserDataSlot(UserSaveSlotBName, SlotBData, SlotBGeneration, bSlotBExists);
+	bSaveDataFoundOnLoad = bSlotAExists || bSlotBExists;
 
 	if (bSlotAValid && (!bSlotBValid || SlotAGeneration >= SlotBGeneration))
 	{

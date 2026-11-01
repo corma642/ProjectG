@@ -64,6 +64,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run Event")
 	EPGRunEventType GetPendingEventType() const { return PendingEventType; }
 
+	/** 지금 발동 중인 이벤트 종류를 반환하며 없으면 None입니다. 예고 단계는 포함하지 않습니다. */
+	EPGRunEventType GetActiveEventType() const { return ActiveEventType; }
+
 	/** 현재 이벤트 예약·예고·발동 상태를 반환합니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run Event")
 	EPGRunEventState GetPendingEventState() const { return PendingEventState; }

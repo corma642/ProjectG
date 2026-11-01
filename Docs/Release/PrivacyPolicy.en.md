@@ -7,16 +7,16 @@ permalink: /privacy/en/
 
 [한국어](/godeliver-site/privacy/)
 
-Effective date: 2026-10-12
+Effective date: 2026-11-01
 
-Go Deliver! (the "App") is an Android game published by the independent developer junhyeong. The App does not collect personal information and does not send any data off your device.
+Go Deliver! (the "App") is an Android game published by the independent developer junhyeong. The App itself does not collect or store personal information. Advertising and in-app purchases are provided through the Google services described below, which process data under their own terms.
 
 ## 1. Information we collect
 
-- The App does not require an account or sign-in.
-- The App does not collect names, email addresses, phone numbers, location, contacts, advertising identifiers, device identifiers, or any other personal information.
-- The App does not include advertising, analytics, crash-reporting, or user-tracking SDKs.
-- The App does not offer in-app purchases.
+- The App does not require an account or sign-in. It does not collect names, email addresses, phone numbers, location, or contacts.
+- Advertising: the App shows rewarded and interstitial ads through Google AdMob (Google Mobile Ads SDK). To load and show ads, Google collects and processes the advertising identifier (advertising ID), device information (model, OS version, language, network state), and app interaction data (ad impressions and clicks) under the Google Privacy Policy (https://policies.google.com/privacy) and the Google ad technology provider notice (https://support.google.com/admob/answer/9012903). You can reset or delete your advertising ID and opt out of personalized ads in Android Settings > Privacy > Ads. Users in the EEA and the UK see a Google UMP consent form before ads; without consent only non-personalized ads are shown.
+- Purchases: receipt currency packs are bought through Google Play in-app billing. Payment details are handled by Google Play and never reach the developer. The developer only processes the purchase token and order information Google Play provides to verify a purchase.
+- The App does not include analytics, crash-reporting, or user-tracking SDKs. Aggregated statistics that Google Play provides to developers (installs, crash reports) are governed by Google's policies.
 
 ## 2. Game data stored only on your device
 
@@ -26,11 +26,11 @@ Uninstalling the App or clearing its data in Android settings deletes this data.
 
 ## 3. App permissions
 
-The App declares the INTERNET and ACCESS_NETWORK_STATE permissions but the current version performs no network communication. VIBRATE is used for gameplay feedback only.
+The App uses the INTERNET and ACCESS_NETWORK_STATE permissions to load advertisements and verify purchases. The AD_ID permission lets the Google Mobile Ads SDK read the advertising identifier. VIBRATE is used for gameplay feedback only.
 
 ## 4. Children's privacy
 
-The App does not knowingly collect personal information from anyone, including children, and does not serve personalized advertising.
+The App is not directed at children and does not knowingly collect personal information from children. Whether advertisements are personalized depends on your device advertising settings and consent choices.
 
 ## 5. Changes to this policy
 
