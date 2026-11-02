@@ -9,6 +9,9 @@
 
 struct FPGAdsSettings;
 
+/** 보상형 광고를 바로 보여 줄 수 있는 상태(IsRewardedAdReady)가 바뀔 때 알립니다. 열려 있는 화면이 광고 버튼을 켜고 끄는 데 씁니다. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPGRewardedAdReadyChangedSignature, bool, bReady);
+
 /** 보상형 광고가 끝났을 때 한 번 불립니다. bRewarded는 끝까지 보고 보상 조건을 채웠을 때만 true입니다. */
 using FPGRewardedAdFinished = TFunction<void(bool bRewarded)>;
 
@@ -32,6 +35,10 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
 	virtual void Deinitialize() override;
+
+	/** 광고 기능이 켜져 있고 이 플랫폼에서 광고를 요청할 수 있으면 true입니다. false면 화면은 광고 배치(버튼·티켓) 자체를 접습니다. */
+	UFUNCTION(BlueprintPure, Category = "ProjectG | Ads")
+	bool IsAdsAvailable() const { return bAdsAvailable; }
 
 	/** 광고 기능이 켜져 있고 보상형 광고가 로드돼 바로 보여 줄 수 있으면 true입니다. 버튼 활성화 판단에 씁니다. */
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Ads")
@@ -58,9 +65,14 @@ public:
 	 */
 	void HandleAdEvent(int32 Kind, int32 Event, int32 RewardAmount);
 
+	UPROPERTY(BlueprintAssignable, Category = "ProjectG | Ads")
+	FPGRewardedAdReadyChangedSignature OnRewardedAdReadyChanged;
+
 private:
 	void StartFakeAd(int32 Kind);
+	void BroadcastRewardedReadyIfChanged(bool bWasReady);
 
+	bool bAdsAvailable = false;
 	bool bRewardedReady = false;
 	bool bInterstitialReady = false;
 	FName PendingRewardedPlacement;

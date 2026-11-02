@@ -198,7 +198,8 @@ void UPGAnalyticsSubsystem::HandleRunContinueCountdownStarted(float Duration)
 	}
 
 	TArray<FAnalyticsEventAttribute> Attributes;
-	Attributes.Emplace(TEXT("cost"), GameMode->GetContinueReceiptCost());
+	// 광고로 재개했으면 0이라 영수증 이어하기와 구분된다.
+	Attributes.Emplace(TEXT("cost"), GameMode->GetLastContinuePaidReceipts());
 	RecordEvent(TEXT("run_continue"), MoveTemp(Attributes), true);
 }
 

@@ -25,9 +25,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | UI")
 	void ConfigureRunResult(FName FailureReason, float RunTimeSeconds, float DistanceMeters, int32 Score, int32 Receipts, int32 OrdersDelivered);
 
-	/** 이어하기 버튼 상태를 넣습니다. bOffered가 false면 버튼 영역을 접고, bAffordable이 false면 비용을 보여 준 채 버튼을 흐리게 잠급니다. */
+	/** 이어하기 버튼 상태를 넣습니다. bOffered가 false면 이어하기 영역(문구·두 티켓)을 접고, bAffordable이 false면 비용을 보여 준 채 영수증 티켓을 흐리게 잠급니다. */
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | UI")
 	void ConfigureContinueOption(bool bOffered, bool bAffordable, int32 ReceiptCost);
+
+	/**
+	 * 광고 배치 상태를 넣습니다. bAdsAvailable이 false면 광고 이어하기 티켓과 2배 버튼을 접고, bRewardedReady가 false면 둘을 흐리게 잠급니다.
+	 * bDoubleOffered는 이번 런 영수증을 광고로 2배 받을 수 있는지입니다. 이후 광고 준비 상태는 UPGAdsSubsystem delegate로 스스로 갱신합니다.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ProjectG | UI")
+	void ConfigureAdOptions(bool bAdsAvailable, bool bRewardedReady, bool bDoubleOffered);
 
 	/** 뒤로가기로 Home 버튼과 같은 동작을 수행합니다. 버튼이 아직 잠겨 있으면(진입 애니메이션 중) false를 반환합니다. */
 	bool RequestHome();
@@ -114,9 +121,29 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UTextBlock> ContinueCostText;
 
-	// 이어하기 버튼 전체 패널입니다. 이어하기를 제안하지 않을 때 통째로 접고, 진입 애니메이션도 이 패널에 적용합니다.
+	// 영수증 이어하기 티켓 패널입니다. 눌림 스케일을 버튼이 아니라 이 패널에 적용합니다.
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
 	TObjectPtr<UWidget> ContinueButtonPanel;
+
+	// 이어하기 문구와 영수증·광고 두 티켓을 묶은 패널입니다. 이어하기를 제안하지 않을 때 통째로 접고, 진입 애니메이션도 이 패널에 적용합니다.
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
+	TObjectPtr<UWidget> ContinueGroupPanel;
+
+	/** 보상형 광고를 끝까지 보고 무료로 이어하기를 요청하는 필수 버튼입니다. */
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
+	TObjectPtr<UButton> AdContinueButton;
+
+	// 광고 이어하기 티켓 패널입니다. 광고를 쓸 수 없으면 접고, 눌림 스케일을 이 패널에 적용합니다.
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
+	TObjectPtr<UWidget> AdContinueButtonPanel;
+
+	/** 보상형 광고를 끝까지 보고 이번 런 영수증을 2배로 받는 필수 버튼입니다(영수증 행 안). */
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
+	TObjectPtr<UButton> DoubleReceiptsButton;
+
+	// 2배 버튼 패널입니다. 광고를 쓸 수 없거나 받을 영수증이 없거나 이미 받았으면 접고, 눌림 스케일을 이 패널에 적용합니다.
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
+	TObjectPtr<UWidget> DoubleReceiptsButtonPanel;
 
 	/** 같은 맵에서 새 런을 시작하도록 요청하는 필수 버튼입니다. */
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidget), Category = "UI")
@@ -162,12 +189,40 @@ private:
 	UFUNCTION()
 	void HandleHomeReleased();
 
+	UFUNCTION()
+	void HandleAdContinueClicked();
+
+	UFUNCTION()
+	void HandleAdContinuePressed();
+
+	UFUNCTION()
+	void HandleAdContinueReleased();
+
+	UFUNCTION()
+	void HandleDoubleReceiptsClicked();
+
+	UFUNCTION()
+	void HandleDoubleReceiptsPressed();
+
+	UFUNCTION()
+	void HandleDoubleReceiptsReleased();
+
+	UFUNCTION()
+	void HandleRewardedAdReadyChanged(bool bReady);
+
+	/** 보상 정산 뒤 전면 광고 규칙(UPGAdsSubsystem)을 거쳐 Retry 또는 Home으로 레벨을 다시 엽니다. 광고가 뜨면 닫힌 뒤에 엽니다. */
+	void LeaveResultScreen(bool bRetry);
+	void OpenLevelAfterResult(bool bRetry);
+	void RefreshAdButtons();
+	bool CanUseAdContinue() const { return bContinueOffered && bAdsAvailable && bRewardedAdReady; }
+	bool CanUseDoubleReceipts() const { return bDoubleReceiptsOffered && bAdsAvailable && bRewardedAdReady; }
 	void ApplyCachedResultTexts();
 	void StartBackdropAnimation();
 	void UpdateBackdropAnimation(float DeltaTime);
 	void StartEntryAnimation();
 	void ResetEntryAnimationState();
 	void UpdateEntryAnimation(float DeltaTime);
+	void UpdateReceiptsPopAnimation(float DeltaTime);
 	void ApplyWidgetAnimationState(UWidget* Widget, const FVector2D& Offset, float Opacity) const;
 	void SetActionButtonsEnabled(bool bEnabled) const;
 	void ApplyWidgetScale(UWidget* Widget, float Scale) const;
@@ -186,6 +241,13 @@ private:
 	int32 CachedOrdersDelivered = 0;
 	// 이어하기를 제안하고 잔액도 충분할 때만 true. 진입 애니메이션이 끝나 버튼을 켤 때 이 값까지 만족해야 이어하기 버튼이 켜진다.
 	bool bCanContinue = false;
+	bool bContinueOffered = false;
+	// 광고 배치 상태. 준비 여부는 UPGAdsSubsystem::OnRewardedAdReadyChanged로 갱신된다.
+	bool bAdsAvailable = false;
+	bool bRewardedAdReady = false;
+	bool bDoubleReceiptsOffered = false;
+	// 2배 보상 뒤 영수증 값이 한 번 커졌다 돌아오는 연출의 경과 시간. 음수면 멈춘 상태다.
+	float ReceiptsPopElapsed = -1.0f;
 
 	float BackdropAnimationElapsed = 0.0f;
 	float EntryAnimationElapsed = 0.0f;

@@ -101,6 +101,7 @@ void APGGameModeBase::RequestStartDelivery()
 
 	RunState = EPGRunState::Countdown;
 	bRunRewardsSettled = false;
+	bRunReceiptsDoubled = false;
 	GetWorldTimerManager().ClearTimer(RetryCountdownFallbackTimerHandle);
 	OnRunCountdownStarted.Broadcast(CountdownDuration);
 
@@ -192,21 +193,22 @@ int32 APGGameModeBase::GetContinueReceiptCost() const
 	return Settings ? FMath::Max(0, Settings->RunResult.ContinueReceiptCost) : 0;
 }
 
-bool APGGameModeBase::RequestContinueRun()
+bool APGGameModeBase::RequestContinueRun(bool bFreeByAd)
 {
 	APGRunnerCharacter* RunnerCharacter = GetPlayableRunnerCharacter();
 	UGameInstance* GameInstance = GetGameInstance();
 	UPGUserDataSubsystem* UserDataSubsystem = GameInstance ? GameInstance->GetSubsystem<UPGUserDataSubsystem>() : nullptr;
-	if (!CanContinueRun() || !RunnerCharacter || !UserDataSubsystem)
+	if (!IsContinueOffered() || !RunnerCharacter || !UserDataSubsystem || (!bFreeByAd && !CanContinueRun()))
 	{
 		return false;
 	}
 
-	const int32 Cost = GetContinueReceiptCost();
+	const int32 Cost = bFreeByAd ? 0 : GetContinueReceiptCost();
 	if (Cost > 0 && !UserDataSubsystem->TrySpendReceipts(Cost, TEXT("RunContinue")))
 	{
 		return false;
 	}
+	LastContinuePaidReceipts = Cost;
 
 	++ContinueCount;
 	if (bRunRewardsSettled)
@@ -371,6 +373,27 @@ bool APGGameModeBase::ValidateCurrentMapSetup()
 		}
 	}
 	return bValid;
+}
+
+bool APGGameModeBase::CanDoubleRunReceipts() const
+{
+	const APGRunnerCharacter* RunnerCharacter = GetPlayableRunnerCharacter();
+	return RunState == EPGRunState::Failed && !bRunReceiptsDoubled && RunnerCharacter && RunnerCharacter->GetRunReceipts() > 0;
+}
+
+bool APGGameModeBase::RequestDoubleRunReceipts()
+{
+	UGameInstance* GameInstance = GetGameInstance();
+	UPGUserDataSubsystem* UserDataSubsystem = GameInstance ? GameInstance->GetSubsystem<UPGUserDataSubsystem>() : nullptr;
+	if (!CanDoubleRunReceipts() || !UserDataSubsystem)
+	{
+		return false;
+	}
+
+	// 실패 시 정산으로 런 영수증은 이미 지갑에 들어갔으므로 같은 양을 한 번 더 넣는 것이 2배다.
+	// 이어하기 뒤 정산 기준(SettledRunReceipts)에는 넣지 않아 재개 뒤 정산이 보너스를 다시 세지 않는다.
+	bRunReceiptsDoubled = UserDataSubsystem->TryAddReceipts(GetPlayableRunnerCharacter()->GetRunReceipts(), TEXT("RunReceiptsDoubled"));
+	return bRunReceiptsDoubled;
 }
 
 bool APGGameModeBase::SettleCurrentRunRewards(FName Reason)

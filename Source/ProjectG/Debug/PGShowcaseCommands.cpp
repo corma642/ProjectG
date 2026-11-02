@@ -32,10 +32,12 @@
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "Rendering/SlateRenderer.h"
 #include "RunEvents/PGRunEventSubsystem.h"
+#include "RunProgress/PGRunProgressComponent.h"
 #include "Track/PGRunDirector.h"
 #include "Track/PGTrackSegment.h"
 #include "Track/PGTrackSegmentSet.h"
 #include "UI/PGHomeScreenWidget.h"
+#include "UI/PGRunResultWidget.h"
 #include "UI/PGShopScreenWidget.h"
 #include "UnrealClient.h"
 #include "User/PGUserDataSubsystem.h"
@@ -67,8 +69,13 @@ DEFINE_LOG_CATEGORY_STATIC(LogPGShowcase, Log, All);
  *   게임 언어를 바꿉니다(저장하지 않음). 열려 있는 화면의 문구가 그 자리에서 바뀌는지 연출합니다.
  * PG.Showcase.Continue
  *   결과 화면의 이어하기 버튼과 같은 일을 합니다(APGGameModeBase::RequestContinueRun). 거절되면 Warning을 남겨 녹화가 실패로 처리됩니다.
+ * PG.Showcase.ResultButton <BindWidget 이름>
+ *   열려 있는 결과 화면의 버튼(ContinueButton·AdContinueButton·DoubleReceiptsButton·RetryButton·HomeButton)을 플레이어처럼 누릅니다.
+ *   화면이 없거나 버튼이 꺼져 있으면 Warning을 남겨 녹화가 실패로 처리됩니다. 광고 버튼은 데스크톱에서 가짜 광고(FakeAdDurationSeconds) 뒤 보상을 줍니다.
  * PG.Showcase.Receipts <수>
  *   저장된 지갑에 영수증을 더합니다. 이 PC의 저장 데이터가 실제로 바뀌므로 이어하기 비용만큼만 더해 씁니다.
+ * PG.Showcase.RunReceipts <수>
+ *   달리는 중인 러너의 이번 런 영수증을 더합니다(영수증을 주운 것과 같음). 결과 화면의 영수증 2배 버튼은 런 영수증이 1장 이상일 때만 보입니다.
  * PG.Showcase.AutoPilot <0|1>
  *   입력 없이도 러너가 길을 따라가도록 좌우 이동과 점프를 대신 넣습니다.
  * PG.Showcase.Balance <입력 -1~1> [초]
@@ -959,6 +966,26 @@ namespace
 			}
 		}));
 
+	FAutoConsoleCommand GResultButtonCommand(
+		TEXT("PG.Showcase.ResultButton"),
+		TEXT("PG.Showcase.ResultButton <WidgetName>: clicks that button of the open run result screen as the player would."),
+		FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
+		{
+			UWorld* World = FindGameWorld();
+			TArray<UUserWidget*> Widgets;
+			if (World)
+			{
+				UWidgetBlueprintLibrary::GetAllWidgetsOfClass(World, Widgets, UPGRunResultWidget::StaticClass(), false);
+			}
+			UButton* Button = Widgets.Num() > 0 && Args.Num() > 0 ? Cast<UButton>(Widgets[0]->GetWidgetFromName(FName(*Args[0]))) : nullptr;
+			if (!Button || !Button->GetIsEnabled() || !Button->IsVisible())
+			{
+				UE_LOG(LogPGShowcase, Warning, TEXT("PG.Showcase.ResultButton %s was refused (no result screen, unknown button, or the button is disabled or hidden)."), Args.Num() > 0 ? *Args[0] : TEXT("?"));
+				return;
+			}
+			Button->OnClicked.Broadcast();
+		}));
+
 	FAutoConsoleCommand GReceiptsCommand(
 		TEXT("PG.Showcase.Receipts"),
 		TEXT("PG.Showcase.Receipts <Amount>: adds receipts to the saved wallet so a Continue can be afforded."),
@@ -970,6 +997,22 @@ namespace
 			{
 				UE_LOG(LogPGShowcase, Warning, TEXT("PG.Showcase.Receipts needs a positive amount and a saved wallet."));
 			}
+		}));
+
+	FAutoConsoleCommand GRunReceiptsCommand(
+		TEXT("PG.Showcase.RunReceipts"),
+		TEXT("PG.Showcase.RunReceipts <Amount>: adds receipts to the current run (like picking them up) so the result screen offers the double-receipts ad."),
+		FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
+		{
+			APGRunnerCharacter* Runner = FindRunner(FindGameWorld());
+			UPGRunProgressComponent* Progress = Runner ? Runner->GetRunProgressComponent() : nullptr;
+			const int32 Amount = Args.Num() > 0 ? FCString::Atoi(*Args[0]) : 0;
+			if (!Progress || Amount <= 0)
+			{
+				UE_LOG(LogPGShowcase, Warning, TEXT("PG.Showcase.RunReceipts needs a positive amount and a runner."));
+				return;
+			}
+			Progress->AddReceipts(Amount, TEXT("Showcase"));
 		}));
 
 	FAutoConsoleCommandWithWorldAndArgs GProbeSegmentsCommand(

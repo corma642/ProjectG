@@ -2,6 +2,7 @@
 
 #include "UI/PGRunResultWidget.h"
 
+#include "Ads/PGAdsSubsystem.h"
 #include "Audio/PGAudioStatics.h"
 #include "Components/BackgroundBlur.h"
 #include "Components/Button.h"
@@ -37,6 +38,10 @@ constexpr float ButtonPressedScale = 0.96f;
 constexpr float BackgroundStartScale = 0.96f;
 constexpr float TitleStartScale = 1.35f;
 constexpr float TitleEndScale = 1.0f;
+constexpr float ReceiptsPopDuration = 0.35f;
+constexpr float ReceiptsPopStartScale = 1.4f;
+// 광고가 아직 로드되지 않은 광고 버튼의 투명도. 자리는 보여 주되 지금은 못 누른다는 뜻이다.
+constexpr float AdNotReadyOpacity = 0.5f;
 
 }
 
@@ -53,7 +58,7 @@ void UPGRunResultWidget::NativeConstruct()
 	AnimatedRows.Add(OrdersRow);
 
 	AnimatedButtons.Reset();
-	AnimatedButtons.Add(ContinueButtonPanel);
+	AnimatedButtons.Add(ContinueGroupPanel);
 	AnimatedButtons.Add(RetryButtonPanel);
 	AnimatedButtons.Add(HomeButtonPanel);
 
@@ -62,6 +67,23 @@ void UPGRunResultWidget::NativeConstruct()
 		ContinueButton->OnClicked.AddDynamic(this, &UPGRunResultWidget::HandleContinueClicked);
 		ContinueButton->OnPressed.AddDynamic(this, &UPGRunResultWidget::HandleContinuePressed);
 		ContinueButton->OnReleased.AddDynamic(this, &UPGRunResultWidget::HandleContinueReleased);
+	}
+	if (AdContinueButton)
+	{
+		AdContinueButton->OnClicked.AddDynamic(this, &UPGRunResultWidget::HandleAdContinueClicked);
+		AdContinueButton->OnPressed.AddDynamic(this, &UPGRunResultWidget::HandleAdContinuePressed);
+		AdContinueButton->OnReleased.AddDynamic(this, &UPGRunResultWidget::HandleAdContinueReleased);
+	}
+	if (DoubleReceiptsButton)
+	{
+		DoubleReceiptsButton->OnClicked.AddDynamic(this, &UPGRunResultWidget::HandleDoubleReceiptsClicked);
+		DoubleReceiptsButton->OnPressed.AddDynamic(this, &UPGRunResultWidget::HandleDoubleReceiptsPressed);
+		DoubleReceiptsButton->OnReleased.AddDynamic(this, &UPGRunResultWidget::HandleDoubleReceiptsReleased);
+	}
+	if (UPGAdsSubsystem* Ads = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPGAdsSubsystem>() : nullptr)
+	{
+		// 결과 화면이 열린 뒤 광고가 로드되면(또는 소진되면) 광고 버튼을 그 자리에서 켜고 끈다.
+		Ads->OnRewardedAdReadyChanged.AddUniqueDynamic(this, &UPGRunResultWidget::HandleRewardedAdReadyChanged);
 	}
 	if (RetryButton)
 	{
@@ -102,6 +124,22 @@ void UPGRunResultWidget::NativeDestruct()
 		HomeButton->OnPressed.RemoveDynamic(this, &UPGRunResultWidget::HandleHomePressed);
 		HomeButton->OnReleased.RemoveDynamic(this, &UPGRunResultWidget::HandleHomeReleased);
 	}
+	if (AdContinueButton)
+	{
+		AdContinueButton->OnClicked.RemoveDynamic(this, &UPGRunResultWidget::HandleAdContinueClicked);
+		AdContinueButton->OnPressed.RemoveDynamic(this, &UPGRunResultWidget::HandleAdContinuePressed);
+		AdContinueButton->OnReleased.RemoveDynamic(this, &UPGRunResultWidget::HandleAdContinueReleased);
+	}
+	if (DoubleReceiptsButton)
+	{
+		DoubleReceiptsButton->OnClicked.RemoveDynamic(this, &UPGRunResultWidget::HandleDoubleReceiptsClicked);
+		DoubleReceiptsButton->OnPressed.RemoveDynamic(this, &UPGRunResultWidget::HandleDoubleReceiptsPressed);
+		DoubleReceiptsButton->OnReleased.RemoveDynamic(this, &UPGRunResultWidget::HandleDoubleReceiptsReleased);
+	}
+	if (UPGAdsSubsystem* Ads = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPGAdsSubsystem>() : nullptr)
+	{
+		Ads->OnRewardedAdReadyChanged.RemoveDynamic(this, &UPGRunResultWidget::HandleRewardedAdReadyChanged);
+	}
 
 	Super::NativeDestruct();
 }
@@ -118,6 +156,11 @@ void UPGRunResultWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTi
 	if (bResultEntryStarted && !bEntryAnimationFinished)
 	{
 		UpdateEntryAnimation(InDeltaTime);
+	}
+
+	if (ReceiptsPopElapsed >= 0.0f)
+	{
+		UpdateReceiptsPopAnimation(InDeltaTime);
 	}
 }
 
@@ -139,10 +182,11 @@ void UPGRunResultWidget::ConfigureRunResult(FName FailureReason, float RunTimeSe
 
 void UPGRunResultWidget::ConfigureContinueOption(bool bOffered, bool bAffordable, int32 ReceiptCost)
 {
+	bContinueOffered = bOffered;
 	bCanContinue = bOffered && bAffordable;
-	if (ContinueButtonPanel)
+	if (ContinueGroupPanel)
 	{
-		ContinueButtonPanel->SetVisibility(bOffered ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+		ContinueGroupPanel->SetVisibility(bOffered ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 	}
 	if (ContinueButton)
 	{
@@ -154,6 +198,45 @@ void UPGRunResultWidget::ConfigureContinueOption(bool bOffered, bool bAffordable
 	{
 		ContinueCostText->SetText(FormatNumber(ReceiptCost));
 	}
+	RefreshAdButtons();
+}
+
+void UPGRunResultWidget::ConfigureAdOptions(bool bInAdsAvailable, bool bInRewardedReady, bool bInDoubleOffered)
+{
+	bAdsAvailable = bInAdsAvailable;
+	bRewardedAdReady = bInRewardedReady;
+	bDoubleReceiptsOffered = bInDoubleOffered;
+	RefreshAdButtons();
+}
+
+void UPGRunResultWidget::RefreshAdButtons()
+{
+	// 다시 도전 버튼이 켜져 있으면 진입 애니메이션이 끝났고 광고·화면 전환 중도 아니라는 뜻이다. 그때만 광고 버튼도 켠다.
+	const bool bUnlocked = RetryButton && RetryButton->GetIsEnabled();
+	if (AdContinueButtonPanel)
+	{
+		AdContinueButtonPanel->SetVisibility(bAdsAvailable ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	if (AdContinueButton)
+	{
+		AdContinueButton->SetRenderOpacity(bRewardedAdReady ? 1.0f : AdNotReadyOpacity);
+		AdContinueButton->SetIsEnabled(bUnlocked && CanUseAdContinue());
+	}
+	if (DoubleReceiptsButtonPanel)
+	{
+		DoubleReceiptsButtonPanel->SetVisibility(bAdsAvailable && bDoubleReceiptsOffered ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	if (DoubleReceiptsButton)
+	{
+		DoubleReceiptsButton->SetRenderOpacity(bRewardedAdReady ? 1.0f : AdNotReadyOpacity);
+		DoubleReceiptsButton->SetIsEnabled(bUnlocked && CanUseDoubleReceipts());
+	}
+}
+
+void UPGRunResultWidget::HandleRewardedAdReadyChanged(bool bReady)
+{
+	bRewardedAdReady = bReady;
+	RefreshAdButtons();
 }
 
 FText UPGRunResultWidget::GetFailureReasonText(FName FailureReason)
@@ -273,8 +356,24 @@ void UPGRunResultWidget::ResetEntryAnimationState()
 
 	SetActionButtonsEnabled(false);
 	ApplyWidgetScale(ContinueButtonPanel ? ContinueButtonPanel.Get() : ContinueButton.Get(), ButtonNormalScale);
+	ApplyWidgetScale(AdContinueButtonPanel ? AdContinueButtonPanel.Get() : AdContinueButton.Get(), ButtonNormalScale);
+	ApplyWidgetScale(DoubleReceiptsButtonPanel ? DoubleReceiptsButtonPanel.Get() : DoubleReceiptsButton.Get(), ButtonNormalScale);
 	ApplyWidgetScale(RetryButtonPanel ? RetryButtonPanel.Get() : RetryButton.Get(), ButtonNormalScale);
 	ApplyWidgetScale(HomeButtonPanel ? HomeButtonPanel.Get() : HomeButton.Get(), ButtonNormalScale);
+	ApplyWidgetScale(ReceiptsValueText, 1.0f);
+	ReceiptsPopElapsed = -1.0f;
+}
+
+void UPGRunResultWidget::UpdateReceiptsPopAnimation(float DeltaTime)
+{
+	ReceiptsPopElapsed += DeltaTime;
+	const float Alpha = PGUIAnimation::EaseOutCubic(ReceiptsPopElapsed / ReceiptsPopDuration);
+	// 2배가 된 값이 한 번 눈에 띄게 커졌다가 제자리로 돌아와 보상이 들어왔음을 알린다.
+	ApplyWidgetScale(ReceiptsValueText, FMath::Lerp(ReceiptsPopStartScale, 1.0f, Alpha));
+	if (Alpha >= 1.0f)
+	{
+		ReceiptsPopElapsed = -1.0f;
+	}
 }
 
 void UPGRunResultWidget::UpdateEntryAnimation(float DeltaTime)
@@ -342,6 +441,14 @@ void UPGRunResultWidget::SetActionButtonsEnabled(bool bEnabled) const
 	{
 		ContinueButton->SetIsEnabled(bEnabled && bCanContinue);
 	}
+	if (AdContinueButton)
+	{
+		AdContinueButton->SetIsEnabled(bEnabled && CanUseAdContinue());
+	}
+	if (DoubleReceiptsButton)
+	{
+		DoubleReceiptsButton->SetIsEnabled(bEnabled && CanUseDoubleReceipts());
+	}
 	if (RetryButton)
 	{
 		RetryButton->SetIsEnabled(bEnabled);
@@ -389,30 +496,143 @@ void UPGRunResultWidget::HandleContinueReleased()
 	ApplyWidgetScale(ContinueButtonPanel ? ContinueButtonPanel.Get() : ContinueButton.Get(), ButtonNormalScale);
 }
 
+void UPGRunResultWidget::HandleAdContinueClicked()
+{
+	UPGAudioStatics::PlayCommonButtonClick(this);
+	UPGAdsSubsystem* Ads = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPGAdsSubsystem>() : nullptr;
+	if (!Ads)
+	{
+		return;
+	}
+
+	// 광고가 끝날 때까지 결과 버튼을 모두 잠근다. 보상을 받아 재개되면 카운트다운 delegate를 받은 RunResultFeedbackComponent가 이 화면을 닫는다.
+	SetActionButtonsEnabled(false);
+	TWeakObjectPtr<UPGRunResultWidget> WeakThis(this);
+	Ads->ShowRewardedAd(TEXT("Continue"), [WeakThis](bool bRewarded)
+	{
+		UPGRunResultWidget* Widget = WeakThis.Get();
+		if (!Widget)
+		{
+			return;
+		}
+		APGGameModeBase* GameMode = Widget->GetWorld() ? Widget->GetWorld()->GetAuthGameMode<APGGameModeBase>() : nullptr;
+		if (!bRewarded || !GameMode || !GameMode->RequestContinueRun(true))
+		{
+			// 광고를 끝까지 보지 않았거나 재개가 거절되면 결과 화면에 그대로 머문다.
+			Widget->SetActionButtonsEnabled(true);
+		}
+	});
+}
+
+void UPGRunResultWidget::HandleAdContinuePressed()
+{
+	ApplyWidgetScale(AdContinueButtonPanel ? AdContinueButtonPanel.Get() : AdContinueButton.Get(), ButtonPressedScale);
+}
+
+void UPGRunResultWidget::HandleAdContinueReleased()
+{
+	ApplyWidgetScale(AdContinueButtonPanel ? AdContinueButtonPanel.Get() : AdContinueButton.Get(), ButtonNormalScale);
+}
+
+void UPGRunResultWidget::HandleDoubleReceiptsClicked()
+{
+	UPGAudioStatics::PlayCommonButtonClick(this);
+	UPGAdsSubsystem* Ads = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPGAdsSubsystem>() : nullptr;
+	if (!Ads)
+	{
+		return;
+	}
+
+	SetActionButtonsEnabled(false);
+	TWeakObjectPtr<UPGRunResultWidget> WeakThis(this);
+	Ads->ShowRewardedAd(TEXT("DoubleReceipts"), [WeakThis](bool bRewarded)
+	{
+		UPGRunResultWidget* Widget = WeakThis.Get();
+		if (!Widget)
+		{
+			return;
+		}
+		APGGameModeBase* GameMode = Widget->GetWorld() ? Widget->GetWorld()->GetAuthGameMode<APGGameModeBase>() : nullptr;
+		if (bRewarded && GameMode && GameMode->RequestDoubleRunReceipts())
+		{
+			// 지갑에는 GameMode가 넣었고, 화면은 이번 런 영수증을 2배로 고쳐 보여 주며 버튼은 접는다.
+			Widget->CachedReceipts *= 2;
+			Widget->bDoubleReceiptsOffered = false;
+			Widget->ApplyCachedResultTexts();
+			Widget->ReceiptsPopElapsed = 0.0f;
+		}
+		Widget->SetActionButtonsEnabled(true);
+		Widget->RefreshAdButtons();
+	});
+}
+
+void UPGRunResultWidget::HandleDoubleReceiptsPressed()
+{
+	ApplyWidgetScale(DoubleReceiptsButtonPanel ? DoubleReceiptsButtonPanel.Get() : DoubleReceiptsButton.Get(), ButtonPressedScale);
+}
+
+void UPGRunResultWidget::HandleDoubleReceiptsReleased()
+{
+	ApplyWidgetScale(DoubleReceiptsButtonPanel ? DoubleReceiptsButtonPanel.Get() : DoubleReceiptsButton.Get(), ButtonNormalScale);
+}
+
 void UPGRunResultWidget::HandleRetryClicked()
 {
 	UPGAudioStatics::PlayCommonButtonClick(this);
+	LeaveResultScreen(true);
+}
+
+void UPGRunResultWidget::LeaveResultScreen(bool bRetry)
+{
 	if (APGGameModeBase* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APGGameModeBase>() : nullptr)
 	{
-		if (!GameMode->SettleCurrentRunRewards(TEXT("ResultRetry")))
+		if (!GameMode->SettleCurrentRunRewards(bRetry ? TEXT("ResultRetry") : TEXT("ResultHome")))
 		{
 			return;
 		}
 	}
-	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
-	if (!CurrentLevelName.IsEmpty())
+
+	// 전면 광고가 떠 있거나 레벨이 바뀌는 동안 중복 입력을 막는다. 광고가 뜨지 않으면 바로 연다.
+	SetActionButtonsEnabled(false);
+	TWeakObjectPtr<UPGRunResultWidget> WeakThis(this);
+	auto OpenLevel = [WeakThis, bRetry]()
 	{
-		// Retry는 같은 레벨을 다시 열되 Home을 건너뛰고 카운트다운부터 시작한다.
-		// 월드 Actor는 다시 만들지만 이미 준비한 Run 에셋은 한 번 재사용해 재구축 대기를 줄인다.
-		if (UGameInstance* GameInstance = GetGameInstance())
+		if (UPGRunResultWidget* Widget = WeakThis.Get())
 		{
-			if (UPGRuntimePreloadSubsystem* PreloadSubsystem = GameInstance->GetSubsystem<UPGRuntimePreloadSubsystem>())
-			{
-				PreloadSubsystem->PreserveRunResourcesForNextSameMapTravel(FName(*CurrentLevelName));
-			}
+			Widget->OpenLevelAfterResult(bRetry);
 		}
-		UGameplayStatics::OpenLevel(this, FName(*CurrentLevelName), true, TEXT("StartFlow=RetryCountdown"));
+	};
+	UPGAdsSubsystem* Ads = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPGAdsSubsystem>() : nullptr;
+	if (!Ads || !Ads->TryShowInterstitialOnResultExit(OpenLevel))
+	{
+		OpenLevel();
 	}
+}
+
+void UPGRunResultWidget::OpenLevelAfterResult(bool bRetry)
+{
+	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
+	if (CurrentLevelName.IsEmpty())
+	{
+		return;
+	}
+	if (!bRetry)
+	{
+		// Home은 URL 옵션 없이 열어 앱 최초 진입과 같은 Home 상태로 복구한다.
+		UGameplayStatics::OpenLevel(this, FName(*CurrentLevelName));
+		return;
+	}
+
+	// Retry는 같은 레벨을 다시 열되 Home을 건너뛰고 카운트다운부터 시작한다.
+	// 월드 Actor는 다시 만들지만 이미 준비한 Run 에셋은 한 번 재사용해 재구축 대기를 줄인다.
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (UPGRuntimePreloadSubsystem* PreloadSubsystem = GameInstance->GetSubsystem<UPGRuntimePreloadSubsystem>())
+		{
+			PreloadSubsystem->PreserveRunResourcesForNextSameMapTravel(FName(*CurrentLevelName));
+		}
+	}
+	UGameplayStatics::OpenLevel(this, FName(*CurrentLevelName), true, TEXT("StartFlow=RetryCountdown"));
 }
 
 void UPGRunResultWidget::HandleRetryPressed()
@@ -428,19 +648,7 @@ void UPGRunResultWidget::HandleRetryReleased()
 void UPGRunResultWidget::HandleHomeClicked()
 {
 	UPGAudioStatics::PlayCommonButtonClick(this);
-	if (APGGameModeBase* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APGGameModeBase>() : nullptr)
-	{
-		if (!GameMode->SettleCurrentRunRewards(TEXT("ResultHome")))
-		{
-			return;
-		}
-	}
-	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
-	if (!CurrentLevelName.IsEmpty())
-	{
-		// Home은 URL 옵션 없이 열어 앱 최초 진입과 같은 Home 상태로 복구한다.
-		UGameplayStatics::OpenLevel(this, FName(*CurrentLevelName));
-	}
+	LeaveResultScreen(false);
 }
 
 void UPGRunResultWidget::HandleHomePressed()

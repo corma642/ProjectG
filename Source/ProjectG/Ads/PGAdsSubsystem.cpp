@@ -91,6 +91,7 @@ void UPGAdsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		return;
 	}
+	bAdsAvailable = true;
 	const FString RewardedUnitId = Settings.bUseTestAdUnits ? FString(TestRewardedAdUnitId) : Settings.RewardedAdUnitId;
 	const FString InterstitialUnitId = Settings.bUseTestAdUnits ? FString(TestInterstitialAdUnitId) : Settings.InterstitialAdUnitId;
 	JNIEnv* Env = FAndroidApplication::GetJavaEnv();
@@ -101,6 +102,7 @@ void UPGAdsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Env->DeleteLocalRef(JInterstitialUnitId);
 #else
 	// 광고 SDK가 없는 플랫폼은 항상 준비된 가짜 광고로 버튼·콜백 흐름을 검증한다.
+	bAdsAvailable = true;
 	bRewardedReady = true;
 	bInterstitialReady = true;
 #endif
@@ -140,6 +142,7 @@ void UPGAdsSubsystem::ShowRewardedAd(FName Placement, FPGRewardedAdFinished OnFi
 	PendingRewardedPlacement = Placement;
 	PendingRewardedFinished = MoveTemp(OnFinished);
 	bRewardedReady = false;
+	BroadcastRewardedReadyIfChanged(true);
 #if PLATFORM_ANDROID
 	FJavaWrapper::CallStaticVoidMethod(FAndroidApplication::GetJavaEnv(), GAdsClass, GShowRewardedMethod);
 #else
@@ -157,10 +160,12 @@ bool UPGAdsSubsystem::TryShowInterstitialOnResultExit(FPGInterstitialAdFinished 
 		return false;
 	}
 
+	const bool bWasRewardedReady = IsRewardedAdReady();
 	FailuresSinceInterstitial = 0;
 	LastInterstitialSeconds = Now;
 	bInterstitialReady = false;
 	PendingInterstitialFinished = MoveTemp(OnFinished);
+	BroadcastRewardedReadyIfChanged(bWasRewardedReady);
 #if PLATFORM_ANDROID
 	FJavaWrapper::CallStaticVoidMethod(FAndroidApplication::GetJavaEnv(), GAdsClass, GShowInterstitialMethod);
 #else
@@ -179,16 +184,19 @@ bool UPGAdsSubsystem::ShouldShowInterstitial(int32 FailuresSinceLastAd, double S
 
 void UPGAdsSubsystem::HandleAdEvent(int32 Kind, int32 Event, int32 RewardAmount)
 {
+	const bool bWasRewardedReady = IsRewardedAdReady();
 	const bool bRewardedKind = Kind == KindRewarded;
 	bool& bReady = bRewardedKind ? bRewardedReady : bInterstitialReady;
 	switch (Event)
 	{
 	case EventLoaded:
 		bReady = true;
+		BroadcastRewardedReadyIfChanged(bWasRewardedReady);
 		return;
 	case EventLoadFailed:
 		// Java가 30초 뒤 다시 로드한다.
 		bReady = false;
+		BroadcastRewardedReadyIfChanged(bWasRewardedReady);
 		return;
 	default:
 		break;
@@ -222,6 +230,15 @@ void UPGAdsSubsystem::HandleAdEvent(int32 Kind, int32 Event, int32 RewardAmount)
 		{
 			Finished();
 		}
+	}
+	BroadcastRewardedReadyIfChanged(bWasRewardedReady);
+}
+
+void UPGAdsSubsystem::BroadcastRewardedReadyIfChanged(bool bWasReady)
+{
+	if (bWasReady != IsRewardedAdReady())
+	{
+		OnRewardedAdReadyChanged.Broadcast(!bWasReady);
 	}
 }
 

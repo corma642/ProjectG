@@ -82,9 +82,23 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectG | Run")
 	int32 GetContinueReceiptCost() const;
 
-	/** 영수증을 차감하고 실패 지점에서 Retry와 같은 길이의 카운트다운 뒤 런을 재개합니다. 차감·저장에 실패하면 false를 반환하고 상태를 바꾸지 않습니다. */
+	/**
+	 * 영수증을 차감하고 실패 지점에서 Retry와 같은 길이의 카운트다운 뒤 런을 재개합니다. 차감·저장에 실패하면 false를 반환하고 상태를 바꾸지 않습니다.
+	 * bFreeByAd가 true면 보상형 광고를 끝까지 본 뒤라 영수증을 차감하지 않습니다(잔액이 모자라도 재개).
+	 */
 	UFUNCTION(BlueprintCallable, Category = "ProjectG | Run")
-	bool RequestContinueRun();
+	bool RequestContinueRun(bool bFreeByAd = false);
+
+	/** 마지막 이어하기에 실제로 낸 영수증 수입니다. 광고로 재개했으면 0입니다(지표용). */
+	int32 GetLastContinuePaidReceipts() const { return LastContinuePaidReceipts; }
+
+	/** Failed 상태에서 이번 런 영수증을 광고로 2배 받을 수 있는지 반환합니다. 런마다 한 번, 런 영수증이 1장 이상일 때만 true입니다. */
+	UFUNCTION(BlueprintPure, Category = "ProjectG | Run")
+	bool CanDoubleRunReceipts() const;
+
+	/** 보상형 광고를 끝까지 본 뒤 부릅니다. 이번 런 영수증만큼 지갑에 한 번 더 넣고 저장되면 true입니다. 이어하기 뒤에도 같은 런이라 다시 받을 수 없습니다. */
+	UFUNCTION(BlueprintCallable, Category = "ProjectG | Run")
+	bool RequestDoubleRunReceipts();
 
 	/** 레벨 URL이 정한 진입 방식입니다. Home이 아니면 Home 화면 없이 카운트다운으로 들어갑니다. */
 	EPGRunStartFlow GetStartFlow() const { return StartFlow; }
@@ -163,6 +177,9 @@ private:
 	// 이번 런에서 이어하기를 쓴 횟수와, 실패 시 이미 지갑에 정산한 런 영수증. 재개 뒤 정산은 그 차액만 더한다.
 	int32 ContinueCount = 0;
 	int32 SettledRunReceipts = 0;
+	int32 LastContinuePaidReceipts = 0;
+	// 이번 런 영수증 2배 보상을 이미 받았는지. 런 시작 때 풀린다.
+	bool bRunReceiptsDoubled = false;
 	// 진행 중인 카운트다운이 이어하기용이면 끝날 때 OnRunStarted 대신 OnRunResumed를 보낸다.
 	bool bIsContinueCountdown = false;
 };

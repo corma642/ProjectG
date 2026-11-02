@@ -235,9 +235,10 @@ def qa_screens(label_suffix=''):
             continue
         label = name + label_suffix
         if name == 'RunResult':
-            # 자릿수가 많은 값으로 줄바꿈·잘림이 없는지 본다. 이어하기는 제안·구매 가능 상태(버튼 셋 다 켜짐)로 그린다.
+            # 자릿수가 많은 값으로 줄바꿈·잘림이 없는지 본다. 이어하기는 제안·구매 가능, 광고는 쓸 수 있고 로드된 상태(버튼 다섯 다 켜짐)로 그린다.
             screen.configure_run_result('Fall', 83.0, 1234.0, 125680, 12, 7)
             screen.configure_continue_option(True, True, 20)
+            screen.configure_ad_options(True, True, True)
         if name == 'ShopScreen':
             # 선택 이름은 런타임 데이터(캐릭터·맵 이름)라 가장 긴 이름으로 명판 안에 들어가는지 본다. 긴 이름은 ScaleBox(DownOnly)가 줄인다.
             children_of(screen)['SelectedItemNameText'].set_text(unreal.Text('Sunshine Coast\u00a0Road' if CULTURE == 'en' else '브리즈 시티로드'))
@@ -257,23 +258,35 @@ def qa_screens(label_suffix=''):
 
 qa_screens()
 
-# 결과 화면의 이어하기 잠김(잔액 부족: 버튼이 흐려지고 입력을 안 받음)과 접힘(제안 없음: 다시 도전·홈만 남음) 상태.
-for label, offered, affordable in (('RunResult_NoReceipts', True, False), ('RunResult_NoContinue', False, False)):
+# 결과 화면의 이어하기 잠김(잔액 부족: 영수증 티켓만 흐려짐)·접힘(제안 없음: 문구와 두 티켓이 함께 사라짐)과
+# 광고 배치 상태(광고 미로드: 광고 티켓·2배 버튼이 흐려지고 입력을 안 받음, 광고 불가: 둘 다 접힘).
+for label, offered, affordable, ads, ad_ready, double in (
+        ('RunResult_NoReceipts', True, False, True, True, True),
+        ('RunResult_NoContinue', False, False, True, True, True),
+        ('RunResult_AdNotReady', True, True, True, False, True),
+        ('RunResult_NoAds', True, True, False, False, False)):
     screen = create_widget('RunResult/WBP_RunResult')
-    if screen:
-        screen.configure_run_result('CargoLost', 83.0, 1234.0, 125680, 12, 7)
-        screen.configure_continue_option(offered, affordable, 20)
-        render(screen, label, [screen], SETTLE_SECONDS)
-        widgets = children_of(screen)
-        hits = hit_counts(screen, entries=[screen], advance=SETTLE_SECONDS)
-        continue_hits = sum(hits[name] for name in descendants(widgets['ContinueButton']))
-        check(continue_hits == 0, f'{label}: ContinueButton does not take touches ({continue_hits} samples)')
-        if offered:
-            check_buttons_reachable(screen, label, [screen], SETTLE_SECONDS, ('ContinueButton',))
-        else:
-            # 접힌 버튼은 자리 자체가 없어 가림 검사에서 제외하고, 남은 두 버튼만 터치를 받는지 본다.
-            check(widgets['ContinueButtonPanel'].get_visibility() == HIDDEN, f'{label}: ContinueButtonPanel is collapsed')
-            for name in ('RetryButton', 'HomeButton'):
+    if not screen:
+        continue
+    screen.configure_run_result('CargoLost', 83.0, 1234.0, 125680, 12, 7)
+    screen.configure_continue_option(offered, affordable, 20)
+    screen.configure_ad_options(ads, ad_ready, double)
+    render(screen, label, [screen], SETTLE_SECONDS)
+    widgets = children_of(screen)
+    hits = hit_counts(screen, entries=[screen], advance=SETTLE_SECONDS)
+    usable = {'ContinueButton': offered and affordable, 'AdContinueButton': offered and ads and ad_ready, 'DoubleReceiptsButton': ads and ad_ready and double}
+    shown = {'ContinueGroupPanel': offered, 'AdContinueButtonPanel': ads, 'DoubleReceiptsButtonPanel': ads and double}
+    for name in [name for name, visible in shown.items() if not visible]:
+        check(widgets[name].get_visibility() == HIDDEN, f'{label}: {name} is collapsed')
+    for name in [name for name, enabled in usable.items() if not enabled]:
+        samples = sum(hits[hit] for hit in descendants(widgets[name]))
+        check(samples == 0, f'{label}: {name} does not take touches ({samples} samples)')
+    if all(shown.values()):
+        check_buttons_reachable(screen, label, [screen], SETTLE_SECONDS, tuple(name for name, enabled in usable.items() if not enabled))
+    else:
+        # 접힌 버튼은 자리 자체가 없어 가림 검사에서 제외하고, 보이는 버튼이 터치를 받는지만 본다.
+        for name in ('ContinueButton', 'AdContinueButton', 'DoubleReceiptsButton', 'RetryButton', 'HomeButton'):
+            if usable.get(name, True):
                 samples = sum(hits[hit] for hit in descendants(widgets[name]))
                 check(samples >= MIN_BUTTON_SAMPLES, f'{label}: button {name} receives touches ({samples} samples, need {MIN_BUTTON_SAMPLES})')
 

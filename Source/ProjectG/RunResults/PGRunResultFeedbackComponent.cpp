@@ -2,6 +2,7 @@
 
 #include "RunResults/PGRunResultFeedbackComponent.h"
 
+#include "Ads/PGAdsSubsystem.h"
 #include "Blueprint/UserWidget.h"
 #include "Camera/CameraShakeBase.h"
 #include "Camera/PlayerCameraManager.h"
@@ -126,10 +127,13 @@ void UPGRunResultFeedbackComponent::ShowResultWidget(FName FailureReason)
 		return;
 	}
 
-	// 이어하기를 살 수 있으면 러너와 바구니를 그대로 두고 쏟아진 적재물만 정리한다. 재개하면 이 자리에서 다시 달린다.
+	// 이어하기를 살 수 있거나 광고로 이어할 수 있으면 러너와 바구니를 그대로 두고 쏟아진 적재물만 정리한다. 재개하면 이 자리에서 다시 달린다.
 	// 아니면 슬로모션 동안 보여 준 러너와 바구니를 결과 화면과 함께 치우고, 사라지는 VFX를 이 순간 러너 위치에 재생한다.
 	APGRunnerCharacter* RunnerCharacter = GetRunnerCharacter();
-	const bool bCanContinue = BoundGameMode && BoundGameMode->CanContinueRun();
+	const UGameInstance* GameInstance = PlayerController->GetGameInstance();
+	const UPGAdsSubsystem* Ads = GameInstance ? GameInstance->GetSubsystem<UPGAdsSubsystem>() : nullptr;
+	const bool bAdsAvailable = Ads && Ads->IsAdsAvailable();
+	const bool bCanContinue = BoundGameMode && (BoundGameMode->CanContinueRun() || (bAdsAvailable && BoundGameMode->IsContinueOffered()));
 	if (bCanContinue && RunnerCharacter && RunnerCharacter->GetCargoStackComponent())
 	{
 		RunnerCharacter->GetCargoStackComponent()->FreezeCargoForContinue();
@@ -165,7 +169,8 @@ void UPGRunResultFeedbackComponent::ShowResultWidget(FName FailureReason)
 	ResultWidget = RunResultWidget;
 	RunResultWidget->AddToViewport(100);
 	RunResultWidget->ConfigureRunResult(FailureReason, RunTimeSeconds, DistanceMeters, Score, Receipts, OrdersDelivered);
-	RunResultWidget->ConfigureContinueOption(BoundGameMode && BoundGameMode->IsContinueOffered(), bCanContinue, BoundGameMode ? BoundGameMode->GetContinueReceiptCost() : 0);
+	RunResultWidget->ConfigureContinueOption(BoundGameMode && BoundGameMode->IsContinueOffered(), BoundGameMode && BoundGameMode->CanContinueRun(), BoundGameMode ? BoundGameMode->GetContinueReceiptCost() : 0);
+	RunResultWidget->ConfigureAdOptions(bAdsAvailable, Ads && Ads->IsRewardedAdReady(), BoundGameMode && BoundGameMode->CanDoubleRunReceipts());
 	PlayerController->SetInputMode(FInputModeUIOnly());
 	PlayerController->SetShowMouseCursor(true);
 }
